@@ -9,6 +9,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
     mod.addObjectFile(b.path(getTemporalRsPath(target)));
+    mod.link_libc = true;
 
     const exe = b.addExecutable(.{
         .name = "temporalz",
@@ -21,6 +22,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+    exe.linkLibC();
     b.installArtifact(exe);
 
     // Run command
