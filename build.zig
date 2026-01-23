@@ -15,6 +15,8 @@ pub fn build(b: *std.Build) void {
         mod.linkSystemLibrary("ws2_32", .{});
         mod.linkSystemLibrary("bcrypt", .{});
         mod.linkSystemLibrary("advapi32", .{});
+        mod.linkSystemLibrary("userenv", .{});
+        mod.linkSystemLibrary("msvcrt", .{});
     }
     const exe = b.addExecutable(.{
         .name = "temporalz",
@@ -118,6 +120,8 @@ pub fn build(b: *std.Build) void {
                 release_mod.linkSystemLibrary("ws2_32", .{});
                 release_mod.linkSystemLibrary("bcrypt", .{});
                 release_mod.linkSystemLibrary("advapi32", .{});
+                release_mod.linkSystemLibrary("userenv", .{});
+                release_mod.linkSystemLibrary("msvcrt", .{});
             }
 
             const release_exe = b.addExecutable(.{
@@ -131,6 +135,14 @@ pub fn build(b: *std.Build) void {
                     },
                 }),
             });
+            release_exe.linkLibC();
+            if (resolved_target.result.os.tag == .windows) {
+                release_exe.linkSystemLibrary("ws2_32");
+                release_exe.linkSystemLibrary("bcrypt");
+                release_exe.linkSystemLibrary("advapi32");
+                release_exe.linkSystemLibrary("userenv");
+                release_exe.linkSystemLibrary("msvcrt");
+            }
 
             const exe_ext = if (resolved_target.result.os.tag == .windows) ".exe" else "";
             const install_release = b.addInstallArtifact(release_exe, .{
