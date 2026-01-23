@@ -100,6 +100,11 @@ test "Temporal.Instant" {
         // Properties
         "epochMilliseconds",
         "epochNanoseconds",
+
+        // Public types
+        "ToStringOptions",
+        "Unit",
+        "RoundingMode",
     };
 
     try assertDecls(Instant, checks);

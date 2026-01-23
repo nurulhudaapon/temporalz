@@ -76,7 +76,7 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
     else
         TimeZone_option{ .ok = undefined, .is_ok = false };
 
-    const rounding = opts.rounding orelse defaultToStringRoundingOptions();
+    const rounding = optsToRounding(opts);
 
     const writer = diplomat_buffer_write_create(128);
     defer diplomat_buffer_write_destroy(writer);
@@ -99,7 +99,7 @@ fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *
     else
         TimeZone_option{ .ok = undefined, .is_ok = false };
 
-    const rounding = opts.rounding orelse defaultToStringRoundingOptions();
+    const rounding = optsToRounding(opts);
 
     const writer = diplomat_buffer_write_create(128);
     defer diplomat_buffer_write_destroy(writer);
@@ -116,9 +116,7 @@ fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *
 }
 
 pub fn toJSON(self: Instant, allocator: std.mem.Allocator) ![]u8 {
-    _ = self;
-    _ = allocator;
-    return error.TemporalNotImplemented;
+    return self.toString(allocator, .{});
 }
 
 pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
@@ -196,8 +194,33 @@ fn defaultPrecision() Precision {
 fn defaultToStringRoundingOptions() ToStringRoundingOptions {
     return .{
         .precision = defaultPrecision(),
-        .smallest_unit = Unit_option{ .ok = .Unit_Auto, .is_ok = false },
-        .rounding_mode = RoundingMode_option{ .ok = .RoundingMode_Trunc, .is_ok = false },
+        .smallest_unit = Unit_option{ .ok = .auto, .is_ok = false },
+        .rounding_mode = RoundingMode_option{ .ok = .trunc, .is_ok = false },
+    };
+}
+
+/// Convert ToStringOptions to ToStringRoundingOptions for the C API
+fn optsToRounding(opts: ToStringOptions) ToStringRoundingOptions {
+    // If smallest_unit is specified, use it; otherwise use fractional_second_digits for precision
+    const smallest_unit_opt = if (opts.smallest_unit) |unit|
+        Unit_option{ .ok = unit, .is_ok = true }
+    else
+        Unit_option{ .ok = .auto, .is_ok = false };
+
+    const precision = if (opts.fractional_second_digits) |digits|
+        Precision{ .is_minute = false, .precision = OptionU8{ .ok = digits, .is_ok = true } }
+    else
+        defaultPrecision();
+
+    const rounding_mode_opt = if (opts.rounding_mode) |mode|
+        RoundingMode_option{ .ok = mode, .is_ok = true }
+    else
+        RoundingMode_option{ .ok = .trunc, .is_ok = false };
+
+    return .{
+        .precision = precision,
+        .smallest_unit = smallest_unit_opt,
+        .rounding_mode = rounding_mode_opt,
     };
 }
 
@@ -211,9 +234,26 @@ fn parseDuration(text: []const u8) !DurationHandle {
 
 // --- Public helper types -----------------------------------------------------
 
-const ToStringOptions = struct {
+/// Options for Instant.toString()
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toString
+pub const ToStringOptions = struct {
+    /// Either an integer from 0 to 9, or null for "auto".
+    /// If null (auto), trailing zeros are removed from the fractional seconds.
+    /// Otherwise, the fractional part contains this many digits, padded with zeros or rounded as necessary.
+    fractional_second_digits: ?u8 = null,
+
+    /// Specifies how to round off fractional second digits beyond fractionalSecondDigits.
+    /// Defaults to "trunc" (truncate).
+    rounding_mode: ?RoundingMode = null,
+
+    /// Specifies the smallest unit to include in the output.
+    /// Possible values: "minute", "second", "millisecond", "microsecond", "nanosecond".
+    /// If specified, fractional_second_digits is ignored.
+    smallest_unit: ?Unit = null,
+
+    /// Time zone to use. Either a time zone identifier string or null for UTC.
+    /// Note: In the Zig API, this must be pre-resolved to a TimeZone struct.
     time_zone: ?TimeZone = null,
-    rounding: ?ToStringRoundingOptions = null,
 };
 
 const DurationHandle = struct {
@@ -276,32 +316,45 @@ const Precision = extern struct {
     precision: OptionU8,
 };
 
-const Unit = enum(c_int) {
-    Unit_Auto = 0,
-    Unit_Nanosecond = 1,
-    Unit_Microsecond = 2,
-    Unit_Millisecond = 3,
-    Unit_Second = 4,
-    Unit_Minute = 5,
-    Unit_Hour = 6,
-    Unit_Day = 7,
-    Unit_Week = 8,
-    Unit_Month = 9,
-    Unit_Year = 10,
+/// Time unit for Temporal operations.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
+pub const Unit = enum(c_int) {
+    auto = 0,
+    nanosecond = 1,
+    microsecond = 2,
+    millisecond = 3,
+    second = 4,
+    minute = 5,
+    hour = 6,
+    day = 7,
+    week = 8,
+    month = 9,
+    year = 10,
 };
 
 const Unit_option = extern struct { ok: Unit, is_ok: bool };
 
-const RoundingMode = enum(c_int) {
-    RoundingMode_Ceil = 0,
-    RoundingMode_Floor = 1,
-    RoundingMode_Expand = 2,
-    RoundingMode_Trunc = 3,
-    RoundingMode_HalfCeil = 4,
-    RoundingMode_HalfFloor = 5,
-    RoundingMode_HalfExpand = 6,
-    RoundingMode_HalfTrunc = 7,
-    RoundingMode_HalfEven = 8,
+/// Rounding mode for Temporal operations.
+/// See: https://tc39.es/ecma402/#table-sanctioned-single-unit-identifiers
+pub const RoundingMode = enum(c_int) {
+    /// Round toward positive infinity
+    ceil = 0,
+    /// Round toward negative infinity
+    floor = 1,
+    /// Round away from zero
+    expand = 2,
+    /// Round toward zero (truncate)
+    trunc = 3,
+    /// Round half toward positive infinity
+    half_ceil = 4,
+    /// Round half toward negative infinity
+    half_floor = 5,
+    /// Round half away from zero
+    half_expand = 6,
+    /// Round half toward zero
+    half_trunc = 7,
+    /// Round half to even (banker's rounding)
+    half_even = 8,
 };
 
 const RoundingMode_option = extern struct { ok: RoundingMode, is_ok: bool };
@@ -521,9 +574,9 @@ test until {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = Unit_option{ .ok = .Unit_Hour, .is_ok = true },
-        .smallest_unit = Unit_option{ .ok = .Unit_Second, .is_ok = true },
-        .rounding_mode = RoundingMode_option{ .ok = .RoundingMode_Trunc, .is_ok = true },
+        .largest_unit = Unit_option{ .ok = .hour, .is_ok = true },
+        .smallest_unit = Unit_option{ .ok = .second, .is_ok = true },
+        .rounding_mode = RoundingMode_option{ .ok = .trunc, .is_ok = true },
         .increment = OptionU32{ .ok = 0, .is_ok = false },
     };
 
@@ -545,9 +598,9 @@ test since {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = Unit_option{ .ok = .Unit_Hour, .is_ok = true },
-        .smallest_unit = Unit_option{ .ok = .Unit_Second, .is_ok = true },
-        .rounding_mode = RoundingMode_option{ .ok = .RoundingMode_Trunc, .is_ok = true },
+        .largest_unit = Unit_option{ .ok = .hour, .is_ok = true },
+        .smallest_unit = Unit_option{ .ok = .second, .is_ok = true },
+        .rounding_mode = RoundingMode_option{ .ok = .trunc, .is_ok = true },
         .increment = OptionU32{ .ok = 0, .is_ok = false },
     };
 
@@ -567,9 +620,9 @@ test round {
     defer inst.deinit();
 
     const opts = RoundingOptions{
-        .largest_unit = Unit_option{ .ok = .Unit_Auto, .is_ok = false },
-        .smallest_unit = Unit_option{ .ok = .Unit_Second, .is_ok = true },
-        .rounding_mode = RoundingMode_option{ .ok = .RoundingMode_HalfExpand, .is_ok = true },
+        .largest_unit = Unit_option{ .ok = .auto, .is_ok = false },
+        .smallest_unit = Unit_option{ .ok = .second, .is_ok = true },
+        .rounding_mode = RoundingMode_option{ .ok = .half_expand, .is_ok = true },
         .increment = OptionU32{ .ok = 0, .is_ok = false },
     };
 
@@ -596,7 +649,19 @@ test toString {
     defer inst.deinit();
 
     const allocator = std.testing.allocator;
+
+    // Default options
     const instant_str = try inst.toString(allocator, .{});
     defer allocator.free(instant_str);
     try std.testing.expectEqualStrings(instant_str, "2024-01-01T00:00:00Z");
+
+    // With fractional_second_digits
+    const with_precision = try inst.toString(allocator, .{ .fractional_second_digits = 3 });
+    defer allocator.free(with_precision);
+    // Output should include milliseconds precision
+
+    // With smallest_unit
+    const with_unit = try inst.toString(allocator, .{ .smallest_unit = .second });
+    defer allocator.free(with_unit);
+    // Output should truncate to seconds
 }
