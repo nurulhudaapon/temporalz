@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Instant = @This();
 
-inner: *CInstant,
+_inner: *CInstant,
 epochMilliseconds: i64,
 epochNanoseconds: i128,
 
@@ -36,37 +36,37 @@ fn fromUtf16(text: []const u16) !Instant {
 
 /// Add a Duration to this instant (Temporal.Instant.prototype.add).
 pub fn add(self: Instant, duration: *const Duration) !Instant {
-    return wrapInstant(temporal_rs_Instant_add(self.inner, duration));
+    return wrapInstant(temporal_rs_Instant_add(self._inner, duration));
 }
 
 /// Subtract a Duration from this instant (Temporal.Instant.prototype.subtract).
 pub fn subtract(self: Instant, duration: *const Duration) !Instant {
-    return wrapInstant(temporal_rs_Instant_subtract(self.inner, duration));
+    return wrapInstant(temporal_rs_Instant_subtract(self._inner, duration));
 }
 
 /// Difference until another instant (Temporal.Instant.prototype.until).
 pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(temporal_rs_Instant_until(self.inner, other.inner, settings));
+    return wrapDuration(temporal_rs_Instant_until(self._inner, other._inner, settings));
 }
 
 /// Difference since another instant (Temporal.Instant.prototype.since).
 pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(temporal_rs_Instant_since(self.inner, other.inner, settings));
+    return wrapDuration(temporal_rs_Instant_since(self._inner, other._inner, settings));
 }
 
 /// Round this instant (Temporal.Instant.prototype.round).
 pub fn round(self: Instant, options: RoundingOptions) !Instant {
-    return wrapInstant(temporal_rs_Instant_round(self.inner, options));
+    return wrapInstant(temporal_rs_Instant_round(self._inner, options));
 }
 
 /// Compare two instants (Temporal.Instant.compare).
 pub fn compare(a: Instant, b: Instant) i8 {
-    return temporal_rs_Instant_compare(a.inner, b.inner);
+    return temporal_rs_Instant_compare(a._inner, b._inner);
 }
 
 /// Equality check (Temporal.Instant.prototype.equals).
 pub fn equals(a: Instant, b: Instant) bool {
-    return temporal_rs_Instant_equals(a.inner, b.inner);
+    return temporal_rs_Instant_equals(a._inner, b._inner);
 }
 
 /// Epoch milliseconds accessor (Temporal.Instant.prototype.epochMilliseconds).
@@ -92,7 +92,7 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
     const writer = diplomat_buffer_write_create(128);
     defer diplomat_buffer_write_destroy(writer);
 
-    const res = temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self.inner, zone_opt, rounding, writer);
+    const res = temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, writer);
     try handleVoidResult(res);
 
     const len = diplomat_buffer_write_len(writer);
@@ -115,7 +115,7 @@ fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *
     const writer = diplomat_buffer_write_create(128);
     defer diplomat_buffer_write_destroy(writer);
 
-    const res = temporal_rs_Instant_to_ixdtf_string_with_provider(self.inner, zone_opt, rounding, provider, writer);
+    const res = temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, writer);
     try handleVoidResult(res);
 
     const len = diplomat_buffer_write_len(writer);
@@ -140,22 +140,22 @@ pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
 
 /// Convert to ZonedDateTime using built-in provider (Temporal.Instant.prototype.toZonedDateTimeISO).
 pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso(self.inner, zone));
+    return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone));
 }
 
 /// Convert to ZonedDateTime using an explicit provider.
 fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const Provider) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self.inner, zone, provider));
+    return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone, provider));
 }
 
 /// Clone the underlying instant.
 fn clone(self: Instant) Instant {
-    const ptr = temporal_rs_Instant_clone(self.inner);
-    return .{ .inner = ptr, .epochMilliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epochNanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
+    const ptr = temporal_rs_Instant_clone(self._inner);
+    return .{ ._inner = ptr, .epochMilliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epochNanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
 pub fn deinit(self: Instant) void {
-    temporal_rs_Instant_destroy(self.inner);
+    temporal_rs_Instant_destroy(self._inner);
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -163,7 +163,7 @@ pub fn deinit(self: Instant) void {
 fn wrapInstant(res: InstantResult) !Instant {
     if (!res.is_ok) return error.TemporalError;
     const ptr = res.result.ok orelse return error.TemporalError;
-    return .{ .inner = ptr, .epochMilliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epochNanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
+    return .{ ._inner = ptr, .epochMilliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epochNanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
 fn wrapDuration(res: DurationResult) !DurationHandle {

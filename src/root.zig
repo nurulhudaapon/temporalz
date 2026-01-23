@@ -93,13 +93,13 @@ test "Temporal.Instant" {
         "toJSON",
         "toLocaleString",
         "toString",
-        "toZonedDateTimeISO", // Temporal.Instant.toZonedDateTimeISO
+        "toZonedDateTimeISO",
         "until",
         "valueOf",
 
         // Properties
-        // "epochMilliseconds",
-        // "epochNanoseconds",
+        "epochMilliseconds",
+        "epochNanoseconds",
     };
 
     try assertDecls(Instant, checks);
@@ -403,22 +403,38 @@ fn assertDecls(comptime T: type, checks: anytype) !void {
     const std = @import("std");
     const typeInfo = @typeInfo(T);
 
-    // Check: all items in checks exist
+    // Check: all items in checks exist (either as decls or as fields)
     inline for (checks) |check| {
         const should_ignore =
             std.mem.eql(u8, check, "deinit") or
             std.mem.eql(u8, check, "valueOf");
 
-        const has = @hasDecl(T, check);
         if (!should_ignore) {
-            if (!has) std.log.err("Missing {s} decl: {s}", .{ @typeName(T), check });
+            const hasDecl = @hasDecl(T, check);
+
+            // Also check if it's a field (property)
+            var hasField = false;
+            if (typeInfo == .@"struct") {
+                const struct_info = typeInfo.@"struct";
+                inline for (struct_info.fields) |field| {
+                    if (std.mem.eql(u8, field.name, check)) {
+                        hasField = true;
+                        break;
+                    }
+                }
+            }
+
+            const has = hasDecl or hasField;
+            if (!has) std.log.err("Missing {s} decl or field: {s}", .{ @typeName(T), check });
             try std.testing.expect(has);
         }
     }
 
-    // Check: no extraneous declarations beyond checks
+    // Check: no extraneous declarations or fields beyond checks
     if (typeInfo == .@"struct") {
         const struct_info = typeInfo.@"struct";
+
+        // Check declarations
         inline for (struct_info.decls) |decl| {
             // Allow deinit as extraneous
             if (comptime std.mem.eql(u8, decl.name, "deinit")) continue;
@@ -433,6 +449,25 @@ fn assertDecls(comptime T: type, checks: anytype) !void {
 
             if (!found) {
                 std.log.err("Extraneous {s} decl: {s}", .{ @typeName(T), decl.name });
+                try std.testing.expect(false);
+            }
+        }
+
+        // Check fields (properties)
+        inline for (struct_info.fields) |field| {
+            // Allow internal fields (starting with underscore)
+            if (comptime std.mem.startsWith(u8, field.name, "_")) continue;
+            
+            var found = false;
+            inline for (checks) |check| {
+                if (std.mem.eql(u8, field.name, check)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                std.log.err("Extraneous {s} field: {s}", .{ @typeName(T), field.name });
                 try std.testing.expect(false);
             }
         }
