@@ -1,27 +1,15 @@
 const std = @import("std");
-const temporalz = @import("temporalz");
+const Temporal = @import("temporalz");
 
 pub fn main() !void {
-    // Prints to stderr, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-    try temporalz.bufferedPrint();
-}
+    const result = try Temporal.Instant.init(1704067200000); // 2024-01-01 00:00:00 UTC
+    defer result.deinit();
 
-test "simple test" {
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
+    std.debug.print("Instant with Epoch: {}ms\n", .{result.epoch});
 
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
+    const cloned = result.clone();
+    std.debug.print("Is Instant Equal: {}\n", .{cloned.equals(result)});
+
+    const instant_str = try cloned.toString(std.heap.page_allocator, .{});
+    std.debug.print("Cloned Instant String: {s}\n", .{instant_str});
 }

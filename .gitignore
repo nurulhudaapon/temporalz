@@ -1,2 +1,11 @@
 zig-out
 .zig-cache
+
+# Ignore Rust build target directory
+vendor/temporal/target
+
+# But track the specific compiled libraries
+!vendor/temporal/target/**/libtemporal.a
+!vendor/temporal/target/**/temporal.lib
+
+tmp

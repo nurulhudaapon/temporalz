@@ -1,23 +1,31 @@
-//! By convention, root.zig is the root source file when making a library.
 const std = @import("std");
+pub const Instant = @import("Instant.zig");
 
-pub fn bufferedPrint() !void {
-    // Stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+test "Instant.methods" {
+    const instant = @import("Instant.zig");
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    const checks = .{
+        .{ .name = "add", .expect = true },
+        .{ .name = "equals", .expect = true },
+        .{ .name = "round", .expect = true },
+        .{ .name = "since", .expect = true },
+        .{ .name = "subtract", .expect = true },
+        .{ .name = "toString", .expect = true },
+        .{ .name = "toZonedDateTimeIso", .expect = true },
+        .{ .name = "until", .expect = true },
 
-    try stdout.flush(); // Don't forget to flush!
-}
+        // Not yet implemented aliases from the Temporal JS API.
+        .{ .name = "toJSON", .expect = false },
+        .{ .name = "toLocaleString", .expect = false },
+        .{ .name = "valueOf", .expect = false },
+        .{ .name = "toZonedDateTimeISO", .expect = false }, // different casing
+    };
 
-pub fn add(a: i32, b: i32) i32 {
-    return a + b;
-}
-
-test "basic add functionality" {
-    try std.testing.expect(add(3, 7) == 10);
+    inline for (checks) |check| {
+        const has = @hasDecl(instant, check.name);
+        if (check.expect)
+            try std.testing.expect(has)
+        else
+            try std.testing.expect(!has);
+    }
 }
