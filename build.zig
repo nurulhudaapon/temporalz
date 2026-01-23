@@ -11,7 +11,11 @@ pub fn build(b: *std.Build) void {
     mod.addObjectFile(b.path(getTemporalRsPath(target)));
     mod.link_libc = true;
     if (target.result.os.tag == .linux) mod.linkSystemLibrary("unwind", .{});
-
+    if (target.result.os.tag == .windows) {
+        mod.linkSystemLibrary("ws2_32", .{});
+        mod.linkSystemLibrary("bcrypt", .{});
+        mod.linkSystemLibrary("advapi32", .{});
+    }
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
@@ -46,6 +50,11 @@ pub fn build(b: *std.Build) void {
         });
         mod_tests.linkLibC();
         if (target.result.os.tag == .linux) mod_tests.linkSystemLibrary("unwind");
+        if (target.result.os.tag == .windows) {
+            mod_tests.linkSystemLibrary("ws2_32");
+            mod_tests.linkSystemLibrary("bcrypt");
+            mod_tests.linkSystemLibrary("advapi32");
+        }
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
@@ -89,8 +98,8 @@ pub fn build(b: *std.Build) void {
             .{ .name = "linux-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .linux } },
             .{ .name = "macos-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .macos } },
             .{ .name = "macos-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .macos } },
-            .{ .name = "windows-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .windows } },
-            .{ .name = "windows-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .windows } },
+            .{ .name = "windows-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .windows, .abi = .msvc } },
+            .{ .name = "windows-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .windows, .abi = .msvc } },
         };
 
         const release_step = b.step("release", "Build release binaries for all targets");
@@ -105,6 +114,11 @@ pub fn build(b: *std.Build) void {
             release_mod.addObjectFile(b.path(getTemporalRsPath(resolved_target)));
             release_mod.link_libc = true;
             if (resolved_target.result.os.tag == .linux) release_mod.linkSystemLibrary("unwind", .{});
+            if (resolved_target.result.os.tag == .windows) {
+                release_mod.linkSystemLibrary("ws2_32", .{});
+                release_mod.linkSystemLibrary("bcrypt", .{});
+                release_mod.linkSystemLibrary("advapi32", .{});
+            }
 
             const release_exe = b.addExecutable(.{
                 .name = "temporalz",
