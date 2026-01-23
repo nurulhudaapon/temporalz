@@ -417,7 +417,10 @@ fn assertDecls(comptime T: type, checks: anytype) !void {
             if (typeInfo == .@"struct") {
                 const struct_info = typeInfo.@"struct";
                 inline for (struct_info.fields) |field| {
-                    if (std.mem.eql(u8, field.name, check)) {
+                    // Check both camelCase and snake_case
+                    if (std.mem.eql(u8, field.name, check) or
+                        std.mem.eql(u8, field.name, camelToSnakeCase(check)))
+                    {
                         hasField = true;
                         break;
                     }
@@ -457,10 +460,10 @@ fn assertDecls(comptime T: type, checks: anytype) !void {
         inline for (struct_info.fields) |field| {
             // Allow internal fields (starting with underscore)
             if (comptime std.mem.startsWith(u8, field.name, "_")) continue;
-            
+
             var found = false;
             inline for (checks) |check| {
-                if (std.mem.eql(u8, field.name, check)) {
+                if (std.mem.eql(u8, field.name, camelToSnakeCase(check))) {
                     found = true;
                     break;
                 }
@@ -472,4 +475,38 @@ fn assertDecls(comptime T: type, checks: anytype) !void {
             }
         }
     }
+}
+
+fn camelToSnakeCase(comptime input: []const u8) []const u8 {
+    comptime var len: usize = undefined;
+    comptime {
+        var llen: usize = input.len;
+        for (input, 0..) |c, i| {
+            if (c >= 'A' and c <= 'Z' and i != 0) {
+                llen += 1;
+            }
+        }
+        len = llen;
+    }
+
+    comptime var result: [len]u8 = undefined;
+    comptime var write_index: usize = 0;
+
+    comptime {
+        for (input, 0..) |c, i| {
+            if (c >= 'A' and c <= 'Z') {
+                if (i != 0) {
+                    result[write_index] = '_';
+                    write_index += 1;
+                }
+                result[write_index] = c + 32; // Convert to lowercase
+            } else {
+                result[write_index] = c;
+            }
+            write_index += 1;
+        }
+    }
+
+    const final = result;
+    return &final;
 }
