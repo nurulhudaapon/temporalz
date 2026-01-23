@@ -98,8 +98,8 @@ test "Temporal.Instant" {
         "valueOf",
 
         // Properties
-        "epochMilliseconds",
-        "epochNanoseconds",
+        // "epochMilliseconds",
+        // "epochNanoseconds",
     };
 
     try assertDecls(Instant, checks);

@@ -1,5 +1,3 @@
-Add the following tests and mark them as Todo: 
-
 Temporal.Duration
 Temporal.Instant
 Temporal.Now

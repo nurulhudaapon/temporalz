@@ -33,10 +33,23 @@ pub fn build(b: *std.Build) void {
     // Run command
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    if (b.args) |args| run_cmd.addArgs(args);
     const run_step = b.step("run", "Run the app");
+
+    // Docs
+    {
+        const docs_step = b.step("docs", "Build the temporalz docs");
+        const docs_obj = b.addObject(.{
+            .name = "temporalz",
+            .root_module = mod,
+        });
+        const docs = docs_obj.getEmittedDocs();
+        docs_step.dependOn(&b.addInstallDirectory(.{
+            .source_dir = docs,
+            .install_dir = .prefix,
+            .install_subdir = "docs",
+        }).step);
+    }
 
     // Tests
     {

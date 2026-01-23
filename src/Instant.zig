@@ -3,11 +3,12 @@ const std = @import("std");
 const Instant = @This();
 
 inner: *CInstant,
-epoch: i64,
+epochMilliseconds: i64,
+epochNanoseconds: i128,
 
-/// Construct from epoch milliseconds (Temporal.Instant.fromEpochMilliseconds).
-pub fn init(epoch_ms: i64) !Instant {
-    return fromEpochMilliseconds(epoch_ms);
+/// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
+pub fn init(epoch_ns: i128) !Instant {
+    return fromEpochNanoseconds(epoch_ns);
 }
 
 /// Construct from epoch milliseconds.
@@ -69,15 +70,15 @@ pub fn equals(a: Instant, b: Instant) bool {
 }
 
 /// Epoch milliseconds accessor (Temporal.Instant.prototype.epochMilliseconds).
-pub fn epochMilliseconds(self: Instant) i64 {
-    return temporal_rs_Instant_epoch_milliseconds(self.inner);
-}
+// pub fn epochMilliseconds(self: Instant) i64 {
+//     return temporal_rs_Instant_epoch_milliseconds(self.inner);
+// }
 
 /// Epoch nanoseconds accessor (Temporal.Instant.prototype.epochNanoseconds).
-pub fn epochNanoseconds(self: Instant) i128 {
-    const value = temporal_rs_Instant_epoch_nanoseconds(self.inner);
-    return partsToI128(value);
-}
+// pub fn epochNanoseconds(self: Instant) i128 {
+//     const value = temporal_rs_Instant_epoch_nanoseconds(self.inner);
+//     return partsToI128(value);
+// }
 
 /// Convert to string using compiled TZ data; caller owns returned slice.
 pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
@@ -150,7 +151,7 @@ fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *cons
 /// Clone the underlying instant.
 fn clone(self: Instant) Instant {
     const ptr = temporal_rs_Instant_clone(self.inner);
-    return .{ .inner = ptr, .epoch = temporal_rs_Instant_epoch_milliseconds(ptr) };
+    return .{ .inner = ptr, .epochMilliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epochNanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
 pub fn deinit(self: Instant) void {
@@ -162,7 +163,7 @@ pub fn deinit(self: Instant) void {
 fn wrapInstant(res: InstantResult) !Instant {
     if (!res.is_ok) return error.TemporalError;
     const ptr = res.result.ok orelse return error.TemporalError;
-    return .{ .inner = ptr, .epoch = temporal_rs_Instant_epoch_milliseconds(ptr) };
+    return .{ .inner = ptr, .epochMilliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epochNanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
 fn wrapDuration(res: DurationResult) !DurationHandle {
@@ -437,11 +438,11 @@ extern "c" fn diplomat_buffer_write_destroy(write: *DiplomatWrite) void;
 // --- Tests -------------------------------------------------------------------
 
 test init {
-    const epoch_ms: i64 = 1_704_067_200_000; // 2024-01-01T00:00:00Z
-    const inst = try Instant.init(epoch_ms);
+    const epoch_ns: i128 = 1_704_067_200_000_000_000; // 2024-01-01T00:00:00Z
+    const inst = try Instant.init(epoch_ns);
     defer inst.deinit();
 
-    try std.testing.expectEqual(epoch_ms, inst.epochMilliseconds());
+    try std.testing.expectEqual(epoch_ns, inst.epochNanoseconds);
 }
 
 test fromEpochNanoseconds {
@@ -454,8 +455,8 @@ test fromEpochNanoseconds {
     const min_inst = try Instant.fromEpochNanoseconds(min_ns);
     defer min_inst.deinit();
 
-    try std.testing.expectEqual(max_ns, max_inst.epochNanoseconds());
-    try std.testing.expectEqual(min_ns, min_inst.epochNanoseconds());
+    try std.testing.expectEqual(max_ns, max_inst.epochNanoseconds);
+    try std.testing.expectEqual(min_ns, min_inst.epochNanoseconds);
 
     try std.testing.expectError(error.TemporalError, Instant.fromEpochNanoseconds(max_ns + 1));
     try std.testing.expectError(error.TemporalError, Instant.fromEpochNanoseconds(min_ns - 1));
@@ -465,7 +466,7 @@ test from {
     const inst = try Instant.from("2024-03-15T14:30:45.123Z");
     defer inst.deinit();
 
-    try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epochMilliseconds());
+    try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epochMilliseconds);
 }
 
 test fromUtf16 {
@@ -477,7 +478,7 @@ test fromUtf16 {
     const inst = try Instant.fromUtf16(utf16);
     defer inst.deinit();
 
-    try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epochMilliseconds());
+    try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epochMilliseconds);
 }
 
 test subtract {
@@ -489,11 +490,11 @@ test subtract {
 
     const added = try base.add(dur.ptr);
     defer added.deinit();
-    try std.testing.expectEqual(@as(i64, 5_400_000), added.epochMilliseconds());
+    try std.testing.expectEqual(@as(i64, 5_400_000), added.epochMilliseconds);
 
     const subbed = try added.subtract(dur.ptr);
     defer subbed.deinit();
-    try std.testing.expectEqual(@as(i64, 0), subbed.epochMilliseconds());
+    try std.testing.expectEqual(@as(i64, 0), subbed.epochMilliseconds);
 }
 
 test compare {
@@ -586,7 +587,7 @@ test round {
     const rounded = try inst.round(opts);
     defer rounded.deinit();
 
-    const ns = rounded.epochNanoseconds();
+    const ns = rounded.epochNanoseconds;
     try std.testing.expectEqual(@as(i128, 1_609_459_245_000_000_000), ns);
 }
 
@@ -597,12 +598,12 @@ test clone {
     const cloned = inst.clone();
     defer cloned.deinit();
 
-    try std.testing.expectEqual(inst.epochMilliseconds(), cloned.epochMilliseconds());
+    try std.testing.expectEqual(inst.epochMilliseconds, cloned.epochMilliseconds);
 }
 
 test toString {
-    const epoch_ms: i64 = 1704067200000; // 2024-01-01 00:00:00 UTC
-    const inst = try Instant.init(epoch_ms);
+    const epoch_ns: i128 = 1704067200000000000; // 2024-01-01 00:00:00 UTC
+    const inst = try Instant.init(epoch_ns);
     defer inst.deinit();
 
     const allocator = std.testing.allocator;
