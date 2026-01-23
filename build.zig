@@ -23,6 +23,10 @@ pub fn build(b: *std.Build) void {
         }),
     });
     exe.linkLibC();
+    // Link libunwind for Linux to resolve unwinding symbols
+    if (target.result.os.tag == .linux) {
+        exe.linkSystemLibrary("unwind");
+    }
     b.installArtifact(exe);
 
     // Run command
@@ -76,6 +80,64 @@ pub fn build(b: *std.Build) void {
             rust_prebuild_step.dependOn(&cargo_build.step);
         }
     }
+
+    // Release builds for all platforms
+    {
+        const release_targets = [_]struct {
+            name: []const u8,
+            target: std.Target.Query,
+        }{
+            .{ .name = "linux-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .linux } },
+            .{ .name = "linux-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .linux } },
+            .{ .name = "macos-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .macos } },
+            .{ .name = "macos-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .macos } },
+            .{ .name = "windows-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .windows } },
+            .{ .name = "windows-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .windows } },
+        };
+
+        const release_step = b.step("release", "Build release binaries for all targets");
+
+        for (release_targets) |release_target| {
+            const resolved_target = b.resolveTargetQuery(release_target.target);
+
+            const release_mod = b.addModule(b.fmt("temporalz-{s}", .{release_target.name}), .{
+                .root_source_file = b.path("src/root.zig"),
+                .target = resolved_target,
+            });
+            release_mod.addObjectFile(b.path(getTemporalRsPath(resolved_target)));
+            release_mod.link_libc = true;
+
+            const release_exe = b.addExecutable(.{
+                .name = "temporalz",
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path("src/main.zig"),
+                    .target = resolved_target,
+                    .optimize = .ReleaseSmall,
+                    .imports = &.{
+                        .{ .name = "temporalz", .module = release_mod },
+                    },
+                }),
+            });
+
+            release_exe.linkLibC();
+            // Link libunwind for Linux to resolve unwinding symbols
+            if (resolved_target.result.os.tag == .linux) {
+                release_exe.linkSystemLibrary("unwind");
+            }
+
+            const exe_ext = if (resolved_target.result.os.tag == .windows) ".exe" else "";
+            const install_release = b.addInstallArtifact(release_exe, .{
+                .dest_sub_path = b.fmt("release/temporalz-{s}{s}", .{ release_target.name, exe_ext }),
+            });
+
+            const target_step = b.step(
+                b.fmt("release-{s}", .{release_target.name}),
+                b.fmt("Build release binary for {s}", .{release_target.name}),
+            );
+            target_step.dependOn(&install_release.step);
+            release_step.dependOn(&install_release.step);
+        }
+    }
 }
 
 // Supported cross-compilation targets
@@ -103,8 +165,8 @@ fn getTemporalRsPath(target: std.Build.ResolvedTarget) []const u8 {
             else => @panic("unsupported Linux architecture"),
         },
         .windows => switch (arch_tag) {
-            .x86_64 => "vendor/temporal/target/x86_64-pc-windows-msvc/release/libtemporal.lib",
-            .aarch64 => "vendor/temporal/target/aarch64-pc-windows-msvc/release/libtemporal.lib",
+            .x86_64 => "vendor/temporal/target/x86_64-pc-windows-msvc/release/temporal.lib",
+            .aarch64 => "vendor/temporal/target/aarch64-pc-windows-msvc/release/temporal.lib",
             else => @panic("unsupported Windows architecture"),
         },
         else => @panic("unsupported OS"),
