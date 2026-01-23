@@ -22,7 +22,7 @@ pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
 }
 
 /// Parse an ISO 8601 string (Temporal.Instant.from).
-pub fn fromUtf8(text: []const u8) !Instant {
+pub fn from(text: []const u8) !Instant {
     const view = DiplomatStringView{ .data = text.ptr, .len = text.len };
     return wrapInstant(temporal_rs_Instant_from_utf8(view));
 }
@@ -125,8 +125,20 @@ pub fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provide
     return out;
 }
 
+pub fn toJSON(self: Instant, allocator: std.mem.Allocator) ![]u8 {
+    _ = self;
+    _ = allocator;
+    return error.TemporalNotImplemented;
+}
+
+pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
+    _ = self;
+    _ = allocator;
+    return error.TemporalNotImplemented;
+}
+
 /// Convert to ZonedDateTime using built-in provider (Temporal.Instant.prototype.toZonedDateTimeISO).
-pub fn toZonedDateTimeIso(self: Instant, zone: TimeZone) !ZonedDateTimeHandle {
+pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTimeHandle {
     return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso(self.inner, zone));
 }
 
@@ -450,7 +462,7 @@ test "instant epoch nanoseconds bounds" {
 }
 
 test "instant parse utf8" {
-    const inst = try Instant.fromUtf8("2024-03-15T14:30:45.123Z");
+    const inst = try Instant.from("2024-03-15T14:30:45.123Z");
     defer inst.deinit();
 
     try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epochMilliseconds());
