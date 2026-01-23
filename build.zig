@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
     });
     mod.addObjectFile(b.path(getTemporalRsPath(target)));
     mod.link_libc = true;
+    if (target.result.os.tag == .linux) mod.linkSystemLibrary("unwind", .{});
 
     const exe = b.addExecutable(.{
         .name = "temporalz",
@@ -22,11 +23,6 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    exe.linkLibC();
-    // Link libunwind for Linux to resolve unwinding symbols
-    if (target.result.os.tag == .linux) {
-        exe.linkSystemLibrary("unwind");
-    }
     b.installArtifact(exe);
 
     // Run command
@@ -48,6 +44,8 @@ pub fn build(b: *std.Build) void {
                 .mode = .simple,
             },
         });
+        mod_tests.linkLibC();
+        if (target.result.os.tag == .linux) mod_tests.linkSystemLibrary("unwind");
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
@@ -106,6 +104,7 @@ pub fn build(b: *std.Build) void {
             });
             release_mod.addObjectFile(b.path(getTemporalRsPath(resolved_target)));
             release_mod.link_libc = true;
+            if (resolved_target.result.os.tag == .linux) release_mod.linkSystemLibrary("unwind", .{});
 
             const release_exe = b.addExecutable(.{
                 .name = "temporalz",
@@ -118,12 +117,6 @@ pub fn build(b: *std.Build) void {
                     },
                 }),
             });
-
-            release_exe.linkLibC();
-            // Link libunwind for Linux to resolve unwinding symbols
-            if (resolved_target.result.os.tag == .linux) {
-                release_exe.linkSystemLibrary("unwind");
-            }
 
             const exe_ext = if (resolved_target.result.os.tag == .windows) ".exe" else "";
             const install_release = b.addInstallArtifact(release_exe, .{
