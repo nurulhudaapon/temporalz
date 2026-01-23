@@ -35,7 +35,13 @@ pub fn build(b: *std.Build) void {
     {
         run_step.dependOn(&run_cmd.step);
         const test_step = b.step("test", "Run tests");
-        const mod_tests = b.addTest(.{ .root_module = mod });
+        const mod_tests = b.addTest(.{
+            .root_module = mod,
+            .test_runner = .{
+                .path = b.path("test/runner.zig"),
+                .mode = .simple,
+            },
+        });
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
