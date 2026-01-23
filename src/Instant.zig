@@ -436,7 +436,7 @@ extern "c" fn diplomat_buffer_write_destroy(write: *DiplomatWrite) void;
 
 // --- Tests -------------------------------------------------------------------
 
-test "instant epoch milliseconds roundtrip" {
+test init {
     const epoch_ms: i64 = 1_704_067_200_000; // 2024-01-01T00:00:00Z
     const inst = try Instant.init(epoch_ms);
     defer inst.deinit();
@@ -444,7 +444,7 @@ test "instant epoch milliseconds roundtrip" {
     try std.testing.expectEqual(epoch_ms, inst.epochMilliseconds());
 }
 
-test "instant epoch nanoseconds bounds" {
+test fromEpochNanoseconds {
     // The Rust implementation accepts values within the 100M-day window (inclusive).
     const max_ns: i128 = 8_640_000_000_000_000_000_000;
     const min_ns: i128 = -max_ns;
@@ -461,14 +461,14 @@ test "instant epoch nanoseconds bounds" {
     try std.testing.expectError(error.TemporalError, Instant.fromEpochNanoseconds(min_ns - 1));
 }
 
-test "instant parse utf8" {
+test from {
     const inst = try Instant.from("2024-03-15T14:30:45.123Z");
     defer inst.deinit();
 
     try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epochMilliseconds());
 }
 
-test "instant parse utf16" {
+test fromUtf16 {
     const utf8 = "2024-03-15T14:30:45.123Z";
     const allocator = std.testing.allocator;
     const utf16 = try std.unicode.utf8ToUtf16LeAlloc(allocator, utf8);
@@ -480,7 +480,7 @@ test "instant parse utf16" {
     try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epochMilliseconds());
 }
 
-test "instant add subtract duration" {
+test subtract {
     const base = try Instant.fromEpochMilliseconds(0);
     defer base.deinit();
 
@@ -496,7 +496,7 @@ test "instant add subtract duration" {
     try std.testing.expectEqual(@as(i64, 0), subbed.epochMilliseconds());
 }
 
-test "instant compare and equals" {
+test compare {
     const a = try Instant.fromEpochMilliseconds(0);
     defer a.deinit();
     const b = try Instant.fromEpochMilliseconds(0);
@@ -510,7 +510,21 @@ test "instant compare and equals" {
     try std.testing.expectEqual(@as(i8, 1), Instant.compare(c, a));
 }
 
-test "instant until and since basic" {
+test equals {
+    const a = try Instant.fromEpochMilliseconds(0);
+    defer a.deinit();
+    const b = try Instant.fromEpochMilliseconds(0);
+    defer b.deinit();
+    const c = try Instant.fromEpochMilliseconds(1_000);
+    defer c.deinit();
+
+    try std.testing.expectEqual(@as(i8, 0), Instant.compare(a, b));
+    try std.testing.expect(Instant.equals(a, b));
+    try std.testing.expectEqual(@as(i8, -1), Instant.compare(a, c));
+    try std.testing.expectEqual(@as(i8, 1), Instant.compare(c, a));
+}
+
+test until {
     const earlier = try Instant.fromEpochMilliseconds(0);
     defer earlier.deinit();
     const later = try Instant.fromEpochMilliseconds(3_600_000);
@@ -534,7 +548,31 @@ test "instant until and since basic" {
     try std.testing.expectEqual(@as(i64, 1), temporal_rs_Duration_hours(since_handle.ptr));
 }
 
-test "instant round to second" {
+test since {
+    const earlier = try Instant.fromEpochMilliseconds(0);
+    defer earlier.deinit();
+    const later = try Instant.fromEpochMilliseconds(3_600_000);
+    defer later.deinit();
+
+    const settings = DifferenceSettings{
+        .largest_unit = Unit_option{ .ok = .Unit_Hour, .is_ok = true },
+        .smallest_unit = Unit_option{ .ok = .Unit_Second, .is_ok = true },
+        .rounding_mode = RoundingMode_option{ .ok = .RoundingMode_Trunc, .is_ok = true },
+        .increment = OptionU32{ .ok = 0, .is_ok = false },
+    };
+
+    var until_handle = try earlier.until(later, settings);
+    defer until_handle.deinit();
+    try std.testing.expectEqual(Sign.Sign_Positive, temporal_rs_Duration_sign(until_handle.ptr));
+    try std.testing.expectEqual(@as(i64, 1), temporal_rs_Duration_hours(until_handle.ptr));
+
+    var since_handle = try later.since(earlier, settings);
+    defer since_handle.deinit();
+    try std.testing.expectEqual(Sign.Sign_Positive, temporal_rs_Duration_sign(since_handle.ptr));
+    try std.testing.expectEqual(@as(i64, 1), temporal_rs_Duration_hours(since_handle.ptr));
+}
+
+test round {
     const inst = try Instant.fromEpochNanoseconds(1_609_459_245_123_456_789);
     defer inst.deinit();
 
@@ -552,7 +590,7 @@ test "instant round to second" {
     try std.testing.expectEqual(@as(i128, 1_609_459_245_000_000_000), ns);
 }
 
-test "instant clone preserves epoch" {
+test clone {
     const inst = try Instant.fromEpochMilliseconds(42);
     defer inst.deinit();
 
@@ -560,16 +598,6 @@ test "instant clone preserves epoch" {
     defer cloned.deinit();
 
     try std.testing.expectEqual(inst.epochMilliseconds(), cloned.epochMilliseconds());
-}
-
-test "instant toString produces output" {
-    const inst = try Instant.fromEpochMilliseconds(0);
-    defer inst.deinit();
-
-    const allocator = std.testing.allocator;
-    const out = try inst.toString(allocator, .{});
-    defer allocator.free(out);
-    try std.testing.expect(out.len > 0);
 }
 
 test toString {
@@ -580,5 +608,5 @@ test toString {
     const allocator = std.testing.allocator;
     const instant_str = try inst.toString(allocator, .{});
     defer allocator.free(instant_str);
-    try std.testing.expect(instant_str.len > 0);
+    try std.testing.expectEqualStrings(instant_str, "2024-01-01T00:00:00Z");
 }
