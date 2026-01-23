@@ -10,14 +10,25 @@ pub const ZonedDateTime = @import("ZonedDateTime.zig");
 
 const Temporal = @This();
 
-fn assertDecls(comptime T: type, checks: anytype) !void {
+test "Temporal" {
     const std = @import("std");
-    inline for (checks) |check| {
-        const has = @hasDecl(T, check);
-        if (!std.mem.eql(u8, check, "valueOf")) {
-            if (!has) std.log.err("Missing {s} method: {s}", .{ @typeName(T), check });
-            try std.testing.expect(has);
-        }
+
+    const expected_scopes = .{
+        "Duration",
+        "Instant",
+        "Now",
+        "PlainDate",
+        "PlainDateTime",
+        "PlainMonthDay",
+        "PlainTime",
+        "PlainYearMonth",
+        "ZonedDateTime",
+    };
+
+    inline for (expected_scopes) |scope| {
+        const has = @hasDecl(Temporal, scope);
+        if (!has) std.log.err("Missing Temporal scope: {s}", .{scope});
+        try std.testing.expect(has);
     }
 }
 
@@ -388,24 +399,42 @@ test "Temporal.ZonedDateTime" {
     try assertDecls(ZonedDateTime, checks);
 }
 
-test "Temporal" {
+fn assertDecls(comptime T: type, checks: anytype) !void {
     const std = @import("std");
+    const typeInfo = @typeInfo(T);
 
-    const expected_scopes = .{
-        "Duration",
-        "Instant",
-        "Now",
-        "PlainDate",
-        "PlainDateTime",
-        "PlainMonthDay",
-        "PlainTime",
-        "PlainYearMonth",
-        "ZonedDateTime",
-    };
+    // Check: all items in checks exist
+    inline for (checks) |check| {
+        const should_ignore =
+            std.mem.eql(u8, check, "deinit") or
+            std.mem.eql(u8, check, "valueOf");
 
-    inline for (expected_scopes) |scope| {
-        const has = @hasDecl(Temporal, scope);
-        if (!has) std.log.err("Missing Temporal scope: {s}", .{scope});
-        try std.testing.expect(has);
+        const has = @hasDecl(T, check);
+        if (!should_ignore) {
+            if (!has) std.log.err("Missing {s} decl: {s}", .{ @typeName(T), check });
+            try std.testing.expect(has);
+        }
+    }
+
+    // Check: no extraneous declarations beyond checks
+    if (typeInfo == .@"struct") {
+        const struct_info = typeInfo.@"struct";
+        inline for (struct_info.decls) |decl| {
+            // Allow deinit as extraneous
+            if (comptime std.mem.eql(u8, decl.name, "deinit")) continue;
+
+            var found = false;
+            inline for (checks) |check| {
+                if (std.mem.eql(u8, decl.name, check)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                std.log.err("Extraneous {s} decl: {s}", .{ @typeName(T), decl.name });
+                try std.testing.expect(false);
+            }
+        }
     }
 }

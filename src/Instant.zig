@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const Instant = @This();
+const Instant = @This();
 
 inner: *CInstant,
 epoch: i64,
@@ -28,7 +28,7 @@ pub fn from(text: []const u8) !Instant {
 }
 
 /// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
-pub fn fromUtf16(text: []const u16) !Instant {
+fn fromUtf16(text: []const u16) !Instant {
     const view = DiplomatString16View{ .data = text.ptr, .len = text.len };
     return wrapInstant(temporal_rs_Instant_from_utf16(view));
 }
@@ -103,7 +103,7 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
 }
 
 /// Convert to string using an explicit provider.
-pub fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *const Provider, opts: ToStringOptions) ![]u8 {
+fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *const Provider, opts: ToStringOptions) ![]u8 {
     const zone_opt = if (opts.time_zone) |z|
         TimeZone_option{ .ok = z, .is_ok = true }
     else
@@ -143,12 +143,12 @@ pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTimeHandle {
 }
 
 /// Convert to ZonedDateTime using an explicit provider.
-pub fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const Provider) !ZonedDateTimeHandle {
+fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const Provider) !ZonedDateTimeHandle {
     return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self.inner, zone, provider));
 }
 
 /// Clone the underlying instant.
-pub fn clone(self: Instant) Instant {
+fn clone(self: Instant) Instant {
     const ptr = temporal_rs_Instant_clone(self.inner);
     return .{ .inner = ptr, .epoch = temporal_rs_Instant_epoch_milliseconds(ptr) };
 }
@@ -221,12 +221,12 @@ fn parseDuration(text: []const u8) !DurationHandle {
 
 // --- Public helper types -----------------------------------------------------
 
-pub const ToStringOptions = struct {
+const ToStringOptions = struct {
     time_zone: ?TimeZone = null,
     rounding: ?ToStringRoundingOptions = null,
 };
 
-pub const DurationHandle = struct {
+const DurationHandle = struct {
     ptr: *Duration,
 
     pub fn deinit(self: DurationHandle) void {
@@ -234,7 +234,7 @@ pub const DurationHandle = struct {
     }
 };
 
-pub const ZonedDateTimeHandle = struct {
+const ZonedDateTimeHandle = struct {
     ptr: *ZonedDateTime,
 
     pub fn deinit(self: ZonedDateTimeHandle) void {
@@ -245,21 +245,21 @@ pub const ZonedDateTimeHandle = struct {
 // --- Extern types ------------------------------------------------------------
 
 const CInstant = opaque {};
-pub const Duration = opaque {};
-pub const ZonedDateTime = opaque {};
-pub const Provider = opaque {};
+const Duration = opaque {};
+const ZonedDateTime = opaque {};
+const Provider = opaque {};
 
-pub const I128Nanoseconds = extern struct { high: u64, low: u64 };
-pub const I128Nanoseconds_option = extern struct { ok: I128Nanoseconds, is_ok: bool };
+const I128Nanoseconds = extern struct { high: u64, low: u64 };
+const I128Nanoseconds_option = extern struct { ok: I128Nanoseconds, is_ok: bool };
 
-pub const DiplomatStringView = extern struct { data: [*c]const u8, len: usize };
-pub const DiplomatString16View = extern struct { data: [*c]const u16, len: usize };
+const DiplomatStringView = extern struct { data: [*c]const u8, len: usize };
+const DiplomatString16View = extern struct { data: [*c]const u16, len: usize };
 
-pub const OptionStringView = extern struct { ok: DiplomatStringView, is_ok: bool };
-pub const OptionU8 = extern struct { ok: u8, is_ok: bool };
-pub const OptionU32 = extern struct { ok: u32, is_ok: bool };
+const OptionStringView = extern struct { ok: DiplomatStringView, is_ok: bool };
+const OptionU8 = extern struct { ok: u8, is_ok: bool };
+const OptionU32 = extern struct { ok: u32, is_ok: bool };
 
-pub const DiplomatWrite = extern struct {
+const DiplomatWrite = extern struct {
     context: ?*anyopaque,
     buf: [*c]u8,
     len: usize,
@@ -269,24 +269,24 @@ pub const DiplomatWrite = extern struct {
     grow: ?*const fn (*DiplomatWrite, usize) bool,
 };
 
-pub const TimeZone = extern struct {
+const TimeZone = extern struct {
     offset_minutes: i16,
     resolved_id: usize,
     normalized_id: usize,
     is_iana_id: bool,
 };
 
-pub const TimeZone_option = extern struct {
+const TimeZone_option = extern struct {
     ok: TimeZone,
     is_ok: bool,
 };
 
-pub const Precision = extern struct {
+const Precision = extern struct {
     is_minute: bool,
     precision: OptionU8,
 };
 
-pub const Unit = enum(c_int) {
+const Unit = enum(c_int) {
     Unit_Auto = 0,
     Unit_Nanosecond = 1,
     Unit_Microsecond = 2,
@@ -300,9 +300,9 @@ pub const Unit = enum(c_int) {
     Unit_Year = 10,
 };
 
-pub const Unit_option = extern struct { ok: Unit, is_ok: bool };
+const Unit_option = extern struct { ok: Unit, is_ok: bool };
 
-pub const RoundingMode = enum(c_int) {
+const RoundingMode = enum(c_int) {
     RoundingMode_Ceil = 0,
     RoundingMode_Floor = 1,
     RoundingMode_Expand = 2,
@@ -314,29 +314,29 @@ pub const RoundingMode = enum(c_int) {
     RoundingMode_HalfEven = 8,
 };
 
-pub const RoundingMode_option = extern struct { ok: RoundingMode, is_ok: bool };
+const RoundingMode_option = extern struct { ok: RoundingMode, is_ok: bool };
 
-pub const DifferenceSettings = extern struct {
+const DifferenceSettings = extern struct {
     largest_unit: Unit_option,
     smallest_unit: Unit_option,
     rounding_mode: RoundingMode_option,
     increment: OptionU32,
 };
 
-pub const RoundingOptions = extern struct {
+const RoundingOptions = extern struct {
     largest_unit: Unit_option,
     smallest_unit: Unit_option,
     rounding_mode: RoundingMode_option,
     increment: OptionU32,
 };
 
-pub const ToStringRoundingOptions = extern struct {
+const ToStringRoundingOptions = extern struct {
     precision: Precision,
     smallest_unit: Unit_option,
     rounding_mode: RoundingMode_option,
 };
 
-pub const ErrorKind = enum(c_int) {
+const ErrorKind = enum(c_int) {
     ErrorKind_Generic = 0,
     ErrorKind_Type = 1,
     ErrorKind_Range = 2,
@@ -344,12 +344,12 @@ pub const ErrorKind = enum(c_int) {
     ErrorKind_Assert = 4,
 };
 
-pub const TemporalError = extern struct {
+const TemporalError = extern struct {
     kind: ErrorKind,
     msg: OptionStringView,
 };
 
-pub const Sign = enum(c_int) {
+const Sign = enum(c_int) {
     Sign_Positive = 1,
     Sign_Zero = 0,
     Sign_Negative = -1,
