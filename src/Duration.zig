@@ -216,27 +216,27 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
 /// Compare two durations (Temporal.Duration.compare).
 pub fn compare(self: Duration, other: Duration, relative_to: RelativeTo) !i8 {
     const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to.toCApi());
-    return abi.success(res) orelse return error.TemporalError;
+    return try abi.extractResult(res);
 }
 
 /// Compare two durations with an explicit provider.
 fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const abi.c.Provider) !i8 {
     const res = abi.c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to.toCApi(), provider);
-    return abi.success(res) orelse return error.TemporalError;
+    return try abi.extractResult(res);
 }
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, options: TotalOptions) !f64 {
     const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
     const res = abi.c.temporal_rs_Duration_total(self._inner, options.unit.toCApi(), rel);
-    return abi.success(res) orelse return error.TemporalError;
+    return try abi.extractResult(res);
 }
 
 /// Get the total value of the duration with an explicit provider.
 fn totalWithProvider(self: Duration, options: TotalOptions, provider: *const abi.c.Provider) !f64 {
     const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
     const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, options.unit.toCApi(), rel, provider);
-    return abi.success(res) orelse return error.TemporalError;
+    return try abi.extractResult(res);
 }
 
 /// Convert to string (Temporal.Duration.prototype.toString); caller owns returned slice.
@@ -272,12 +272,12 @@ pub fn deinit(self: Duration) void {
 
 // --- Helpers -----------------------------------------------------------------
 
-fn handleVoidResult(res: anytype) !void {
-    _ = abi.success(res) orelse return error.TemporalError;
+inline fn handleVoidResult(res: anytype) !void {
+    _ = try abi.extractResult(res);
 }
 
 fn wrapDuration(res: anytype) !Duration {
-    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(res)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -430,4 +430,29 @@ test clone {
     defer cloned.deinit();
 
     try std.testing.expectEqual(dur.hours(), cloned.hours());
+}
+
+test total {
+    {
+        const dur = try Duration.init(0, 0, 0, 0, 1, 30, 0, 0, 0, 0);
+        defer dur.deinit();
+
+        const t = try dur.total(.{ .unit = .hour });
+        try std.testing.expectEqual(1.5, t);
+    }
+    {
+        const dur = try Duration.from("PT4H5M6S");
+        defer dur.deinit();
+
+        const t = try dur.total(.{ .unit = .hour });
+        try std.testing.expectEqual(4.085, t);
+    }
+
+    {
+        // Calendar units require relative_to; the C API will return RangeError.
+        const dur = try Duration.from("P1Y");
+        defer dur.deinit();
+
+        try std.testing.expectError(error.RangeError, dur.total(.{ .unit = .day }));
+    }
 }
