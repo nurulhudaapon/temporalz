@@ -140,7 +140,7 @@ pub fn subtract(self: Duration, other: Duration) !Duration {
 
 /// Round the duration according to the specified options (Temporal.Duration.prototype.round).
 pub fn round(self: Duration, options: RoundingOptions, relative_to: RelativeTo) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options.toCApi(), relative_to));
+    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options.toCApi(), relative_to.toCApi()));
 }
 
 /// Round the duration with an explicit provider.
@@ -150,25 +150,27 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
 
 /// Compare two durations (Temporal.Duration.compare).
 pub fn compare(self: Duration, other: Duration, relative_to: RelativeTo) !i8 {
-    const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to);
+    const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to.toCApi());
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Compare two durations with an explicit provider.
 fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const abi.c.Provider) !i8 {
-    const res = abi.c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to, provider);
+    const res = abi.c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to.toCApi(), provider);
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
-pub fn total(self: Duration, unit: Unit, relative_to: RelativeTo) !f64 {
-    const res = abi.c.temporal_rs_Duration_total(self._inner, unit.toCApi(), relative_to);
+pub fn total(self: Duration, options: TotalOptions) !f64 {
+    const relative_to = if (options.relative_to) |rt| rt.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const res = abi.c.temporal_rs_Duration_total(self._inner, options.unit.toCApi(), relative_to);
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration with an explicit provider.
-fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const abi.c.Provider) !f64 {
-    const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, unit.toCApi(), relative_to, provider);
+fn totalWithProvider(self: Duration, options: TotalOptions, provider: *const abi.c.Provider) !f64 {
+    const relative_to = if (options.relative_to) |rt| rt.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, options.unit.toCApi(), relative_to, provider);
     return abi.success(res) orelse return error.TemporalError;
 }
 
@@ -222,6 +224,19 @@ pub const PartialDuration = abi.c.PartialDuration;
 pub const RelativeTo = extern struct {
     plain_date: ?*abi.c.PlainDate,
     zoned_date_time: ?*abi.c.ZonedDateTime,
+
+    fn toCApi(self: RelativeTo) abi.c.RelativeTo {
+        return .{
+            .date = self.plain_date,
+            .zoned = self.zoned_date_time,
+        };
+    }
+};
+
+/// Options for Duration.total() providing unit and relative-to context.
+pub const TotalOptions = struct {
+    unit: Unit,
+    relative_to: ?RelativeTo = null,
 };
 
 // --- Public type aliases and enums ------------------------------------------
