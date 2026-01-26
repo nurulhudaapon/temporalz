@@ -11,6 +11,21 @@ pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;
 pub const RoundingOptions = temporal.RoundingOptions;
 pub const DifferenceSettings = temporal.DifferenceSettings;
+
+/// Time zone identifier for Temporal operations
+pub const TimeZone = struct {
+    _inner: abi.c.TimeZone,
+
+    pub fn init(id: []const u8) TimeZone {
+        const view = abi.toDiplomatStringView(id);
+        return .{ ._inner = .{ .id = view } };
+    }
+
+    fn toCApi(self: TimeZone) abi.c.TimeZone {
+        return self._inner;
+    }
+};
+
 /// Options for Instant.toString()
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toString
 pub const ToStringOptions = struct {
@@ -29,8 +44,7 @@ pub const ToStringOptions = struct {
     smallest_unit: ?Unit = null,
 
     /// Time zone to use. Either a time zone identifier string or null for UTC.
-    /// Note: In the Zig API, this must be pre-resolved to a TimeZone struct.
-    time_zone: ?abi.c.TimeZone = null,
+    time_zone: ?TimeZone = null,
 };
 
 _inner: *abi.c.Instant,
@@ -99,13 +113,15 @@ pub fn subtract(self: Instant, duration: *Duration) !Instant {
 }
 
 /// Difference until another instant (Temporal.Instant.prototype.until).
-pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings.toCApi()));
+pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
+    const ptr = (abi.success(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
 /// Difference since another instant (Temporal.Instant.prototype.since).
-pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings.toCApi()));
+pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
+    const ptr = (abi.success(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
 /// Round this instant (Temporal.Instant.prototype.round).
@@ -125,7 +141,7 @@ pub fn equals(a: Instant, b: Instant) bool {
 
 /// Convert to string using compiled TZ data; caller owns returned slice.
 pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
-    const zone_opt = abi.toTimeZoneOption(opts.time_zone);
+    const zone_opt = if (opts.time_zone) |tz| abi.toTimeZoneOption(tz._inner) else abi.toTimeZoneOption(null);
     const rounding = optsToRounding(opts);
 
     var write = abi.DiplomatWrite.init(allocator);
@@ -139,7 +155,7 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
 
 /// Convert to string using an explicit provider.
 fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *const abi.c.Provider, opts: ToStringOptions) ![]u8 {
-    const zone_opt = abi.toTimeZoneOption(opts.time_zone);
+    const zone_opt = if (opts.time_zone) |tz| abi.toTimeZoneOption(tz._inner) else abi.toTimeZoneOption(null);
     const rounding = optsToRounding(opts);
 
     var write = abi.DiplomatWrite.init(allocator);
@@ -155,20 +171,23 @@ pub fn toJSON(self: Instant, allocator: std.mem.Allocator) ![]u8 {
     return self.toString(allocator, .{});
 }
 
+/// Convert to a locale string representation.
+/// Per Temporal spec, toLocaleString returns a formatted string without taking locale/options parameters.
+/// This uses auto precision for fractional seconds.
 pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
-    _ = self;
-    _ = allocator;
-    return error.TemporalNotImplemented;
+    return self.toString(allocator, .{});
 }
 
 /// Convert to ZonedDateTime using built-in provider (Temporal.Instant.prototype.toZonedDateTimeISO).
-pub fn toZonedDateTimeISO(self: Instant, zone: abi.c.TimeZone) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(abi.c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone));
+pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTime {
+    const ptr = (abi.success(abi.c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone._inner)) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
 /// Convert to ZonedDateTime using an explicit provider.
-fn toZonedDateTimeIsoWithProvider(self: Instant, zone: abi.c.TimeZone, provider: *const abi.c.Provider) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(abi.c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone, provider));
+fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const abi.c.Provider) !ZonedDateTime {
+    const ptr = (abi.success(abi.c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone._inner, provider)) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
 /// Clone the underlying instant.
@@ -190,16 +209,6 @@ fn wrapInstant(res: anytype) !Instant {
         .epoch_milliseconds = abi.c.temporal_rs_Instant_epoch_milliseconds(ptr),
         .epoch_nanoseconds = abi.fromI128Nanoseconds(abi.c.temporal_rs_Instant_epoch_nanoseconds(ptr)),
     };
-}
-
-fn wrapDuration(res: anytype) !DurationHandle {
-    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
-    return .{ .ptr = ptr };
-}
-
-fn wrapZonedDateTime(res: anytype) !ZonedDateTimeHandle {
-    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
-    return .{ .ptr = ptr };
 }
 
 fn handleVoidResult(res: anytype) !void {
@@ -232,26 +241,13 @@ fn optsToRounding(opts: ToStringOptions) abi.c.ToStringRoundingOptions {
     };
 }
 
-fn parseDuration(text: []const u8) !DurationHandle {
-    const view = abi.toDiplomatStringView(text);
-    return wrapDuration(abi.c.temporal_rs_Duration_from_utf8(view));
-}
+// --- Forward declarations -----------------------------------------------------
 
-// --- Helper types -----------------------------------------------------
+const ZonedDateTime = struct {
+    _inner: *abi.c.ZonedDateTime,
 
-const DurationHandle = struct {
-    ptr: *abi.c.Duration,
-
-    pub fn deinit(self: DurationHandle) void {
-        abi.c.temporal_rs_Duration_destroy(self.ptr);
-    }
-};
-
-const ZonedDateTimeHandle = struct {
-    ptr: *abi.c.ZonedDateTime,
-
-    pub fn deinit(self: ZonedDateTimeHandle) void {
-        abi.c.temporal_rs_ZonedDateTime_destroy(self.ptr);
+    pub fn deinit(self: ZonedDateTime) void {
+        abi.c.temporal_rs_ZonedDateTime_destroy(self._inner);
     }
 };
 
@@ -365,15 +361,15 @@ test until {
         .rounding_increment = null,
     };
 
-    var until_handle = try earlier.until(later, settings);
-    defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(until_handle.ptr)));
-    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(until_handle.ptr));
+    const until_dur = try earlier.until(later, settings);
+    defer until_dur.deinit();
+    try std.testing.expectEqual(Sign.positive, until_dur.sign());
+    try std.testing.expectEqual(@as(i64, 1), until_dur.hours());
 
-    var since_handle = try later.since(earlier, settings);
-    defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(since_handle.ptr)));
-    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(since_handle.ptr));
+    const since_dur = try later.since(earlier, settings);
+    defer since_dur.deinit();
+    try std.testing.expectEqual(Sign.positive, since_dur.sign());
+    try std.testing.expectEqual(@as(i64, 1), since_dur.hours());
 }
 
 test since {
@@ -389,15 +385,15 @@ test since {
         .rounding_increment = null,
     };
 
-    var until_handle = try earlier.until(later, settings);
-    defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(until_handle.ptr)));
-    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(until_handle.ptr));
+    const until_dur = try earlier.until(later, settings);
+    defer until_dur.deinit();
+    try std.testing.expectEqual(Sign.positive, until_dur.sign());
+    try std.testing.expectEqual(@as(i64, 1), until_dur.hours());
 
-    var since_handle = try later.since(earlier, settings);
-    defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(since_handle.ptr)));
-    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(since_handle.ptr));
+    const since_dur = try later.since(earlier, settings);
+    defer since_dur.deinit();
+    try std.testing.expectEqual(Sign.positive, since_dur.sign());
+    try std.testing.expectEqual(@as(i64, 1), since_dur.hours());
 }
 
 test round {
@@ -449,4 +445,26 @@ test toString {
     const with_unit = try inst.toString(allocator, .{ .smallest_unit = .second });
     defer allocator.free(with_unit);
     // Output should truncate to seconds
+}
+
+test toLocaleString {
+    const epoch_ns: i128 = 1704067200000000000; // 2024-01-01 00:00:00 UTC
+    const inst = try Instant.init(epoch_ns);
+    defer inst.deinit();
+
+    const allocator = std.testing.allocator;
+
+    // toLocaleString should return a formatted string (same as toString with defaults)
+    const locale_str = try inst.toLocaleString(allocator);
+    defer allocator.free(locale_str);
+    try std.testing.expectEqualStrings(locale_str, "2024-01-01T00:00:00Z");
+
+    // Test with a different instant with fractional seconds
+    const inst2 = try Instant.fromEpochNanoseconds(1704067200123456789);
+    defer inst2.deinit();
+
+    const locale_str2 = try inst2.toLocaleString(allocator);
+    defer allocator.free(locale_str2);
+    // Auto precision should include fractional seconds
+    try std.testing.expect(std.mem.containsAtLeast(u8, locale_str2, 1, "2024-01-01T00:00:00"));
 }

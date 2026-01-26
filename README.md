@@ -7,18 +7,18 @@ Temporalz provides Zig bindings to the Rust-based [temporal_rs](https://github.c
 
 ## Installation
 
-### Prerequisites
+#### Prerequisites
 
 - Zig 0.15.2
 - Rust toolchain (only required if [prebuilt binaries](#prebuilt) are not available for your platform)
 
-### Add as a Dependency
+#### Add as a Dependency
 
 ```bash
-zig fetch --save=temporalz https://github.com/nurulhudaapon/temporalz/archive/refs/tags/v0.1.2.tar.gz
+zig fetch --save https://github.com/nurulhudaapon/temporalz/archive/refs/tags/v0.1.2.tar.gz
 ```
 
-### Use in build.zig
+#### Use in build.zig
 
 Add temporalz to your executable in `build.zig`:
 
@@ -57,20 +57,20 @@ For other platforms, the library will build from source; you need the Rust toolc
 
 ## Development
 
-### Clone the Repository
+#### Clone the Repository
 
 ```bash
 git clone https://github.com/nurulhudaapon/temporalz.git
 cd temporalz
 ```
 
-### Build and Run
+#### Build and Run
 
 ```bash
 zig build run
 ```
 
-### Run Tests
+#### Run Tests
 
 ```bash
 zig build test

@@ -1,104 +1,359 @@
 const std = @import("std");
+const abi = @import("abi.zig");
+const temporal_types = @import("temporal.zig");
+
 const PlainTime = @This();
 const Duration = @import("Duration.zig");
 
-hour: i64,
-microsecond: i64,
-millisecond: i64,
-minute: i64,
-nanosecond: i64,
-second: i64,
+_inner: *abi.c.PlainTime,
 
-pub fn init() error{Todo}!PlainTime {
-    return error.Todo;
+// Import types from temporal.zig
+pub const Unit = temporal_types.Unit;
+pub const RoundingMode = temporal_types.RoundingMode;
+pub const DifferenceSettings = temporal_types.DifferenceSettings;
+pub const RoundOptions = temporal_types.RoundingOptions;
+
+pub const WithOptions = struct {
+    hour: ?u8 = null,
+    minute: ?u8 = null,
+    second: ?u8 = null,
+    millisecond: ?u16 = null,
+    microsecond: ?u16 = null,
+    nanosecond: ?u16 = null,
+};
+
+// Helper to wrap PlainTime pointer
+fn wrapPlainTime(result: anytype) !PlainTime {
+    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    return PlainTime{ ._inner = ptr };
 }
 
-pub fn compare() error{Todo}!i8 {
-    return error.Todo;
+// Constructor - creates a PlainTime with all parameters
+pub fn init(
+    hour_val: u8,
+    minute_val: u8,
+    second_val: u8,
+    millisecond_val: u16,
+    microsecond_val: u16,
+    nanosecond_val: u16,
+) !PlainTime {
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_try_new(
+        hour_val,
+        minute_val,
+        second_val,
+        millisecond_val,
+        microsecond_val,
+        nanosecond_val,
+    ));
 }
 
-pub fn from() error{Todo}!PlainTime {
-    return error.Todo;
+// Parse from string
+pub fn from(s: []const u8) !PlainTime {
+    return fromUtf8(s);
 }
 
-pub fn add() error{Todo}!PlainTime {
-    return error.Todo;
+fn fromUtf8(utf8: []const u8) !PlainTime {
+    const view = abi.toDiplomatStringView(utf8);
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_from_utf8(view));
 }
 
-pub fn equals() error{Todo}!bool {
-    return error.Todo;
+fn fromUtf16(utf16: []const u16) !PlainTime {
+    const view = abi.toDiplomatString16View(utf16);
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_from_utf16(view));
 }
 
-pub fn round() error{Todo}!PlainTime {
-    return error.Todo;
+// Comparison
+pub fn compare(a: PlainTime, b: PlainTime) i8 {
+    return abi.c.temporal_rs_PlainTime_compare(a._inner, b._inner);
 }
 
-pub fn since() error{Todo}!Duration {
-    return error.Todo;
+pub fn equals(self: PlainTime, other: PlainTime) bool {
+    return abi.c.temporal_rs_PlainTime_equals(self._inner, other._inner);
 }
 
-pub fn subtract() error{Todo}!PlainTime {
-    return error.Todo;
+// Arithmetic
+pub fn add(self: PlainTime, duration: Duration) !PlainTime {
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_add(self._inner, duration._inner));
 }
 
-pub fn toJSON() error{Todo}![]const u8 {
-    return error.Todo;
+pub fn subtract(self: PlainTime, duration: Duration) !PlainTime {
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_subtract(self._inner, duration._inner));
 }
 
-pub fn toLocaleString() error{Todo}![]const u8 {
-    return error.Todo;
+pub fn until(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
+    const settings = options.toCApi();
+    const result = abi.c.temporal_rs_PlainTime_until(self._inner, other._inner, settings);
+    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
-pub fn toString() error{Todo}![]const u8 {
-    return error.Todo;
+pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
+    const settings = options.toCApi();
+    const result = abi.c.temporal_rs_PlainTime_since(self._inner, other._inner, settings);
+    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
-pub fn until() error{Todo}!Duration {
-    return error.Todo;
+// Rounding
+pub fn round(self: PlainTime, options: RoundOptions) !PlainTime {
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_round(self._inner, options.toCApi()));
 }
 
-pub fn valueOf() error{Todo}!void {
-    return error.Todo;
+// Property accessors
+pub fn hour(self: PlainTime) u8 {
+    return abi.c.temporal_rs_PlainTime_hour(self._inner);
 }
 
-pub fn with() error{Todo}!PlainTime {
-    return error.Todo;
+pub fn minute(self: PlainTime) u8 {
+    return abi.c.temporal_rs_PlainTime_minute(self._inner);
+}
+
+pub fn second(self: PlainTime) u8 {
+    return abi.c.temporal_rs_PlainTime_second(self._inner);
+}
+
+pub fn millisecond(self: PlainTime) u16 {
+    return abi.c.temporal_rs_PlainTime_millisecond(self._inner);
+}
+
+pub fn microsecond(self: PlainTime) u16 {
+    return abi.c.temporal_rs_PlainTime_microsecond(self._inner);
+}
+
+pub fn nanosecond(self: PlainTime) u16 {
+    return abi.c.temporal_rs_PlainTime_nanosecond(self._inner);
+}
+
+// Modification
+pub fn with(self: PlainTime, options: WithOptions) !PlainTime {
+    const partial = abi.c.PartialTime{
+        .hour = abi.toOption(abi.c.OptionU8, options.hour),
+        .minute = abi.toOption(abi.c.OptionU8, options.minute),
+        .second = abi.toOption(abi.c.OptionU8, options.second),
+        .millisecond = abi.toOption(abi.c.OptionU16, options.millisecond),
+        .microsecond = abi.toOption(abi.c.OptionU16, options.microsecond),
+        .nanosecond = abi.toOption(abi.c.OptionU16, options.nanosecond),
+    };
+    const overflow_opt = abi.c.ArithmeticOverflow_option{
+        .is_ok = true,
+        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
+    };
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_with(self._inner, partial, overflow_opt));
+}
+
+// String conversions
+pub fn toString(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
+    return toStringWithOptions(self, allocator, .{});
+}
+
+fn toStringWithOptions(self: PlainTime, allocator: std.mem.Allocator, options: temporal_types.ToStringRoundingOptions) ![]u8 {
+    const rounding_opts = options.toCApi();
+    var write = abi.DiplomatWrite.init(allocator);
+    defer write.deinit();
+
+    const result = abi.c.temporal_rs_PlainTime_to_ixdtf_string(
+        self._inner,
+        rounding_opts,
+        &write.inner,
+    );
+
+    if (!result.is_ok) return error.TemporalError;
+
+    return try write.toOwnedSlice();
+}
+
+pub fn toJSON(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
+    return toString(self, allocator);
+}
+
+pub fn toLocaleString(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
+    // For now, just use toString - locale-specific formatting would require more work
+    return toString(self, allocator);
+}
+
+pub fn valueOf(self: PlainTime) !void {
+    _ = self;
+    // PlainTime should not be used in arithmetic/comparison operations implicitly
+    return error.ValueError;
 }
 
 // ---------- Tests ---------------------
-test compare {
-    if (true) return error.Todo;
+
+test init {
+    {
+        const time = try init(14, 30, 45, 123, 456, 789);
+        try std.testing.expectEqual(@as(u8, 14), time.hour());
+        try std.testing.expectEqual(@as(u8, 30), time.minute());
+        try std.testing.expectEqual(@as(u8, 45), time.second());
+        try std.testing.expectEqual(@as(u16, 123), time.millisecond());
+        try std.testing.expectEqual(@as(u16, 456), time.microsecond());
+        try std.testing.expectEqual(@as(u16, 789), time.nanosecond());
+    }
+    {
+        const time = try init(0, 0, 0, 0, 0, 0);
+        try std.testing.expectEqual(@as(u8, 0), time.hour());
+        try std.testing.expectEqual(@as(u8, 0), time.minute());
+        try std.testing.expectEqual(@as(u8, 0), time.second());
+    }
+    {
+        const time = try init(23, 59, 59, 999, 999, 999);
+        try std.testing.expectEqual(@as(u8, 23), time.hour());
+        try std.testing.expectEqual(@as(u8, 59), time.minute());
+        try std.testing.expectEqual(@as(u8, 59), time.second());
+    }
 }
+
 test from {
-    if (true) return error.Todo;
+    {
+        const time = try from("14:30:45.123456789");
+        try std.testing.expectEqual(@as(u8, 14), time.hour());
+        try std.testing.expectEqual(@as(u8, 30), time.minute());
+        try std.testing.expectEqual(@as(u8, 45), time.second());
+        try std.testing.expectEqual(@as(u16, 123), time.millisecond());
+        try std.testing.expectEqual(@as(u16, 456), time.microsecond());
+        try std.testing.expectEqual(@as(u16, 789), time.nanosecond());
+    }
+    {
+        const time = try from("14:30");
+        try std.testing.expectEqual(@as(u8, 14), time.hour());
+        try std.testing.expectEqual(@as(u8, 30), time.minute());
+        try std.testing.expectEqual(@as(u8, 0), time.second());
+    }
+
+    {
+        const time = try from("14:30:45");
+        try std.testing.expectEqual(@as(u8, 14), time.hour());
+        try std.testing.expectEqual(@as(u8, 30), time.minute());
+        try std.testing.expectEqual(@as(u8, 45), time.second());
+    }
 }
-test add {
-    if (true) return error.Todo;
+
+test compare {
+    {
+        const time1 = try init(14, 30, 45, 123, 456, 789);
+        const time2 = try init(14, 30, 45, 123, 456, 789);
+        try std.testing.expectEqual(@as(i8, 0), compare(time1, time2));
+    }
+    {
+        const time1 = try init(14, 30, 45, 123, 456, 789);
+        const time2 = try init(15, 30, 45, 123, 456, 789);
+        try std.testing.expectEqual(@as(i8, -1), compare(time1, time2));
+    }
+    {
+        const time1 = try init(15, 30, 45, 123, 456, 789);
+        const time2 = try init(14, 30, 45, 123, 456, 789);
+        try std.testing.expectEqual(@as(i8, 1), compare(time1, time2));
+    }
 }
+
 test equals {
-    if (true) return error.Todo;
+    {
+        const time1 = try init(14, 30, 45, 123, 456, 789);
+        const time2 = try init(14, 30, 45, 123, 456, 789);
+        try std.testing.expect(time1.equals(time2));
+    }
+    {
+        const time1 = try init(14, 30, 45, 123, 456, 789);
+        const time2 = try init(15, 30, 45, 123, 456, 789);
+        try std.testing.expect(!time1.equals(time2));
+    }
 }
-test round {
-    if (true) return error.Todo;
+
+test add {
+    {
+        const time = try init(14, 30, 0, 0, 0, 0);
+        const duration = try Duration.from("PT1H30M");
+        const result = try time.add(duration);
+        try std.testing.expectEqual(@as(u8, 16), result.hour());
+        try std.testing.expectEqual(@as(u8, 0), result.minute());
+    }
+    {
+        const time = try init(23, 30, 0, 0, 0, 0);
+        const duration = try Duration.from("PT1H");
+        const result = try time.add(duration);
+        try std.testing.expectEqual(@as(u8, 0), result.hour());
+        try std.testing.expectEqual(@as(u8, 30), result.minute());
+    }
 }
-test since {
-    if (true) return error.Todo;
-}
+
 test subtract {
-    if (true) return error.Todo;
+    {
+        const time = try init(16, 0, 0, 0, 0, 0);
+        const duration = try Duration.from("PT1H30M");
+        const result = try time.subtract(duration);
+        try std.testing.expectEqual(@as(u8, 14), result.hour());
+        try std.testing.expectEqual(@as(u8, 30), result.minute());
+    }
+    {
+        const time = try init(0, 30, 0, 0, 0, 0);
+        const duration = try Duration.from("PT1H");
+        const result = try time.subtract(duration);
+        try std.testing.expectEqual(@as(u8, 23), result.hour());
+        try std.testing.expectEqual(@as(u8, 30), result.minute());
+    }
 }
-test toJSON {
-    if (true) return error.Todo;
-}
-test toLocaleString {
-    if (true) return error.Todo;
-}
-test toString {
-    if (true) return error.Todo;
-}
-test until {
-    if (true) return error.Todo;
-}
+
 test with {
-    if (true) return error.Todo;
+    {
+        const time = try init(14, 30, 45, 123, 456, 789);
+        const result = try time.with(.{ .hour = 18 });
+        try std.testing.expectEqual(@as(u8, 18), result.hour());
+        try std.testing.expectEqual(@as(u8, 30), result.minute());
+        try std.testing.expectEqual(@as(u8, 45), result.second());
+    }
+
+    {
+        const time = try init(14, 30, 45, 123, 456, 789);
+        const result = try time.with(.{ .hour = 18, .minute = 15, .second = 0 });
+        try std.testing.expectEqual(@as(u8, 18), result.hour());
+        try std.testing.expectEqual(@as(u8, 15), result.minute());
+        try std.testing.expectEqual(@as(u8, 0), result.second());
+    }
+}
+
+test toString {
+    const time = try init(14, 30, 45, 123, 456, 789);
+    const str = try time.toString(std.testing.allocator);
+    defer std.testing.allocator.free(str);
+
+    // Should be in format: 14:30:45.123456789
+    try std.testing.expect(str.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, str, "14:30:45") != null);
+}
+
+test toJSON {
+    const time = try init(14, 30, 45, 123, 456, 789);
+    const str = try time.toJSON(std.testing.allocator);
+    defer std.testing.allocator.free(str);
+    try std.testing.expect(str.len > 0);
+}
+
+test round {
+    const time = try init(14, 30, 45, 999, 999, 999);
+    const rounded = try time.round(.{ .smallest_unit = .second });
+
+    try std.testing.expectEqual(@as(u8, 14), rounded.hour());
+    try std.testing.expectEqual(@as(u8, 30), rounded.minute());
+    try std.testing.expectEqual(@as(u8, 46), rounded.second());
+    try std.testing.expectEqual(@as(u16, 0), rounded.millisecond());
+    try std.testing.expectEqual(@as(u16, 0), rounded.microsecond());
+    try std.testing.expectEqual(@as(u16, 0), rounded.nanosecond());
+}
+
+test since {
+    const time1 = try init(15, 30, 0, 0, 0, 0);
+    const time2 = try init(14, 0, 0, 0, 0, 0);
+    const dur = try time1.since(time2, .{});
+
+    try std.testing.expectEqual(@as(i64, 1), dur.hours());
+    try std.testing.expectEqual(@as(i64, 30), dur.minutes());
+}
+
+test until {
+    const time1 = try init(14, 0, 0, 0, 0, 0);
+    const time2 = try init(15, 30, 0, 0, 0, 0);
+    const dur = try time1.until(time2, .{});
+
+    try std.testing.expectEqual(@as(i64, 1), dur.hours());
+    try std.testing.expectEqual(@as(i64, 30), dur.minutes());
 }

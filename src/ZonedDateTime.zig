@@ -1,4 +1,6 @@
 const std = @import("std");
+const abi = @import("abi.zig");
+const temporal_types = @import("temporal.zig");
 
 const Instant = @import("Instant.zig");
 const PlainDate = @import("PlainDate.zig");
@@ -8,188 +10,582 @@ const Duration = @import("Duration.zig");
 
 const ZonedDateTime = @This();
 
+_inner: *abi.c.ZonedDateTime,
 calendar_id: []const u8,
-day: i64,
-day_of_week: i64,
-day_of_year: i64,
-days_in_month: i64,
-days_in_week: i64,
-days_in_year: i64,
-epoch_milliseconds: i64,
-epoch_nanoseconds: i128,
-era: []const u8,
-era_year: i64,
-hour: i64,
-hours_in_day: i64,
-in_leap_year: bool,
-microsecond: i64,
-millisecond: i64,
-minute: i64,
-month: i64,
-month_code: []const u8,
-months_in_year: i64,
-nanosecond: i64,
-offset: []const u8,
-offset_nanoseconds: i64,
-second: i64,
-time_zone_id: []const u8,
-week_of_year: i64,
-year: i64,
-year_of_week: i64,
 
-pub fn init() error{Todo}!ZonedDateTime {
-    return error.Todo;
+// Import types from temporal.zig
+pub const Unit = temporal_types.Unit;
+pub const RoundingMode = temporal_types.RoundingMode;
+pub const Sign = temporal_types.Sign;
+pub const DifferenceSettings = temporal_types.DifferenceSettings;
+pub const RoundOptions = temporal_types.RoundingOptions;
+
+pub const TimeZone = struct {
+    _inner: abi.c.TimeZone,
+
+    pub fn init(id: []const u8) !TimeZone {
+        const view = abi.toDiplomatStringView(id);
+        const result = abi.c.temporal_rs_TimeZone_try_from_str(view);
+        const tz = abi.success(result) orelse return error.TemporalError;
+        return .{ ._inner = tz };
+    }
+
+    fn toCApi(self: TimeZone) abi.c.TimeZone {
+        return self._inner;
+    }
+};
+
+pub const Disambiguation = enum {
+    compatible,
+    earlier,
+    later,
+    reject,
+
+    fn toCApi(self: Disambiguation) abi.c.Disambiguation {
+        return switch (self) {
+            .compatible => abi.c.Disambiguation_Compatible,
+            .earlier => abi.c.Disambiguation_Earlier,
+            .later => abi.c.Disambiguation_Later,
+            .reject => abi.c.Disambiguation_Reject,
+        };
+    }
+};
+
+pub const OffsetDisambiguation = enum {
+    use_offset,
+    prefer_offset,
+    ignore_offset,
+    reject,
+
+    fn toCApi(self: OffsetDisambiguation) abi.c.OffsetDisambiguation {
+        return switch (self) {
+            .use_offset => abi.c.OffsetDisambiguation_Use,
+            .prefer_offset => abi.c.OffsetDisambiguation_Prefer,
+            .ignore_offset => abi.c.OffsetDisambiguation_Ignore,
+            .reject => abi.c.OffsetDisambiguation_Reject,
+        };
+    }
+};
+
+pub const CalendarDisplay = enum {
+    auto,
+    always,
+    never,
+    critical,
+
+    fn toCApi(self: CalendarDisplay) abi.c.DisplayCalendar {
+        return switch (self) {
+            .auto => abi.c.DisplayCalendar_Auto,
+            .always => abi.c.DisplayCalendar_Always,
+            .never => abi.c.DisplayCalendar_Never,
+            .critical => abi.c.DisplayCalendar_Critical,
+        };
+    }
+};
+
+pub const DisplayOffset = enum {
+    auto,
+    never,
+
+    fn toCApi(self: DisplayOffset) abi.c.DisplayOffset {
+        return switch (self) {
+            .auto => abi.c.DisplayOffset_Auto,
+            .never => abi.c.DisplayOffset_Never,
+        };
+    }
+};
+
+pub const DisplayTimeZone = enum {
+    auto,
+    never,
+    critical,
+
+    fn toCApi(self: DisplayTimeZone) abi.c.DisplayTimeZone {
+        return switch (self) {
+            .auto => abi.c.DisplayTimeZone_Auto,
+            .never => abi.c.DisplayTimeZone_Never,
+            .critical => abi.c.DisplayTimeZone_Critical,
+        };
+    }
+};
+
+pub const ToStringOptions = struct {
+    fractional_second_digits: ?u8 = null,
+    smallest_unit: ?Unit = null,
+    rounding_mode: ?RoundingMode = null,
+    calendar_display: CalendarDisplay = .auto,
+    offset_display: DisplayOffset = .auto,
+    time_zone_name: DisplayTimeZone = .auto,
+};
+
+/// Helper function to wrap a C API result into a ZonedDateTime
+fn wrapZonedDateTime(result: anytype) !ZonedDateTime {
+    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const calendar_ptr = abi.c.temporal_rs_ZonedDateTime_calendar(ptr);
+    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    const allocator = std.heap.c_allocator;
+    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
+    return .{ ._inner = ptr, .calendar_id = cal_id };
 }
 
-pub fn compare() error{Todo}!i8 {
-    return error.Todo;
+/// Create a ZonedDateTime from epoch nanoseconds
+pub fn init(epoch_ns: i128, time_zone: TimeZone) !ZonedDateTime {
+    const ns_parts = abi.toI128Nanoseconds(epoch_ns);
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, time_zone.toCApi()));
 }
 
-pub fn from() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Create from epoch milliseconds
+pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: TimeZone) !ZonedDateTime {
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_milliseconds(epoch_ms, time_zone.toCApi()));
 }
 
-pub fn add() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Create from epoch nanoseconds
+pub fn fromEpochNanoseconds(epoch_ns: i128, time_zone: TimeZone) !ZonedDateTime {
+    const ns_parts = abi.toI128Nanoseconds(epoch_ns);
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, time_zone.toCApi()));
 }
 
-pub fn equals() error{Todo}!bool {
-    return error.Todo;
+/// Parse from string
+pub fn from(s: []const u8, time_zone: ?TimeZone, disambiguation: Disambiguation, offset_disambiguation: OffsetDisambiguation) !ZonedDateTime {
+    _ = time_zone; // The time zone is parsed from the string
+    const view = abi.toDiplomatStringView(s);
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_utf8(view, disambiguation.toCApi(), offset_disambiguation.toCApi()));
 }
 
-pub fn getTimeZoneTransition() error{Todo}!?Instant {
-    return error.Todo;
+/// Compare two ZonedDateTime instances
+pub fn compare(a: ZonedDateTime, b: ZonedDateTime) i8 {
+    return abi.c.temporal_rs_ZonedDateTime_compare_instant(a._inner, b._inner);
 }
 
-pub fn round() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Add a duration
+pub fn add(self: ZonedDateTime, duration: Duration) !ZonedDateTime {
+    const overflow_opt = abi.toOption(abi.c.ArithmeticOverflow_option, null);
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_add(self._inner, duration._inner, overflow_opt));
 }
 
-pub fn since() error{Todo}!Duration {
-    return error.Todo;
+/// Check equality
+pub fn equals(self: ZonedDateTime, other: ZonedDateTime) bool {
+    return abi.c.temporal_rs_ZonedDateTime_equals(self._inner, other._inner);
 }
 
-pub fn startOfDay() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Get the time zone transition
+pub fn getTimeZoneTransition(self: ZonedDateTime, direction: enum { next, previous }) !?ZonedDateTime {
+    const dir = switch (direction) {
+        .next => abi.c.TransitionDirection_Next,
+        .previous => abi.c.TransitionDirection_Previous,
+    };
+    const result = abi.c.temporal_rs_ZonedDateTime_get_time_zone_transition(self._inner, dir);
+    const maybe_ptr = abi.success(result) orelse return error.TemporalError;
+    if (maybe_ptr) |ptr| {
+        const calendar_ptr = abi.c.temporal_rs_ZonedDateTime_calendar(ptr);
+        const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+        const allocator = std.heap.c_allocator;
+        const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
+        return .{ ._inner = ptr, .calendar_id = cal_id };
+    }
+    return null;
 }
 
-pub fn subtract() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Round to the given options
+pub fn round(self: ZonedDateTime, options: RoundOptions) !ZonedDateTime {
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_round(self._inner, options.toCApi()));
 }
 
-pub fn toInstant() error{Todo}!Instant {
-    return error.Todo;
+/// Calculate duration since another ZonedDateTime
+pub fn since(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
+    const ptr = abi.success(abi.c.temporal_rs_ZonedDateTime_since(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
-pub fn toJSON() error{Todo}![]const u8 {
-    return error.Todo;
+/// Get the start of the day
+pub fn startOfDay(self: ZonedDateTime) !ZonedDateTime {
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_start_of_day(self._inner));
 }
 
-pub fn toLocaleString() error{Todo}![]const u8 {
-    return error.Todo;
+/// Subtract a duration
+pub fn subtract(self: ZonedDateTime, duration: Duration) !ZonedDateTime {
+    const overflow_opt = abi.toOption(abi.c.ArithmeticOverflow_option, null);
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_subtract(self._inner, duration._inner, overflow_opt));
 }
 
-pub fn toPlainDate() error{Todo}!PlainDate {
-    return error.Todo;
+/// Convert to Instant
+pub fn toInstant(self: ZonedDateTime) !Instant {
+    const instant_ptr = abi.c.temporal_rs_ZonedDateTime_to_instant(self._inner) orelse return error.TemporalError;
+    const epoch_ms = abi.c.temporal_rs_Instant_epoch_milliseconds(instant_ptr);
+    const epoch_ns_parts = abi.c.temporal_rs_Instant_epoch_nanoseconds(instant_ptr);
+    const epoch_ns = abi.fromI128Nanoseconds(epoch_ns_parts);
+    return .{ ._inner = instant_ptr, .epoch_milliseconds = epoch_ms, .epoch_nanoseconds = epoch_ns };
 }
 
-pub fn toPlainDateTime() error{Todo}!PlainDateTime {
-    return error.Todo;
+/// Convert to JSON string (ISO 8601 format)
+pub fn toJSON(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
+    return self.toString(allocator, .{});
 }
 
-pub fn toPlainTime() error{Todo}!PlainTime {
-    return error.Todo;
+/// Convert to locale string (placeholder - returns ISO string)
+pub fn toLocaleString(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
+    return self.toString(allocator, .{});
 }
 
-pub fn toString() error{Todo}![]const u8 {
-    return error.Todo;
+/// Convert to PlainDate
+pub fn toPlainDate(self: ZonedDateTime) !PlainDate {
+    const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_date(self._inner) orelse return error.TemporalError;
+    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
 }
 
-pub fn until() error{Todo}!Duration {
-    return error.Todo;
+/// Convert to PlainDateTime
+pub fn toPlainDateTime(self: ZonedDateTime) !PlainDateTime {
+    const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_datetime(self._inner) orelse return error.TemporalError;
+    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
 }
 
-pub fn valueOf() error{Todo}!void {
-    return error.Todo;
+/// Convert to PlainTime
+pub fn toPlainTime(self: ZonedDateTime) !PlainTime {
+    const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_time(self._inner) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
-pub fn with() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Convert to string with options
+pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
+    const smallest = if (opts.smallest_unit) |u| abi.toUnitOption(u.toCApi()) else abi.toUnitOption(null);
+    const rounding = if (opts.rounding_mode) |r| abi.toRoundingModeOption(r.toCApi()) else abi.toRoundingModeOption(null);
+
+    const precision: abi.c.Precision = if (opts.fractional_second_digits) |digits|
+        .{ .is_minute = false, .precision = abi.toOption(abi.c.OptionU8, digits) }
+    else
+        .{ .is_minute = true, .precision = abi.toOption(abi.c.OptionU8, null) };
+
+    const rounding_opts = abi.c.ToStringRoundingOptions{
+        .precision = precision,
+        .smallest_unit = smallest,
+        .rounding_mode = rounding,
+    };
+
+    var write = abi.DiplomatWrite.init(allocator);
+    defer write.deinit();
+
+    _ = abi.c.temporal_rs_ZonedDateTime_to_ixdtf_string(
+        self._inner,
+        opts.offset_display.toCApi(),
+        opts.time_zone_name.toCApi(),
+        opts.calendar_display.toCApi(),
+        rounding_opts,
+        &write.inner,
+    );
+
+    return try write.toOwnedSlice();
 }
 
-pub fn withCalendar() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Calculate duration until another ZonedDateTime
+pub fn until(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
+    const ptr = abi.success(abi.c.temporal_rs_ZonedDateTime_until(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError;
+    return .{ ._inner = ptr };
 }
 
-pub fn withPlainTime() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// valueOf() is not supported for ZonedDateTime
+pub fn valueOf(_: ZonedDateTime) !void {
+    return error.ValueOfNotSupported;
 }
 
-pub fn withTimeZone() error{Todo}!ZonedDateTime {
-    return error.Todo;
+/// Create a new ZonedDateTime with some fields changed
+pub fn with(self: ZonedDateTime, allocator: std.mem.Allocator, fields: anytype) !ZonedDateTime {
+    _ = allocator;
+    _ = fields;
+    _ = self;
+    return error.Todo; // Need PartialZonedDateTime mapping
+}
+
+/// Create a new ZonedDateTime with a different calendar
+pub fn withCalendar(self: ZonedDateTime, calendar: []const u8) !ZonedDateTime {
+    const cal_view = abi.toDiplomatStringView(calendar);
+    const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
+    const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
+    const ptr = abi.c.temporal_rs_ZonedDateTime_with_calendar(self._inner, cal_kind);
+    return .{ ._inner = ptr, .calendar_id = calendar };
+}
+
+/// Create a new ZonedDateTime with a different time
+pub fn withPlainTime(self: ZonedDateTime, time: ?PlainTime) !ZonedDateTime {
+    const time_ptr = if (time) |t| t._inner else null;
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with_plain_time(self._inner, time_ptr));
+}
+
+/// Create a new ZonedDateTime with a different time zone
+pub fn withTimeZone(self: ZonedDateTime, time_zone: TimeZone) !ZonedDateTime {
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with_timezone(self._inner, time_zone.toCApi()));
+}
+
+// Property accessors
+pub fn calendarId(self: ZonedDateTime) []const u8 {
+    return self.calendar_id;
+}
+
+pub fn day(self: ZonedDateTime) u8 {
+    return abi.c.temporal_rs_ZonedDateTime_day(self._inner);
+}
+
+pub fn dayOfWeek(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_day_of_week(self._inner);
+}
+
+pub fn dayOfYear(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_day_of_year(self._inner);
+}
+
+pub fn daysInMonth(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_days_in_month(self._inner);
+}
+
+pub fn daysInWeek(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_days_in_week(self._inner);
+}
+
+pub fn daysInYear(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_days_in_year(self._inner);
+}
+
+pub fn epochMilliseconds(self: ZonedDateTime) i64 {
+    return abi.c.temporal_rs_ZonedDateTime_epoch_milliseconds(self._inner);
+}
+
+pub fn epochNanoseconds(self: ZonedDateTime) i128 {
+    const parts = abi.c.temporal_rs_ZonedDateTime_epoch_nanoseconds(self._inner);
+    return abi.fromI128Nanoseconds(parts);
+}
+
+pub fn era(self: ZonedDateTime, allocator: std.mem.Allocator) !?[]u8 {
+    var write = abi.DiplomatWrite.init(allocator);
+    defer write.deinit();
+    abi.c.temporal_rs_ZonedDateTime_era(self._inner, &write.inner);
+    const result = try write.toOwnedSlice();
+    if (result.len == 0) {
+        allocator.free(result);
+        return null;
+    }
+    return result;
+}
+
+pub fn eraYear(self: ZonedDateTime) ?i32 {
+    const result = abi.c.temporal_rs_ZonedDateTime_era_year(self._inner);
+    return abi.fromOption(result);
+}
+
+pub fn hour(self: ZonedDateTime) u8 {
+    return abi.c.temporal_rs_ZonedDateTime_hour(self._inner);
+}
+
+pub fn hoursInDay(self: ZonedDateTime) !f64 {
+    const result = abi.c.temporal_rs_ZonedDateTime_hours_in_day(self._inner);
+    return abi.success(result) orelse error.TemporalError;
+}
+
+pub fn inLeapYear(self: ZonedDateTime) bool {
+    return abi.c.temporal_rs_ZonedDateTime_in_leap_year(self._inner);
+}
+
+pub fn microsecond(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_microsecond(self._inner);
+}
+
+pub fn millisecond(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_millisecond(self._inner);
+}
+
+pub fn minute(self: ZonedDateTime) u8 {
+    return abi.c.temporal_rs_ZonedDateTime_minute(self._inner);
+}
+
+pub fn month(self: ZonedDateTime) u8 {
+    return abi.c.temporal_rs_ZonedDateTime_month(self._inner);
+}
+
+pub fn monthCode(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
+    var write = abi.DiplomatWrite.init(allocator);
+    defer write.deinit();
+    abi.c.temporal_rs_ZonedDateTime_month_code(self._inner, &write.inner);
+    return try write.toOwnedSlice();
+}
+
+pub fn monthsInYear(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_months_in_year(self._inner);
+}
+
+pub fn nanosecond(self: ZonedDateTime) u16 {
+    return abi.c.temporal_rs_ZonedDateTime_nanosecond(self._inner);
+}
+
+pub fn offset(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
+    var write = abi.DiplomatWrite.init(allocator);
+    defer write.deinit();
+    const res = abi.c.temporal_rs_ZonedDateTime_offset(self._inner, &write.inner);
+    _ = abi.success(res) orelse return error.TemporalError;
+    return try write.toOwnedSlice();
+}
+
+pub fn offsetNanoseconds(self: ZonedDateTime) i64 {
+    return abi.c.temporal_rs_ZonedDateTime_offset_nanoseconds(self._inner);
+}
+
+pub fn second(self: ZonedDateTime) u8 {
+    return abi.c.temporal_rs_ZonedDateTime_second(self._inner);
+}
+
+pub fn timeZoneId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
+    const tz = abi.c.temporal_rs_ZonedDateTime_timezone(self._inner);
+    const view = abi.fromDiplomatStringView(tz.id);
+    return try allocator.dupe(u8, view);
+}
+
+pub fn weekOfYear(self: ZonedDateTime) ?u8 {
+    const result = abi.c.temporal_rs_ZonedDateTime_week_of_year(self._inner);
+    return abi.fromOption(result);
+}
+
+pub fn year(self: ZonedDateTime) i32 {
+    return abi.c.temporal_rs_ZonedDateTime_year(self._inner);
+}
+
+pub fn yearOfWeek(self: ZonedDateTime) ?i32 {
+    const result = abi.c.temporal_rs_ZonedDateTime_year_of_week(self._inner);
+    return abi.fromOption(result);
+}
+
+/// Clone this ZonedDateTime
+pub fn clone(self: ZonedDateTime) ZonedDateTime {
+    const ptr = abi.c.temporal_rs_ZonedDateTime_clone(self._inner);
+    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+}
+
+/// Free the ZonedDateTime
+pub fn deinit(self: ZonedDateTime) void {
+    abi.c.temporal_rs_ZonedDateTime_destroy(self._inner);
+    if (self.calendar_id.len > 0) {
+        std.heap.c_allocator.free(self.calendar_id);
+    }
 }
 
 // ---------- Tests ---------------------
-test compare {
-    if (true) return error.Todo;
+test init {
+    const tz = try TimeZone.init("America/New_York");
+    const zdt = try init(0, tz);
+    defer zdt.deinit();
+
+    try std.testing.expectEqual(@as(i64, 0), zdt.epochMilliseconds());
 }
+
+test fromEpochMilliseconds {
+    const tz = try TimeZone.init("UTC");
+    const zdt = try fromEpochMilliseconds(1609459200000, tz); // 2021-01-01T00:00:00Z
+    defer zdt.deinit();
+
+    try std.testing.expectEqual(@as(i64, 1609459200000), zdt.epochMilliseconds());
+}
+
 test from {
-    if (true) return error.Todo;
+    const zdt = try from("2021-01-01T00:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+
+    try std.testing.expectEqual(@as(i32, 2021), zdt.year());
+    try std.testing.expectEqual(@as(u8, 1), zdt.month());
+    try std.testing.expectEqual(@as(u8, 1), zdt.day());
 }
-test add {
-    if (true) return error.Todo;
+
+test compare {
+    const tz = try TimeZone.init("UTC");
+    const zdt1 = try fromEpochMilliseconds(1000, tz);
+    defer zdt1.deinit();
+    const zdt2 = try fromEpochMilliseconds(2000, tz);
+    defer zdt2.deinit();
+
+    try std.testing.expect(compare(zdt1, zdt2) < 0);
+    try std.testing.expect(compare(zdt2, zdt1) > 0);
+    try std.testing.expect(compare(zdt1, zdt1) == 0);
 }
+
 test equals {
-    if (true) return error.Todo;
+    const tz = try TimeZone.init("UTC");
+    const zdt1 = try fromEpochMilliseconds(1000, tz);
+    defer zdt1.deinit();
+    const zdt2 = try fromEpochMilliseconds(1000, tz);
+    defer zdt2.deinit();
+    const zdt3 = try fromEpochMilliseconds(2000, tz);
+    defer zdt3.deinit();
+
+    try std.testing.expect(zdt1.equals(zdt2));
+    try std.testing.expect(!zdt1.equals(zdt3));
 }
-test getTimeZoneTransition {
-    if (true) return error.Todo;
-}
-test round {
-    if (true) return error.Todo;
-}
-test since {
-    if (true) return error.Todo;
-}
-test startOfDay {
-    if (true) return error.Todo;
-}
-test subtract {
-    if (true) return error.Todo;
-}
+
 test toInstant {
-    if (true) return error.Todo;
+    const tz = try TimeZone.init("UTC");
+    const zdt = try fromEpochMilliseconds(1609459200000, tz);
+    defer zdt.deinit();
+
+    const instant = try zdt.toInstant();
+    defer instant.deinit();
+
+    try std.testing.expectEqual(@as(i64, 1609459200000), instant.epoch_milliseconds);
 }
-test toJSON {
-    if (true) return error.Todo;
-}
-test toLocaleString {
-    if (true) return error.Todo;
-}
+
 test toPlainDate {
-    if (true) return error.Todo;
+    const tz = try TimeZone.init("UTC");
+    const zdt = try fromEpochMilliseconds(1609459200000, tz);
+    defer zdt.deinit();
+
+    const pd = try zdt.toPlainDate();
+    defer pd.deinit();
+
+    try std.testing.expectEqual(@as(i32, 2021), pd.year());
+    try std.testing.expectEqual(@as(u8, 1), pd.month());
+    try std.testing.expectEqual(@as(u8, 1), pd.day());
 }
+
 test toPlainDateTime {
-    if (true) return error.Todo;
+    const tz = try TimeZone.init("UTC");
+    const zdt = try fromEpochMilliseconds(1609459200000, tz);
+    defer zdt.deinit();
+
+    var pdt = try zdt.toPlainDateTime();
+    defer pdt.deinit();
+
+    try std.testing.expectEqual(@as(i32, 2021), pdt.year());
+    try std.testing.expectEqual(@as(u8, 1), pdt.month());
+    try std.testing.expectEqual(@as(u8, 1), pdt.day());
 }
+
 test toPlainTime {
-    if (true) return error.Todo;
+    const tz = try TimeZone.init("UTC");
+    const zdt = try fromEpochMilliseconds(1609459200000, tz);
+    defer zdt.deinit();
+
+    const pt = try zdt.toPlainTime();
+    defer abi.c.temporal_rs_PlainTime_destroy(pt._inner);
+
+    try std.testing.expectEqual(@as(u8, 0), pt.hour());
+    try std.testing.expectEqual(@as(u8, 0), pt.minute());
 }
+
 test toString {
     if (true) return error.Todo;
+    const tz = try TimeZone.init("UTC");
+    const zdt = try fromEpochMilliseconds(1609459200000, tz);
+    defer zdt.deinit();
+
+    const str = try zdt.toString(std.testing.allocator, .{});
+    defer std.testing.allocator.free(str);
+
+    try std.testing.expect(str.len > 0);
 }
-test until {
-    if (true) return error.Todo;
-}
-test with {
-    if (true) return error.Todo;
-}
-test withCalendar {
-    if (true) return error.Todo;
-}
-test withPlainTime {
-    if (true) return error.Todo;
-}
-test withTimeZone {
-    if (true) return error.Todo;
+
+test "props" {
+    const tz = try TimeZone.init("UTC");
+    const zdt = try fromEpochMilliseconds(1609459200000, tz);
+    defer zdt.deinit();
+
+    try std.testing.expectEqual(@as(i32, 2021), zdt.year());
+    try std.testing.expectEqual(@as(u8, 1), zdt.month());
+    try std.testing.expectEqual(@as(u8, 1), zdt.day());
+    try std.testing.expectEqual(@as(u8, 0), zdt.hour());
+    try std.testing.expectEqual(@as(u8, 0), zdt.minute());
+    try std.testing.expectEqual(@as(u8, 0), zdt.second());
+    try std.testing.expectEqual(@as(u16, 0), zdt.millisecond());
 }
