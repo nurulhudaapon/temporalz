@@ -8,35 +8,82 @@ _inner: *c.Instant,
 epoch_milliseconds: i64,
 epoch_nanoseconds: i128,
 
-pub const Unit = enum(c_uint) {
-    auto = c.Unit_Auto,
-    nanosecond = c.Unit_Nanosecond,
-    microsecond = c.Unit_Microsecond,
-    millisecond = c.Unit_Millisecond,
-    second = c.Unit_Second,
-    minute = c.Unit_Minute,
-    hour = c.Unit_Hour,
-    day = c.Unit_Day,
-    week = c.Unit_Week,
-    month = c.Unit_Month,
-    year = c.Unit_Year,
+pub const Unit = enum {
+    auto,
+    nanosecond,
+    microsecond,
+    millisecond,
+    second,
+    minute,
+    hour,
+    day,
+    week,
+    month,
+    year,
+
+    fn toCApi(self: Unit) c_uint {
+        return switch (self) {
+            .auto => c.Unit_Auto,
+            .nanosecond => c.Unit_Nanosecond,
+            .microsecond => c.Unit_Microsecond,
+            .millisecond => c.Unit_Millisecond,
+            .second => c.Unit_Second,
+            .minute => c.Unit_Minute,
+            .hour => c.Unit_Hour,
+            .day => c.Unit_Day,
+            .week => c.Unit_Week,
+            .month => c.Unit_Month,
+            .year => c.Unit_Year,
+        };
+    }
 };
 
-pub const RoundingMode = enum(c_uint) {
-    ceil = c.RoundingMode_Ceil,
-    floor = c.RoundingMode_Floor,
-    expand = c.RoundingMode_Expand,
-    trunc = c.RoundingMode_Trunc,
-    half_ceil = c.RoundingMode_HalfCeil,
-    half_floor = c.RoundingMode_HalfFloor,
-    half_expand = c.RoundingMode_HalfExpand,
-    half_trunc = c.RoundingMode_HalfTrunc,
-    half_even = c.RoundingMode_HalfEven,
+pub const RoundingMode = enum {
+    ceil,
+    floor,
+    expand,
+    trunc,
+    half_ceil,
+    half_floor,
+    half_expand,
+    half_trunc,
+    half_even,
+
+    fn toCApi(self: RoundingMode) c_uint {
+        return switch (self) {
+            .ceil => c.RoundingMode_Ceil,
+            .floor => c.RoundingMode_Floor,
+            .expand => c.RoundingMode_Expand,
+            .trunc => c.RoundingMode_Trunc,
+            .half_ceil => c.RoundingMode_HalfCeil,
+            .half_floor => c.RoundingMode_HalfFloor,
+            .half_expand => c.RoundingMode_HalfExpand,
+            .half_trunc => c.RoundingMode_HalfTrunc,
+            .half_even => c.RoundingMode_HalfEven,
+        };
+    }
 };
-pub const Sign = enum(c_int) {
-    positive = c.Sign_Positive,
-    zero = c.Sign_Zero,
-    negative = c.Sign_Negative,
+pub const Sign = enum {
+    positive,
+    zero,
+    negative,
+
+    fn toCApi(self: Sign) c_int {
+        return switch (self) {
+            .positive => c.Sign_Positive,
+            .zero => c.Sign_Zero,
+            .negative => c.Sign_Negative,
+        };
+    }
+
+    fn fromCApi(value: c_int) Sign {
+        return switch (value) {
+            c.Sign_Positive => .positive,
+            c.Sign_Zero => .zero,
+            c.Sign_Negative => .negative,
+            else => .zero,
+        };
+    }
 };
 const TimeZone = c.TimeZone;
 const TimeZone_option = c.TimeZone_option;
@@ -218,8 +265,8 @@ fn optsToRounding(opts: ToStringOptions) ToStringRoundingOptions {
     else
         defaultPrecision();
 
-    const smallest_unit = if (opts.smallest_unit) |unit| @intFromEnum(unit) else null;
-    const rounding_mode = if (opts.rounding_mode) |mode| @intFromEnum(mode) else null;
+    const smallest_unit = if (opts.smallest_unit) |unit| unit.toCApi() else null;
+    const rounding_mode = if (opts.rounding_mode) |mode| mode.toCApi() else null;
 
     return .{
         .precision = precision,
@@ -370,20 +417,20 @@ test until {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = abi.toUnitOption(@intFromEnum(Unit.hour)),
-        .smallest_unit = abi.toUnitOption(@intFromEnum(Unit.second)),
-        .rounding_mode = abi.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
+        .largest_unit = abi.toUnitOption(Unit.hour.toCApi()),
+        .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
+        .rounding_mode = abi.toRoundingModeOption(RoundingMode.trunc.toCApi()),
         .increment = abi.toOption(c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
     defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(until_handle.ptr))));
+    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(until_handle.ptr)));
     try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(until_handle.ptr));
 
     var since_handle = try later.since(earlier, settings);
     defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(since_handle.ptr))));
+    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(since_handle.ptr)));
     try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(since_handle.ptr));
 }
 
@@ -394,20 +441,20 @@ test since {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = abi.toUnitOption(@intFromEnum(Unit.hour)),
-        .smallest_unit = abi.toUnitOption(@intFromEnum(Unit.second)),
-        .rounding_mode = abi.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
+        .largest_unit = abi.toUnitOption(Unit.hour.toCApi()),
+        .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
+        .rounding_mode = abi.toRoundingModeOption(RoundingMode.trunc.toCApi()),
         .increment = abi.toOption(c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
     defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(until_handle.ptr))));
+    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(until_handle.ptr)));
     try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(until_handle.ptr));
 
     var since_handle = try later.since(earlier, settings);
     defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(since_handle.ptr))));
+    try std.testing.expectEqual(Sign.positive, Sign.fromCApi(abi.c.temporal_rs_Duration_sign(since_handle.ptr)));
     try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(since_handle.ptr));
 }
 
@@ -417,8 +464,8 @@ test round {
 
     const opts = RoundingOptions{
         .largest_unit = abi.toUnitOption(null),
-        .smallest_unit = abi.toUnitOption(@intFromEnum(Unit.second)),
-        .rounding_mode = abi.toRoundingModeOption(@intFromEnum(RoundingMode.half_expand)),
+        .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
+        .rounding_mode = abi.toRoundingModeOption(RoundingMode.half_expand.toCApi()),
         .increment = abi.toOption(c.OptionU32, null),
     };
 
