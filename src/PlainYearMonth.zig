@@ -425,7 +425,6 @@ test "props" {
     const eraa = try ym.era(std.testing.allocator);
     if (eraa) |e| {
         defer std.testing.allocator.free(e);
-        std.debug.print("Era: {s}\n", .{e});
         try std.testing.expectEqualStrings("ce", e);
     } else {
         try std.testing.expect(false);
@@ -433,7 +432,6 @@ test "props" {
 
     const era_year = ym.eraYear();
     if (era_year) |ey| {
-        std.debug.print("Era Year: {d}\n", .{ey});
         try std.testing.expectEqual(@as(i32, 2021), ey);
     } else {
         try std.testing.expect(false);

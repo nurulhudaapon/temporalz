@@ -238,32 +238,19 @@ pub fn toPlainTime(self: ZonedDateTime) !PlainTime {
 
 /// Convert to string with options
 pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
-    const smallest = if (opts.smallest_unit) |u| abi.toUnitOption(u.toCApi()) else abi.toUnitOption(null);
-    const rounding = if (opts.rounding_mode) |r| abi.toRoundingModeOption(r.toCApi()) else abi.toRoundingModeOption(null);
-
-    const precision: abi.c.Precision = if (opts.fractional_second_digits) |digits|
-        .{ .is_minute = false, .precision = abi.toOption(abi.c.OptionU8, digits) }
-    else
-        .{ .is_minute = true, .precision = abi.toOption(abi.c.OptionU8, null) };
-
-    const rounding_opts = abi.c.ToStringRoundingOptions{
-        .precision = precision,
-        .smallest_unit = smallest,
-        .rounding_mode = rounding,
-    };
-
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    _ = abi.c.temporal_rs_ZonedDateTime_to_ixdtf_string(
+    const result = abi.c.temporal_rs_ZonedDateTime_to_ixdtf_string(
         self._inner,
         opts.offset_display.toCApi(),
         opts.time_zone_name.toCApi(),
         opts.calendar_display.toCApi(),
-        rounding_opts,
+        abi.to_string_rounding_options_auto,
         &write.inner,
     );
 
+    if (!result.is_ok) return error.TemporalError;
     return try write.toOwnedSlice();
 }
 
@@ -424,6 +411,7 @@ pub fn second(self: ZonedDateTime) u8 {
 pub fn timeZoneId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     const tz = abi.c.temporal_rs_ZonedDateTime_timezone(self._inner);
     var write = abi.DiplomatWrite.init(allocator);
+    defer write.deinit();
 
     abi.c.temporal_rs_TimeZone_identifier(tz, &write.inner);
 
@@ -556,7 +544,6 @@ test toPlainTime {
 }
 
 test toString {
-    if (true) return error.Todo;
     const zdt = try from("2021-01-01T00:00:00+00:00[UTC]", null, .compatible, .reject);
     defer zdt.deinit();
 
@@ -564,6 +551,7 @@ test toString {
     defer std.testing.allocator.free(str);
 
     try std.testing.expect(str.len > 0);
+    try std.testing.expectEqualStrings("2021-01-01T00:00:00+00:00[UTC]", str);
 }
 
 test "props" {
