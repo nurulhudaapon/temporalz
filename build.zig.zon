@@ -16,6 +16,8 @@
     .paths = .{
         "build.zig",
         "build.zig.zon",
+        "Cargo.toml",
+        "Cargo.lock",
         "src",
         "lib",
     },

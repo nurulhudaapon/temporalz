@@ -12,6 +12,8 @@ epoch_nanoseconds: i128,
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;
+pub const RoundingOptions = temporal.RoundingOptions;
+pub const DifferenceSettings = temporal.DifferenceSettings;
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn init(epoch_ns: i128) !Instant {
@@ -29,16 +31,39 @@ pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
     return wrapInstant(abi.c.temporal_rs_Instant_try_new(parts));
 }
 
-/// Parse an ISO 8601 string (Temporal.Instant.from).
-pub fn from(text: []const u8) !Instant {
-    const view = abi.toDiplomatStringView(text);
-    return wrapInstant(abi.c.temporal_rs_Instant_from_utf8(view));
+/// Parse an ISO 8601 string (Temporal.Instant.from) or from another Temporal.Instant.
+pub fn from(info: anytype) !Instant {
+    const T = @TypeOf(info);
+
+    if (T == Instant) return info.clone();
+
+    // Handle string types (both literals and slices)
+    const type_info = @typeInfo(T);
+    switch (type_info) {
+        .pointer => {
+            const ptr = type_info.pointer;
+            const ChildType = switch (@typeInfo(ptr.child)) {
+                .array => |arr| arr.child,
+                else => ptr.child,
+            };
+
+            if (ChildType == u8) return fromUtf8(info);
+            if (ChildType == u16) return fromUtf16(info);
+        },
+        else => @compileError("from() expects an Instant, []const u8, or []const u16"),
+    }
 }
 
 /// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
-fn fromUtf16(text: []const u16) !Instant {
+inline fn fromUtf16(text: []const u16) !Instant {
     const view = abi.toDiplomatString16View(text);
     return wrapInstant(abi.c.temporal_rs_Instant_from_utf16(view));
+}
+
+/// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
+inline fn fromUtf8(text: []const u8) !Instant {
+    const view = abi.toDiplomatStringView(text);
+    return wrapInstant(abi.c.temporal_rs_Instant_from_utf8(view));
 }
 
 /// Add a Duration to this instant (Temporal.Instant.prototype.add).
@@ -52,18 +77,18 @@ pub fn subtract(self: Instant, duration: *Duration) !Instant {
 }
 
 /// Difference until another instant (Temporal.Instant.prototype.until).
-pub fn until(self: Instant, other: Instant, settings: abi.c.DifferenceSettings) !DurationHandle {
-    return wrapDuration(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings));
+pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
+    return wrapDuration(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings.toCApi()));
 }
 
 /// Difference since another instant (Temporal.Instant.prototype.since).
-pub fn since(self: Instant, other: Instant, settings: abi.c.DifferenceSettings) !DurationHandle {
-    return wrapDuration(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings));
+pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
+    return wrapDuration(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings.toCApi()));
 }
 
 /// Round this instant (Temporal.Instant.prototype.round).
-pub fn round(self: Instant, options: abi.c.RoundingOptions) !Instant {
-    return wrapInstant(abi.c.temporal_rs_Instant_round(self._inner, options));
+pub fn round(self: Instant, options: RoundingOptions) !Instant {
+    return wrapInstant(abi.c.temporal_rs_Instant_round(self._inner, options.toCApi()));
 }
 
 /// Compare two instants (Temporal.Instant.compare).
@@ -258,10 +283,17 @@ test fromEpochNanoseconds {
 }
 
 test from {
+    // Test parsing from UTF-8 string
     const inst = try Instant.from("2024-03-15T14:30:45.123Z");
     defer inst.deinit();
-
     try std.testing.expectEqual(@as(i64, 1_710_513_045_123), inst.epoch_milliseconds);
+
+    // Test creating from another Instant
+    const inst2 = try Instant.from(inst);
+    defer inst2.deinit();
+    try std.testing.expectEqual(inst.epoch_milliseconds, inst2.epoch_milliseconds);
+    try std.testing.expectEqual(inst.epoch_nanoseconds, inst2.epoch_nanoseconds);
+    try std.testing.expect(Instant.equals(inst, inst2));
 }
 
 test fromUtf16 {
@@ -326,11 +358,11 @@ test until {
     const later = try Instant.fromEpochMilliseconds(3_600_000);
     defer later.deinit();
 
-    const settings = abi.c.DifferenceSettings{
-        .largest_unit = abi.toUnitOption(Unit.hour.toCApi()),
-        .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
-        .rounding_mode = abi.toRoundingModeOption(RoundingMode.trunc.toCApi()),
-        .increment = abi.toOption(abi.c.OptionU32, null),
+    const settings = DifferenceSettings{
+        .largest_unit = .hour,
+        .smallest_unit = .second,
+        .rounding_mode = .trunc,
+        .increment = null,
     };
 
     var until_handle = try earlier.until(later, settings);
@@ -350,11 +382,11 @@ test since {
     const later = try Instant.fromEpochMilliseconds(3_600_000);
     defer later.deinit();
 
-    const settings = abi.c.DifferenceSettings{
-        .largest_unit = abi.toUnitOption(Unit.hour.toCApi()),
-        .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
-        .rounding_mode = abi.toRoundingModeOption(RoundingMode.trunc.toCApi()),
-        .increment = abi.toOption(abi.c.OptionU32, null),
+    const settings = DifferenceSettings{
+        .largest_unit = .hour,
+        .smallest_unit = .second,
+        .rounding_mode = .trunc,
+        .increment = null,
     };
 
     var until_handle = try earlier.until(later, settings);
@@ -372,11 +404,11 @@ test round {
     const inst = try Instant.fromEpochNanoseconds(1_609_459_245_123_456_789);
     defer inst.deinit();
 
-    const opts = abi.c.RoundingOptions{
-        .largest_unit = abi.toUnitOption(null),
-        .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
-        .rounding_mode = abi.toRoundingModeOption(RoundingMode.half_expand.toCApi()),
-        .increment = abi.toOption(abi.c.OptionU32, null),
+    const opts = RoundingOptions{
+        .largest_unit = null,
+        .smallest_unit = .second,
+        .rounding_mode = .half_expand,
+        .increment = null,
     };
 
     const rounded = try inst.round(opts);
