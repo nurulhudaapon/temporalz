@@ -3,11 +3,23 @@
     .version = "0.0.0",
     .fingerprint = 0xd8d79d59acc4faae,
     .minimum_zig_version = "0.15.2",
-    .dependencies = .{},
+    .dependencies = .{
+        // .temporal_rs = .{
+        //     .path = "./pkg/temporal_rs",
+        // },
+        .temporal_rs = .{
+            .url = "git+https://github.com/boa-dev/temporal#v0.1.2",
+            .hash = "N-V-__8AANlkNAB77Z946lqp-lgp2qSsOBDADValZC86PhB-",
+        },
+        .build_crab = .{
+            .url = "git+https://github.com/linusg/build.crab#7c8ace3739023b88f1fb95151df4f5b65bd7a311",
+            .hash = "build_crab-0.2.1-U0id_33BAAD3l81W7CBvgLU3OJSw7WI6FVLBSEHTnjTX",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
-        "vendor",
+        "lib",
     },
 }

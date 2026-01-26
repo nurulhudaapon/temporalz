@@ -13,6 +13,4 @@ pub fn main() !void {
 
     const dur = try Temporal.Duration.from("P1Y2M3DT4H5M6S");
     defer dur.deinit();
-    // const dur_str = try dur.toString(allocator, .{});
-    // std.debug.print("Duration String: {s}\n", .{dur_str});
 }

@@ -1,4 +1,6 @@
 const std = @import("std");
+const temporal_rs = @import("cabi.zig");
+const c = temporal_rs.c;
 
 /// The Zig implementation of `Temporal.Duration`.
 ///
@@ -135,7 +137,7 @@ const std = @import("std");
 /// [mdn-duration]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration
 const Duration = @This();
 
-_inner: *CDuration,
+_inner: *c.Duration,
 
 /// Construct a Duration from years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds.
 /// Equivalent to `Temporal.Duration.from()` or the constructor.
@@ -151,7 +153,7 @@ pub fn init(
     microseconds_val: f64,
     nanoseconds_val: f64,
 ) !Duration {
-    return wrapDuration(temporal_rs_Duration_try_new(
+    return wrapDuration(c.temporal_rs_Duration_try_new(
         years_val,
         months_val,
         weeks_val,
@@ -167,156 +169,156 @@ pub fn init(
 
 /// Parse an ISO 8601 duration string (Temporal.Duration.from).
 pub fn from(text: []const u8) !Duration {
-    const view = DiplomatStringView{ .data = text.ptr, .len = text.len };
-    return wrapDuration(temporal_rs_Duration_from_utf8(view));
+    const view = temporal_rs.toDiplomatStringView(text);
+    return wrapDuration(c.temporal_rs_Duration_from_utf8(view));
 }
 
 /// Parse an ISO 8601 UTF-16 duration string.
 fn fromUtf16(text: []const u16) !Duration {
-    const view = DiplomatString16View{ .data = text.ptr, .len = text.len };
-    return wrapDuration(temporal_rs_Duration_from_utf16(view));
+    const view = temporal_rs.toDiplomatString16View(text);
+    return wrapDuration(c.temporal_rs_Duration_from_utf16(view));
 }
 
 /// Create a Duration from a partial duration (where some fields may be omitted).
 fn fromPartialDuration(partial: PartialDuration) !Duration {
-    return wrapDuration(temporal_rs_Duration_from_partial_duration(partial));
+    return wrapDuration(c.temporal_rs_Duration_from_partial_duration(partial));
 }
 
 /// Check if the time portion of the duration is within valid ranges.
 fn isTimeWithinRange(self: Duration) bool {
-    return temporal_rs_Duration_is_time_within_range(self._inner);
+    return c.temporal_rs_Duration_is_time_within_range(self._inner);
 }
 
 /// Get the years component of the duration.
 pub fn years(self: Duration) i64 {
-    return temporal_rs_Duration_years(self._inner);
+    return c.temporal_rs_Duration_years(self._inner);
 }
 
 /// Get the months component of the duration.
 pub fn months(self: Duration) i64 {
-    return temporal_rs_Duration_months(self._inner);
+    return c.temporal_rs_Duration_months(self._inner);
 }
 
 /// Get the weeks component of the duration.
 pub fn weeks(self: Duration) i64 {
-    return temporal_rs_Duration_weeks(self._inner);
+    return c.temporal_rs_Duration_weeks(self._inner);
 }
 
 /// Get the days component of the duration.
 pub fn days(self: Duration) i64 {
-    return temporal_rs_Duration_days(self._inner);
+    return c.temporal_rs_Duration_days(self._inner);
 }
 
 /// Get the hours component of the duration.
 pub fn hours(self: Duration) i64 {
-    return temporal_rs_Duration_hours(self._inner);
+    return c.temporal_rs_Duration_hours(self._inner);
 }
 
 /// Get the minutes component of the duration.
 pub fn minutes(self: Duration) i64 {
-    return temporal_rs_Duration_minutes(self._inner);
+    return c.temporal_rs_Duration_minutes(self._inner);
 }
 
 /// Get the seconds component of the duration.
 pub fn seconds(self: Duration) i64 {
-    return temporal_rs_Duration_seconds(self._inner);
+    return c.temporal_rs_Duration_seconds(self._inner);
 }
 
 /// Get the milliseconds component of the duration.
 pub fn milliseconds(self: Duration) i64 {
-    return temporal_rs_Duration_milliseconds(self._inner);
+    return c.temporal_rs_Duration_milliseconds(self._inner);
 }
 
 /// Get the microseconds component of the duration.
 pub fn microseconds(self: Duration) f64 {
-    return temporal_rs_Duration_microseconds(self._inner);
+    return c.temporal_rs_Duration_microseconds(self._inner);
 }
 
 /// Get the nanoseconds component of the duration.
 pub fn nanoseconds(self: Duration) f64 {
-    return temporal_rs_Duration_nanoseconds(self._inner);
+    return c.temporal_rs_Duration_nanoseconds(self._inner);
 }
 
 /// Get the sign of the duration: positive (1), zero (0), or negative (-1).
 pub fn sign(self: Duration) Sign {
-    return temporal_rs_Duration_sign(self._inner);
+    return @as(Sign, @enumFromInt(c.temporal_rs_Duration_sign(self._inner)));
 }
 
 /// Check if the duration is zero (all fields are zero).
 pub fn blank(self: Duration) bool {
-    return temporal_rs_Duration_is_zero(self._inner);
+    return c.temporal_rs_Duration_is_zero(self._inner);
 }
 
 /// Returns a new Duration with the absolute value (all components positive).
 pub fn abs(self: Duration) Duration {
-    const ptr = temporal_rs_Duration_abs(self._inner);
+    const ptr: *c.Duration = c.temporal_rs_Duration_abs(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Returns a new Duration with all components negated.
 pub fn negated(self: Duration) Duration {
-    const ptr = temporal_rs_Duration_negated(self._inner);
+    const ptr: *c.Duration = c.temporal_rs_Duration_negated(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Add two durations together (Temporal.Duration.prototype.add).
 pub fn add(self: Duration, other: Duration) !Duration {
-    return wrapDuration(temporal_rs_Duration_add(self._inner, other._inner));
+    return wrapDuration(c.temporal_rs_Duration_add(self._inner, other._inner));
 }
 
 /// Subtract another duration from this one (Temporal.Duration.prototype.subtract).
 pub fn subtract(self: Duration, other: Duration) !Duration {
-    return wrapDuration(temporal_rs_Duration_subtract(self._inner, other._inner));
+    return wrapDuration(c.temporal_rs_Duration_subtract(self._inner, other._inner));
 }
 
 /// Round the duration according to the specified options (Temporal.Duration.prototype.round).
 pub fn round(self: Duration, options: RoundingOptions, relative_to: RelativeTo) !Duration {
-    return wrapDuration(temporal_rs_Duration_round(self._inner, options, relative_to));
+    return wrapDuration(c.temporal_rs_Duration_round(self._inner, options, relative_to));
 }
 
 /// Round the duration with an explicit provider.
-fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: RelativeTo, provider: *const Provider) !Duration {
-    return wrapDuration(temporal_rs_Duration_round_with_provider(self._inner, options, relative_to, provider));
+fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: RelativeTo, provider: *const c.Provider) !Duration {
+    return wrapDuration(c.temporal_rs_Duration_round_with_provider(self._inner, options, relative_to, provider));
 }
 
 /// Compare two durations (Temporal.Duration.compare).
 pub fn compare(self: Duration, other: Duration, relative_to: RelativeTo) !i8 {
-    const res = temporal_rs_Duration_compare(self._inner, other._inner, relative_to);
+    const res = c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to);
     if (!res.is_ok) return error.TemporalError;
-    return res.result.ok;
+    return res.unnamed_0.ok;
 }
 
 /// Compare two durations with an explicit provider.
-fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const Provider) !i8 {
-    const res = temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to, provider);
+fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const c.Provider) !i8 {
+    const res = c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to, provider);
     if (!res.is_ok) return error.TemporalError;
-    return res.result.ok;
+    return res.unnamed_0.ok;
 }
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, unit: Unit, relative_to: RelativeTo) !f64 {
-    const res = temporal_rs_Duration_total(self._inner, unit, relative_to);
+    const res = c.temporal_rs_Duration_total(self._inner, @intFromEnum(unit), relative_to);
     if (!res.is_ok) return error.TemporalError;
-    return res.result.ok;
+    return res.unnamed_0.ok;
 }
 
 /// Get the total value of the duration with an explicit provider.
-fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const Provider) !f64 {
-    const res = temporal_rs_Duration_total_with_provider(self._inner, unit, relative_to, provider);
+fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const c.Provider) !f64 {
+    const res = c.temporal_rs_Duration_total_with_provider(self._inner, @intFromEnum(unit), relative_to, provider);
     if (!res.is_ok) return error.TemporalError;
-    return res.result.ok;
+    return res.unnamed_0.ok;
 }
 
 /// Convert to string (Temporal.Duration.prototype.toString); caller owns returned slice.
 pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringRoundingOptions) ![]u8 {
-    const writer = diplomat_buffer_write_create(128);
-    defer diplomat_buffer_write_destroy(writer);
+    const writer = c.diplomat_buffer_write_create(128);
+    defer c.diplomat_buffer_write_destroy(writer);
 
-    const res = temporal_rs_Duration_to_string(self._inner, options, writer);
+    const res = c.temporal_rs_Duration_to_string(self._inner, options, writer);
     try handleVoidResult(res);
 
-    const len = diplomat_buffer_write_len(writer);
-    const source = diplomat_buffer_write_get_bytes(writer)[0..len];
+    const len = c.diplomat_buffer_write_len(writer);
+    const source = c.diplomat_buffer_write_get_bytes(writer)[0..len];
 
     const out = try allocator.alloc(u8, len);
     std.mem.copyForwards(u8, out, source);
@@ -335,32 +337,30 @@ pub fn toLocaleString(self: Duration, allocator: std.mem.Allocator) ![]u8 {
 
 /// Clone the underlying duration.
 fn clone(self: Duration) Duration {
-    const ptr = temporal_rs_Duration_clone(self._inner);
+    const ptr: *c.Duration = c.temporal_rs_Duration_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 pub fn deinit(self: Duration) void {
-    temporal_rs_Duration_destroy(self._inner);
+    c.temporal_rs_Duration_destroy(self._inner);
 }
 
 // --- Helpers -----------------------------------------------------------------
 
-fn wrapDuration(res: DurationResult) !Duration {
+fn handleVoidResult(res: anytype) !void {
     if (!res.is_ok) return error.TemporalError;
-    const ptr = res.result.ok orelse return error.TemporalError;
+}
+
+fn wrapDuration(res: anytype) !Duration {
+    if (!res.is_ok) return error.TemporalError;
+    const maybe_ptr = res.unnamed_0.ok;
+    if (maybe_ptr == null) return error.TemporalError;
+    const ptr: *c.Duration = maybe_ptr.?;
     return .{ ._inner = ptr };
 }
 
-fn handleVoidResult(res: VoidResult) !void {
-    if (!res.is_ok) return error.TemporalError;
-}
-
 fn defaultToStringRoundingOptions() ToStringRoundingOptions {
-    return .{
-        .precision = .{ .is_minute = false, .precision = OptionU8{ .ok = 0, .is_ok = false } },
-        .smallest_unit = Unit_option{ .ok = .auto, .is_ok = false },
-        .rounding_mode = RoundingMode_option{ .ok = .trunc, .is_ok = false },
-    };
+    return temporal_rs.to_string_rounding_options_auto;
 }
 
 // --- Public helper types -----------------------------------------------------
@@ -379,277 +379,71 @@ pub const ToStringOptions = struct {
     smallest_unit: ?Unit = null,
 };
 
-/// A partial duration where some or all fields may be omitted.
-pub const PartialDuration = extern struct {
-    years: OptionI64,
-    months: OptionI64,
-    weeks: OptionI64,
-    days: OptionI64,
-    hours: OptionI64,
-    minutes: OptionI64,
-    seconds: OptionI64,
-    milliseconds: OptionI64,
-    microseconds: OptionI128,
-    nanoseconds: OptionI128,
-
-    pub fn empty() PartialDuration {
-        return .{
-            .years = .{ .ok = 0, .is_ok = false },
-            .months = .{ .ok = 0, .is_ok = false },
-            .weeks = .{ .ok = 0, .is_ok = false },
-            .days = .{ .ok = 0, .is_ok = false },
-            .hours = .{ .ok = 0, .is_ok = false },
-            .minutes = .{ .ok = 0, .is_ok = false },
-            .seconds = .{ .ok = 0, .is_ok = false },
-            .milliseconds = .{ .ok = 0, .is_ok = false },
-            .microseconds = .{ .ok = 0, .is_ok = false },
-            .nanoseconds = .{ .ok = 0, .is_ok = false },
-        };
-    }
-
-    pub fn withYears(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.years = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withMonths(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.months = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withWeeks(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.weeks = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withDays(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.days = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withHours(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.hours = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withMinutes(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.minutes = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withSeconds(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.seconds = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withMilliseconds(self: PartialDuration, value: i64) PartialDuration {
-        var result = self;
-        result.milliseconds = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withMicroseconds(self: PartialDuration, value: i128) PartialDuration {
-        var result = self;
-        result.microseconds = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-
-    pub fn withNanoseconds(self: PartialDuration, value: i128) PartialDuration {
-        var result = self;
-        result.nanoseconds = .{ .ok = value, .is_ok = true };
-        return result;
-    }
-};
+pub const PartialDuration = c.PartialDuration;
 
 /// Relative-to context for duration operations.
 pub const RelativeTo = extern struct {
-    plain_date: ?*PlainDate,
-    zoned_date_time: ?*ZonedDateTime,
+    plain_date: ?*c.PlainDate,
+    zoned_date_time: ?*c.ZonedDateTime,
 };
 
-// --- Extern types ------------------------------------------------------------
+// --- Public type aliases and enums ------------------------------------------
 
-const CDuration = opaque {};
-const PlainDate = opaque {};
-const ZonedDateTime = opaque {};
-const Provider = opaque {};
-
-const DiplomatStringView = extern struct { data: [*c]const u8, len: usize };
-const DiplomatString16View = extern struct { data: [*c]const u16, len: usize };
-
-const OptionStringView = extern struct { ok: DiplomatStringView, is_ok: bool };
-const OptionU8 = extern struct { ok: u8, is_ok: bool };
-const OptionU32 = extern struct { ok: u32, is_ok: bool };
-const OptionI64 = extern struct { ok: i64, is_ok: bool };
-const OptionI128 = extern struct { ok: i128, is_ok: bool };
-
-const DiplomatWrite = extern struct {
-    context: ?*anyopaque,
-    buf: [*c]u8,
-    len: usize,
-    cap: usize,
-    grow_failed: bool,
-    flush: ?*const fn (*DiplomatWrite) void,
-    grow: ?*const fn (*DiplomatWrite, usize) bool,
-};
-
-const Precision = extern struct {
-    is_minute: bool,
-    precision: OptionU8,
-};
+const OptionU8 = c.OptionU8;
+const OptionU32 = c.OptionU32;
+const OptionI64 = c.OptionI64;
+const OptionF64 = c.OptionF64;
+const Precision = c.Precision;
+const Unit_option = c.Unit_option;
+const RoundingMode_option = c.RoundingMode_option;
 
 /// Time unit for Temporal operations.
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
-pub const Unit = enum(c_int) {
-    auto = 0,
-    nanosecond = 1,
-    microsecond = 2,
-    millisecond = 3,
-    second = 4,
-    minute = 5,
-    hour = 6,
-    day = 7,
-    week = 8,
-    month = 9,
-    year = 10,
+pub const Unit = enum(c_uint) {
+    auto = c.Unit_Auto,
+    nanosecond = c.Unit_Nanosecond,
+    microsecond = c.Unit_Microsecond,
+    millisecond = c.Unit_Millisecond,
+    second = c.Unit_Second,
+    minute = c.Unit_Minute,
+    hour = c.Unit_Hour,
+    day = c.Unit_Day,
+    week = c.Unit_Week,
+    month = c.Unit_Month,
+    year = c.Unit_Year,
 };
-
-const Unit_option = extern struct { ok: Unit, is_ok: bool };
 
 /// Rounding mode for Temporal operations.
 /// See: https://tc39.es/ecma402/#table-sanctioned-single-unit-identifiers
-pub const RoundingMode = enum(c_int) {
+pub const RoundingMode = enum(c_uint) {
     /// Round toward positive infinity
-    ceil = 0,
+    ceil = c.RoundingMode_Ceil,
     /// Round toward negative infinity
-    floor = 1,
+    floor = c.RoundingMode_Floor,
     /// Round away from zero
-    expand = 2,
+    expand = c.RoundingMode_Expand,
     /// Round toward zero (truncate)
-    trunc = 3,
+    trunc = c.RoundingMode_Trunc,
     /// Round half toward positive infinity
-    half_ceil = 4,
+    half_ceil = c.RoundingMode_HalfCeil,
     /// Round half toward negative infinity
-    half_floor = 5,
+    half_floor = c.RoundingMode_HalfFloor,
     /// Round half away from zero
-    half_expand = 6,
+    half_expand = c.RoundingMode_HalfExpand,
     /// Round half toward zero
-    half_trunc = 7,
+    half_trunc = c.RoundingMode_HalfTrunc,
     /// Round half to even (banker's rounding)
-    half_even = 8,
-};
-
-const RoundingMode_option = extern struct { ok: RoundingMode, is_ok: bool };
-
-pub const RoundingOptions = extern struct {
-    largest_unit: Unit_option,
-    smallest_unit: Unit_option,
-    rounding_mode: RoundingMode_option,
-    increment: OptionU32,
-};
-
-pub const ToStringRoundingOptions = extern struct {
-    precision: Precision,
-    smallest_unit: Unit_option,
-    rounding_mode: RoundingMode_option,
-};
-
-const ErrorKind = enum(c_int) {
-    ErrorKind_Generic = 0,
-    ErrorKind_Type = 1,
-    ErrorKind_Range = 2,
-    ErrorKind_Syntax = 3,
-    ErrorKind_Assert = 4,
-};
-
-const TemporalError = extern struct {
-    kind: ErrorKind,
-    msg: OptionStringView,
+    half_even = c.RoundingMode_HalfEven,
 };
 
 pub const Sign = enum(c_int) {
-    Sign_Positive = 1,
-    Sign_Zero = 0,
-    Sign_Negative = -1,
+    positive = c.Sign_Positive,
+    zero = c.Sign_Zero,
+    negative = c.Sign_Negative,
 };
 
-// --- Result wrappers ---------------------------------------------------------
-
-const DurationResult = extern struct {
-    result: extern union {
-        ok: ?*CDuration,
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-const I8Result = extern struct {
-    result: extern union {
-        ok: i8,
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-const F64Result = extern struct {
-    result: extern union {
-        ok: f64,
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-const VoidResult = extern struct {
-    result: extern union {
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-// --- Extern functions -------------------------------------------------------
-
-extern "c" fn temporal_rs_Duration_try_new(years: i64, months: i64, weeks: i64, days: i64, hours: i64, minutes: i64, seconds: i64, milliseconds: i64, microseconds: f64, nanoseconds: f64) DurationResult;
-extern "c" fn temporal_rs_Duration_from_partial_duration(partial: PartialDuration) DurationResult;
-extern "c" fn temporal_rs_Duration_from_utf8(s: DiplomatStringView) DurationResult;
-extern "c" fn temporal_rs_Duration_from_utf16(s: DiplomatString16View) DurationResult;
-extern "c" fn temporal_rs_Duration_is_time_within_range(self: *const CDuration) bool;
-extern "c" fn temporal_rs_Duration_years(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_months(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_weeks(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_days(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_hours(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_minutes(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_seconds(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_milliseconds(self: *const CDuration) i64;
-extern "c" fn temporal_rs_Duration_microseconds(self: *const CDuration) f64;
-extern "c" fn temporal_rs_Duration_nanoseconds(self: *const CDuration) f64;
-extern "c" fn temporal_rs_Duration_sign(self: *const CDuration) Sign;
-extern "c" fn temporal_rs_Duration_is_zero(self: *const CDuration) bool;
-extern "c" fn temporal_rs_Duration_abs(self: *const CDuration) *CDuration;
-extern "c" fn temporal_rs_Duration_negated(self: *const CDuration) *CDuration;
-extern "c" fn temporal_rs_Duration_add(self: *const CDuration, other: *const CDuration) DurationResult;
-extern "c" fn temporal_rs_Duration_subtract(self: *const CDuration, other: *const CDuration) DurationResult;
-extern "c" fn temporal_rs_Duration_to_string(self: *const CDuration, options: ToStringRoundingOptions, write: *DiplomatWrite) VoidResult;
-extern "c" fn temporal_rs_Duration_round(self: *const CDuration, options: RoundingOptions, relative_to: RelativeTo) DurationResult;
-extern "c" fn temporal_rs_Duration_round_with_provider(self: *const CDuration, options: RoundingOptions, relative_to: RelativeTo, p: *const Provider) DurationResult;
-extern "c" fn temporal_rs_Duration_compare(self: *const CDuration, other: *const CDuration, relative_to: RelativeTo) I8Result;
-extern "c" fn temporal_rs_Duration_compare_with_provider(self: *const CDuration, other: *const CDuration, relative_to: RelativeTo, p: *const Provider) I8Result;
-extern "c" fn temporal_rs_Duration_total(self: *const CDuration, unit: Unit, relative_to: RelativeTo) F64Result;
-extern "c" fn temporal_rs_Duration_total_with_provider(self: *const CDuration, unit: Unit, relative_to: RelativeTo, p: *const Provider) F64Result;
-extern "c" fn temporal_rs_Duration_clone(self: *const CDuration) *CDuration;
-extern "c" fn temporal_rs_Duration_destroy(self: *CDuration) void;
-
-extern "c" fn diplomat_buffer_write_create(cap: usize) *DiplomatWrite;
-extern "c" fn diplomat_buffer_write_get_bytes(write: *DiplomatWrite) [*c]u8;
-extern "c" fn diplomat_buffer_write_len(write: *DiplomatWrite) usize;
-extern "c" fn diplomat_buffer_write_destroy(write: *DiplomatWrite) void;
+pub const RoundingOptions = c.RoundingOptions;
+pub const ToStringRoundingOptions = c.ToStringRoundingOptions;
 
 // --- Tests -------------------------------------------------------------------
 
@@ -689,7 +483,7 @@ test from {
     defer dur_negative.deinit();
 
     try std.testing.expectEqual(@as(i64, -1), dur_negative.days());
-    try std.testing.expectEqual(Sign.Sign_Negative, dur_negative.sign());
+    try std.testing.expectEqual(Sign.negative, dur_negative.sign());
 }
 
 test blank {
@@ -697,7 +491,7 @@ test blank {
     defer dur.deinit();
 
     try std.testing.expect(dur.blank());
-    try std.testing.expectEqual(Sign.Sign_Zero, dur.sign());
+    try std.testing.expectEqual(Sign.zero, dur.sign());
 }
 
 test add {
@@ -735,7 +529,7 @@ test abs {
 
     try std.testing.expectEqual(@as(i64, 1), abs_dur.hours());
     try std.testing.expectEqual(@as(i64, 30), abs_dur.minutes());
-    try std.testing.expectEqual(Sign.Sign_Positive, abs_dur.sign());
+    try std.testing.expectEqual(Sign.positive, abs_dur.sign());
 }
 
 test negated {
@@ -746,7 +540,7 @@ test negated {
     defer neg.deinit();
 
     try std.testing.expectEqual(@as(i64, -1), neg.hours());
-    try std.testing.expectEqual(Sign.Sign_Negative, neg.sign());
+    try std.testing.expectEqual(Sign.negative, neg.sign());
 }
 
 test toString {
@@ -762,9 +556,21 @@ test toString {
 }
 
 test fromPartialDuration {
-    var partial = PartialDuration.empty();
-    partial = partial.withHours(3);
-    partial = partial.withMinutes(45);
+    const empty_i64 = temporal_rs.toOption(c.OptionI64, null);
+    const empty_f64 = temporal_rs.toOption(c.OptionF64, null);
+
+    const partial = c.PartialDuration{
+        .years = empty_i64,
+        .months = empty_i64,
+        .weeks = empty_i64,
+        .days = empty_i64,
+        .hours = .{ .is_ok = true, .unnamed_0 = .{ .ok = 3 } },
+        .minutes = .{ .is_ok = true, .unnamed_0 = .{ .ok = 45 } },
+        .seconds = empty_i64,
+        .milliseconds = empty_i64,
+        .microseconds = empty_f64,
+        .nanoseconds = empty_f64,
+    };
 
     const dur = try Duration.fromPartialDuration(partial);
     defer dur.deinit();

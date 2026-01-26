@@ -1,10 +1,60 @@
 const std = @import("std");
+const temporal_rs = @import("cabi.zig");
+const c = temporal_rs.c;
 
 const Instant = @This();
 
-_inner: *CInstant,
+_inner: *c.Instant,
 epoch_milliseconds: i64,
 epoch_nanoseconds: i128,
+
+pub const Unit = enum(c_uint) {
+    auto = c.Unit_Auto,
+    nanosecond = c.Unit_Nanosecond,
+    microsecond = c.Unit_Microsecond,
+    millisecond = c.Unit_Millisecond,
+    second = c.Unit_Second,
+    minute = c.Unit_Minute,
+    hour = c.Unit_Hour,
+    day = c.Unit_Day,
+    week = c.Unit_Week,
+    month = c.Unit_Month,
+    year = c.Unit_Year,
+};
+
+pub const RoundingMode = enum(c_uint) {
+    ceil = c.RoundingMode_Ceil,
+    floor = c.RoundingMode_Floor,
+    expand = c.RoundingMode_Expand,
+    trunc = c.RoundingMode_Trunc,
+    half_ceil = c.RoundingMode_HalfCeil,
+    half_floor = c.RoundingMode_HalfFloor,
+    half_expand = c.RoundingMode_HalfExpand,
+    half_trunc = c.RoundingMode_HalfTrunc,
+    half_even = c.RoundingMode_HalfEven,
+};
+pub const Sign = enum(c_int) {
+    positive = c.Sign_Positive,
+    zero = c.Sign_Zero,
+    negative = c.Sign_Negative,
+};
+const TimeZone = c.TimeZone;
+const TimeZone_option = c.TimeZone_option;
+const Precision = c.Precision;
+const Unit_option = c.Unit_option;
+const RoundingMode_option = c.RoundingMode_option;
+const DifferenceSettings = c.DifferenceSettings;
+const RoundingOptions = c.RoundingOptions;
+const ToStringRoundingOptions = c.ToStringRoundingOptions;
+const OptionU8 = c.OptionU8;
+const OptionU32 = c.OptionU32;
+const TemporalError = c.TemporalError;
+const DiplomatStringView = c.DiplomatStringView;
+const DiplomatString16View = c.DiplomatString16View;
+const DiplomatWrite = c.DiplomatWrite;
+const Duration = c.Duration;
+const ZonedDateTime = c.ZonedDateTime;
+const Provider = c.Provider;
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn init(epoch_ns: i128) !Instant {
@@ -13,79 +63,75 @@ pub fn init(epoch_ns: i128) !Instant {
 
 /// Construct from epoch milliseconds.
 pub fn fromEpochMilliseconds(epoch_ms: i64) !Instant {
-    return wrapInstant(temporal_rs_Instant_from_epoch_milliseconds(epoch_ms));
+    return wrapInstant(c.temporal_rs_Instant_from_epoch_milliseconds(epoch_ms));
 }
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
-    const parts = i128ToParts(epoch_ns);
-    return wrapInstant(temporal_rs_Instant_try_new(parts));
+    const parts = temporal_rs.toI128Nanoseconds(epoch_ns);
+    return wrapInstant(c.temporal_rs_Instant_try_new(parts));
 }
 
 /// Parse an ISO 8601 string (Temporal.Instant.from).
 pub fn from(text: []const u8) !Instant {
-    const view = DiplomatStringView{ .data = text.ptr, .len = text.len };
-    return wrapInstant(temporal_rs_Instant_from_utf8(view));
+    const view = temporal_rs.toDiplomatStringView(text);
+    return wrapInstant(c.temporal_rs_Instant_from_utf8(view));
 }
 
 /// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
 fn fromUtf16(text: []const u16) !Instant {
-    const view = DiplomatString16View{ .data = text.ptr, .len = text.len };
-    return wrapInstant(temporal_rs_Instant_from_utf16(view));
+    const view = temporal_rs.toDiplomatString16View(text);
+    return wrapInstant(c.temporal_rs_Instant_from_utf16(view));
 }
 
 /// Add a Duration to this instant (Temporal.Instant.prototype.add).
 pub fn add(self: Instant, duration: *const Duration) !Instant {
-    return wrapInstant(temporal_rs_Instant_add(self._inner, duration));
+    return wrapInstant(c.temporal_rs_Instant_add(self._inner, duration));
 }
 
 /// Subtract a Duration from this instant (Temporal.Instant.prototype.subtract).
 pub fn subtract(self: Instant, duration: *const Duration) !Instant {
-    return wrapInstant(temporal_rs_Instant_subtract(self._inner, duration));
+    return wrapInstant(c.temporal_rs_Instant_subtract(self._inner, duration));
 }
 
 /// Difference until another instant (Temporal.Instant.prototype.until).
 pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(temporal_rs_Instant_until(self._inner, other._inner, settings));
+    return wrapDuration(c.temporal_rs_Instant_until(self._inner, other._inner, settings));
 }
 
 /// Difference since another instant (Temporal.Instant.prototype.since).
 pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(temporal_rs_Instant_since(self._inner, other._inner, settings));
+    return wrapDuration(c.temporal_rs_Instant_since(self._inner, other._inner, settings));
 }
 
 /// Round this instant (Temporal.Instant.prototype.round).
 pub fn round(self: Instant, options: RoundingOptions) !Instant {
-    return wrapInstant(temporal_rs_Instant_round(self._inner, options));
+    return wrapInstant(c.temporal_rs_Instant_round(self._inner, options));
 }
 
 /// Compare two instants (Temporal.Instant.compare).
 pub fn compare(a: Instant, b: Instant) i8 {
-    return temporal_rs_Instant_compare(a._inner, b._inner);
+    return c.temporal_rs_Instant_compare(a._inner, b._inner);
 }
 
 /// Equality check (Temporal.Instant.prototype.equals).
 pub fn equals(a: Instant, b: Instant) bool {
-    return temporal_rs_Instant_equals(a._inner, b._inner);
+    return c.temporal_rs_Instant_equals(a._inner, b._inner);
 }
 
 /// Convert to string using compiled TZ data; caller owns returned slice.
 pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
-    const zone_opt = if (opts.time_zone) |z|
-        TimeZone_option{ .ok = z, .is_ok = true }
-    else
-        TimeZone_option{ .ok = undefined, .is_ok = false };
-
+    const zone_opt = temporal_rs.toTimeZoneOption(opts.time_zone);
     const rounding = optsToRounding(opts);
 
-    const writer = diplomat_buffer_write_create(128);
-    defer diplomat_buffer_write_destroy(writer);
+    const writer = c.diplomat_buffer_write_create(128);
+    defer c.diplomat_buffer_write_destroy(writer);
 
-    const res = temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, writer);
+    const res = c.temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, writer);
     try handleVoidResult(res);
 
-    const len = diplomat_buffer_write_len(writer);
-    const source = diplomat_buffer_write_get_bytes(writer)[0..len];
+    const len = c.diplomat_buffer_write_len(writer);
+    const source = c.diplomat_buffer_write_get_bytes(writer)[0..len];
 
     const out = try allocator.alloc(u8, len);
     std.mem.copyForwards(u8, out, source);
@@ -94,21 +140,17 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
 
 /// Convert to string using an explicit provider.
 fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *const Provider, opts: ToStringOptions) ![]u8 {
-    const zone_opt = if (opts.time_zone) |z|
-        TimeZone_option{ .ok = z, .is_ok = true }
-    else
-        TimeZone_option{ .ok = undefined, .is_ok = false };
-
+    const zone_opt = temporal_rs.toTimeZoneOption(opts.time_zone);
     const rounding = optsToRounding(opts);
 
-    const writer = diplomat_buffer_write_create(128);
-    defer diplomat_buffer_write_destroy(writer);
+    const writer = c.diplomat_buffer_write_create(128);
+    defer c.diplomat_buffer_write_destroy(writer);
 
-    const res = temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, writer);
+    const res = c.temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, writer);
     try handleVoidResult(res);
 
-    const len = diplomat_buffer_write_len(writer);
-    const source = diplomat_buffer_write_get_bytes(writer)[0..len];
+    const len = c.diplomat_buffer_write_len(writer);
+    const source = c.diplomat_buffer_write_get_bytes(writer)[0..len];
 
     const out = try allocator.alloc(u8, len);
     std.mem.copyForwards(u8, out, source);
@@ -127,49 +169,49 @@ pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
 
 /// Convert to ZonedDateTime using built-in provider (Temporal.Instant.prototype.toZonedDateTimeISO).
 pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone));
+    return wrapZonedDateTime(c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone));
 }
 
 /// Convert to ZonedDateTime using an explicit provider.
 fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const Provider) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone, provider));
+    return wrapZonedDateTime(c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone, provider));
 }
 
 /// Clone the underlying instant.
 fn clone(self: Instant) Instant {
-    const ptr = temporal_rs_Instant_clone(self._inner);
-    return .{ ._inner = ptr, .epoch_milliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
+    const ptr = c.temporal_rs_Instant_clone(self._inner) orelse unreachable;
+    return .{ ._inner = ptr, .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = temporal_rs.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
 pub fn deinit(self: Instant) void {
-    temporal_rs_Instant_destroy(self._inner);
+    c.temporal_rs_Instant_destroy(self._inner);
 }
 
 // --- Helpers -----------------------------------------------------------------
 
-fn wrapInstant(res: InstantResult) !Instant {
+fn wrapInstant(res: anytype) !Instant {
     if (!res.is_ok) return error.TemporalError;
-    const ptr = res.result.ok orelse return error.TemporalError;
-    return .{ ._inner = ptr, .epoch_milliseconds = temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = partsToI128(temporal_rs_Instant_epoch_nanoseconds(ptr)) };
+    const maybe_ptr = res.unnamed_0.ok;
+    if (maybe_ptr == null) return error.TemporalError;
+    const ptr: *c.Instant = maybe_ptr.?;
+    return .{ ._inner = ptr, .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = temporal_rs.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
-fn wrapDuration(res: DurationResult) !DurationHandle {
+fn wrapDuration(res: anytype) !DurationHandle {
     if (!res.is_ok) return error.TemporalError;
-    const ptr = res.result.ok orelse return error.TemporalError;
-    return .{ .ptr = ptr };
+    return .{ .ptr = res.unnamed_0.ok orelse return error.TemporalError };
 }
 
-fn wrapZonedDateTime(res: ZonedDateTimeResult) !ZonedDateTimeHandle {
+fn wrapZonedDateTime(res: anytype) !ZonedDateTimeHandle {
     if (!res.is_ok) return error.TemporalError;
-    const ptr = res.result.ok orelse return error.TemporalError;
-    return .{ .ptr = ptr };
+    return .{ .ptr = res.unnamed_0.ok orelse return error.TemporalError };
 }
 
-fn handleVoidResult(res: VoidResult) !void {
+fn handleVoidResult(res: anytype) !void {
     if (!res.is_ok) return error.TemporalError;
 }
 
-fn i128ToParts(value: i128) I128Nanoseconds {
+fn i128ToParts(value: i128) temporal_rs.c.I128Nanoseconds {
     const is_neg = value < 0;
     const mag: u128 = if (is_neg) @intCast(@as(u128, @intCast(-value))) else @intCast(value);
     const mask: u64 = 1 << 63;
@@ -179,7 +221,7 @@ fn i128ToParts(value: i128) I128Nanoseconds {
     return .{ .high = high, .low = low };
 }
 
-fn partsToI128(value: I128Nanoseconds) i128 {
+fn partsToI128(value: temporal_rs.c.I128Nanoseconds) i128 {
     const mask: u64 = 1 << 63;
     const is_neg = (value.high & mask) != 0;
     const mag: u128 = ((@as(u128, value.high & ~mask)) << 64) | value.low;
@@ -188,48 +230,34 @@ fn partsToI128(value: I128Nanoseconds) i128 {
 }
 
 fn defaultPrecision() Precision {
-    return .{ .is_minute = false, .precision = OptionU8{ .ok = 0, .is_ok = false } };
+    return .{ .is_minute = false, .precision = temporal_rs.toOption(c.OptionU8, null) };
 }
 
 fn defaultToStringRoundingOptions() ToStringRoundingOptions {
-    return .{
-        .precision = defaultPrecision(),
-        .smallest_unit = Unit_option{ .ok = .auto, .is_ok = false },
-        .rounding_mode = RoundingMode_option{ .ok = .trunc, .is_ok = false },
-    };
+    return temporal_rs.to_string_rounding_options_auto;
 }
 
 /// Convert ToStringOptions to ToStringRoundingOptions for the C API
 fn optsToRounding(opts: ToStringOptions) ToStringRoundingOptions {
     // If smallest_unit is specified, use it; otherwise use fractional_second_digits for precision
-    const smallest_unit_opt = if (opts.smallest_unit) |unit|
-        Unit_option{ .ok = unit, .is_ok = true }
-    else
-        Unit_option{ .ok = .auto, .is_ok = false };
-
     const precision = if (opts.fractional_second_digits) |digits|
-        Precision{ .is_minute = false, .precision = OptionU8{ .ok = digits, .is_ok = true } }
+        Precision{ .is_minute = false, .precision = temporal_rs.toOption(c.OptionU8, digits) }
     else
         defaultPrecision();
 
-    const rounding_mode_opt = if (opts.rounding_mode) |mode|
-        RoundingMode_option{ .ok = mode, .is_ok = true }
-    else
-        RoundingMode_option{ .ok = .trunc, .is_ok = false };
+    const smallest_unit = if (opts.smallest_unit) |unit| @intFromEnum(unit) else null;
+    const rounding_mode = if (opts.rounding_mode) |mode| @intFromEnum(mode) else null;
 
     return .{
         .precision = precision,
-        .smallest_unit = smallest_unit_opt,
-        .rounding_mode = rounding_mode_opt,
+        .smallest_unit = temporal_rs.toUnitOption(smallest_unit),
+        .rounding_mode = temporal_rs.toRoundingModeOption(rounding_mode),
     };
 }
 
 fn parseDuration(text: []const u8) !DurationHandle {
-    const view = DiplomatStringView{ .data = text.ptr, .len = text.len };
-    const res = temporal_rs_Duration_from_utf8(view);
-    if (!res.is_ok) return error.TemporalError;
-    const ptr = res.result.ok orelse return error.TemporalError;
-    return .{ .ptr = ptr };
+    const view = temporal_rs.toDiplomatStringView(text);
+    return wrapDuration(c.temporal_rs_Duration_from_utf8(view));
 }
 
 // --- Public helper types -----------------------------------------------------
@@ -260,7 +288,7 @@ const DurationHandle = struct {
     ptr: *Duration,
 
     pub fn deinit(self: DurationHandle) void {
-        temporal_rs_Duration_destroy(self.ptr);
+        c.temporal_rs_Duration_destroy(self.ptr);
     }
 };
 
@@ -268,214 +296,9 @@ const ZonedDateTimeHandle = struct {
     ptr: *ZonedDateTime,
 
     pub fn deinit(self: ZonedDateTimeHandle) void {
-        temporal_rs_ZonedDateTime_destroy(self.ptr);
+        c.temporal_rs_ZonedDateTime_destroy(self.ptr);
     }
 };
-
-// --- Extern types ------------------------------------------------------------
-
-const CInstant = opaque {};
-const Duration = opaque {};
-const ZonedDateTime = opaque {};
-const Provider = opaque {};
-
-const I128Nanoseconds = extern struct { high: u64, low: u64 };
-const I128Nanoseconds_option = extern struct { ok: I128Nanoseconds, is_ok: bool };
-
-const DiplomatStringView = extern struct { data: [*c]const u8, len: usize };
-const DiplomatString16View = extern struct { data: [*c]const u16, len: usize };
-
-const OptionStringView = extern struct { ok: DiplomatStringView, is_ok: bool };
-const OptionU8 = extern struct { ok: u8, is_ok: bool };
-const OptionU32 = extern struct { ok: u32, is_ok: bool };
-
-const DiplomatWrite = extern struct {
-    context: ?*anyopaque,
-    buf: [*c]u8,
-    len: usize,
-    cap: usize,
-    grow_failed: bool,
-    flush: ?*const fn (*DiplomatWrite) void,
-    grow: ?*const fn (*DiplomatWrite, usize) bool,
-};
-
-const TimeZone = extern struct {
-    offset_minutes: i16,
-    resolved_id: usize,
-    normalized_id: usize,
-    is_iana_id: bool,
-};
-
-const TimeZone_option = extern struct {
-    ok: TimeZone,
-    is_ok: bool,
-};
-
-const Precision = extern struct {
-    is_minute: bool,
-    precision: OptionU8,
-};
-
-/// Time unit for Temporal operations.
-/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
-pub const Unit = enum(c_int) {
-    auto = 0,
-    nanosecond = 1,
-    microsecond = 2,
-    millisecond = 3,
-    second = 4,
-    minute = 5,
-    hour = 6,
-    day = 7,
-    week = 8,
-    month = 9,
-    year = 10,
-};
-
-const Unit_option = extern struct { ok: Unit, is_ok: bool };
-
-/// Rounding mode for Temporal operations.
-/// See: https://tc39.es/ecma402/#table-sanctioned-single-unit-identifiers
-pub const RoundingMode = enum(c_int) {
-    /// Round toward positive infinity
-    ceil = 0,
-    /// Round toward negative infinity
-    floor = 1,
-    /// Round away from zero
-    expand = 2,
-    /// Round toward zero (truncate)
-    trunc = 3,
-    /// Round half toward positive infinity
-    half_ceil = 4,
-    /// Round half toward negative infinity
-    half_floor = 5,
-    /// Round half away from zero
-    half_expand = 6,
-    /// Round half toward zero
-    half_trunc = 7,
-    /// Round half to even (banker's rounding)
-    half_even = 8,
-};
-
-const RoundingMode_option = extern struct { ok: RoundingMode, is_ok: bool };
-
-const DifferenceSettings = extern struct {
-    largest_unit: Unit_option,
-    smallest_unit: Unit_option,
-    rounding_mode: RoundingMode_option,
-    increment: OptionU32,
-};
-
-const RoundingOptions = extern struct {
-    largest_unit: Unit_option,
-    smallest_unit: Unit_option,
-    rounding_mode: RoundingMode_option,
-    increment: OptionU32,
-};
-
-const ToStringRoundingOptions = extern struct {
-    precision: Precision,
-    smallest_unit: Unit_option,
-    rounding_mode: RoundingMode_option,
-};
-
-const ErrorKind = enum(c_int) {
-    ErrorKind_Generic = 0,
-    ErrorKind_Type = 1,
-    ErrorKind_Range = 2,
-    ErrorKind_Syntax = 3,
-    ErrorKind_Assert = 4,
-};
-
-const TemporalError = extern struct {
-    kind: ErrorKind,
-    msg: OptionStringView,
-};
-
-const Sign = enum(c_int) {
-    Sign_Positive = 1,
-    Sign_Zero = 0,
-    Sign_Negative = -1,
-};
-
-// --- Result wrappers ---------------------------------------------------------
-
-const InstantResult = extern struct {
-    result: extern union {
-        ok: ?*CInstant,
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-const DurationResult = extern struct {
-    result: extern union {
-        ok: ?*Duration,
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-const DurationParseResult = extern struct {
-    result: extern union {
-        ok: ?*Duration,
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-const ZonedDateTimeResult = extern struct {
-    result: extern union {
-        ok: ?*ZonedDateTime,
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-const VoidResult = extern struct {
-    result: extern union {
-        err: TemporalError,
-    },
-    is_ok: bool,
-};
-
-// --- Extern functions -------------------------------------------------------
-
-extern "c" fn temporal_rs_Instant_try_new(ns: I128Nanoseconds) InstantResult;
-extern "c" fn temporal_rs_Instant_from_epoch_milliseconds(epoch_milliseconds: i64) InstantResult;
-extern "c" fn temporal_rs_Instant_from_utf8(s: DiplomatStringView) InstantResult;
-extern "c" fn temporal_rs_Instant_from_utf16(s: DiplomatString16View) InstantResult;
-extern "c" fn temporal_rs_Instant_add(self: *const CInstant, duration: *const Duration) InstantResult;
-extern "c" fn temporal_rs_Instant_subtract(self: *const CInstant, duration: *const Duration) InstantResult;
-extern "c" fn temporal_rs_Instant_since(self: *const CInstant, other: *const CInstant, settings: DifferenceSettings) DurationResult;
-extern "c" fn temporal_rs_Instant_until(self: *const CInstant, other: *const CInstant, settings: DifferenceSettings) DurationResult;
-extern "c" fn temporal_rs_Instant_round(self: *const CInstant, options: RoundingOptions) InstantResult;
-extern "c" fn temporal_rs_Instant_compare(self: *const CInstant, other: *const CInstant) i8;
-extern "c" fn temporal_rs_Instant_equals(self: *const CInstant, other: *const CInstant) bool;
-extern "c" fn temporal_rs_Instant_epoch_milliseconds(self: *const CInstant) i64;
-extern "c" fn temporal_rs_Instant_epoch_nanoseconds(self: *const CInstant) I128Nanoseconds;
-extern "c" fn temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self: *const CInstant, zone: TimeZone_option, options: ToStringRoundingOptions, write: *DiplomatWrite) VoidResult;
-extern "c" fn temporal_rs_Instant_to_ixdtf_string_with_provider(self: *const CInstant, zone: TimeZone_option, options: ToStringRoundingOptions, p: *const Provider, write: *DiplomatWrite) VoidResult;
-extern "c" fn temporal_rs_Instant_to_zoned_date_time_iso(self: *const CInstant, zone: TimeZone) ZonedDateTimeResult;
-extern "c" fn temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self: *const CInstant, zone: TimeZone, p: *const Provider) ZonedDateTimeResult;
-extern "c" fn temporal_rs_Instant_clone(self: *const CInstant) *CInstant;
-extern "c" fn temporal_rs_Instant_destroy(self: *CInstant) void;
-
-extern "c" fn temporal_rs_Duration_destroy(self: *Duration) void;
-extern "c" fn temporal_rs_Duration_from_utf8(s: DiplomatStringView) DurationParseResult;
-extern "c" fn temporal_rs_Duration_hours(self: *const Duration) i64;
-extern "c" fn temporal_rs_Duration_minutes(self: *const Duration) i64;
-extern "c" fn temporal_rs_Duration_seconds(self: *const Duration) i64;
-extern "c" fn temporal_rs_Duration_milliseconds(self: *const Duration) i64;
-extern "c" fn temporal_rs_Duration_microseconds(self: *const Duration) f64;
-extern "c" fn temporal_rs_Duration_nanoseconds(self: *const Duration) f64;
-extern "c" fn temporal_rs_Duration_sign(self: *const Duration) Sign;
-extern "c" fn temporal_rs_ZonedDateTime_destroy(self: *ZonedDateTime) void;
-
-extern "c" fn diplomat_buffer_write_create(cap: usize) *DiplomatWrite;
-extern "c" fn diplomat_buffer_write_get_bytes(write: *DiplomatWrite) [*c]u8;
-extern "c" fn diplomat_buffer_write_len(write: *DiplomatWrite) usize;
-extern "c" fn diplomat_buffer_write_destroy(write: *DiplomatWrite) void;
 
 // --- Tests -------------------------------------------------------------------
 
@@ -544,13 +367,13 @@ test compare {
     defer a.deinit();
     const b = try Instant.fromEpochMilliseconds(0);
     defer b.deinit();
-    const c = try Instant.fromEpochMilliseconds(1_000);
-    defer c.deinit();
+    const cc = try Instant.fromEpochMilliseconds(1_000);
+    defer cc.deinit();
 
     try std.testing.expectEqual(@as(i8, 0), Instant.compare(a, b));
     try std.testing.expect(Instant.equals(a, b));
-    try std.testing.expectEqual(@as(i8, -1), Instant.compare(a, c));
-    try std.testing.expectEqual(@as(i8, 1), Instant.compare(c, a));
+    try std.testing.expectEqual(@as(i8, -1), Instant.compare(a, cc));
+    try std.testing.expectEqual(@as(i8, 1), Instant.compare(cc, a));
 }
 
 test equals {
@@ -558,13 +381,13 @@ test equals {
     defer a.deinit();
     const b = try Instant.fromEpochMilliseconds(0);
     defer b.deinit();
-    const c = try Instant.fromEpochMilliseconds(1_000);
-    defer c.deinit();
+    const cc = try Instant.fromEpochMilliseconds(1_000);
+    defer cc.deinit();
 
     try std.testing.expectEqual(@as(i8, 0), Instant.compare(a, b));
     try std.testing.expect(Instant.equals(a, b));
-    try std.testing.expectEqual(@as(i8, -1), Instant.compare(a, c));
-    try std.testing.expectEqual(@as(i8, 1), Instant.compare(c, a));
+    try std.testing.expectEqual(@as(i8, -1), Instant.compare(a, cc));
+    try std.testing.expectEqual(@as(i8, 1), Instant.compare(cc, a));
 }
 
 test until {
@@ -574,21 +397,21 @@ test until {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = Unit_option{ .ok = .hour, .is_ok = true },
-        .smallest_unit = Unit_option{ .ok = .second, .is_ok = true },
-        .rounding_mode = RoundingMode_option{ .ok = .trunc, .is_ok = true },
-        .increment = OptionU32{ .ok = 0, .is_ok = false },
+        .largest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.hour)),
+        .smallest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.second)),
+        .rounding_mode = temporal_rs.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
+        .increment = temporal_rs.toOption(c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
     defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.Sign_Positive, temporal_rs_Duration_sign(until_handle.ptr));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs_Duration_hours(until_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(until_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(until_handle.ptr));
 
     var since_handle = try later.since(earlier, settings);
     defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.Sign_Positive, temporal_rs_Duration_sign(since_handle.ptr));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs_Duration_hours(since_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(since_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(since_handle.ptr));
 }
 
 test since {
@@ -598,21 +421,21 @@ test since {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = Unit_option{ .ok = .hour, .is_ok = true },
-        .smallest_unit = Unit_option{ .ok = .second, .is_ok = true },
-        .rounding_mode = RoundingMode_option{ .ok = .trunc, .is_ok = true },
-        .increment = OptionU32{ .ok = 0, .is_ok = false },
+        .largest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.hour)),
+        .smallest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.second)),
+        .rounding_mode = temporal_rs.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
+        .increment = temporal_rs.toOption(c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
     defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.Sign_Positive, temporal_rs_Duration_sign(until_handle.ptr));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs_Duration_hours(until_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(until_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(until_handle.ptr));
 
     var since_handle = try later.since(earlier, settings);
     defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.Sign_Positive, temporal_rs_Duration_sign(since_handle.ptr));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs_Duration_hours(since_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(since_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(since_handle.ptr));
 }
 
 test round {
@@ -620,10 +443,10 @@ test round {
     defer inst.deinit();
 
     const opts = RoundingOptions{
-        .largest_unit = Unit_option{ .ok = .auto, .is_ok = false },
-        .smallest_unit = Unit_option{ .ok = .second, .is_ok = true },
-        .rounding_mode = RoundingMode_option{ .ok = .half_expand, .is_ok = true },
-        .increment = OptionU32{ .ok = 0, .is_ok = false },
+        .largest_unit = temporal_rs.toUnitOption(null),
+        .smallest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.second)),
+        .rounding_mode = temporal_rs.toRoundingModeOption(@intFromEnum(RoundingMode.half_expand)),
+        .increment = temporal_rs.toOption(c.OptionU32, null),
     };
 
     const rounded = try inst.round(opts);
