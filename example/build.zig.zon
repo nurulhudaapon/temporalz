@@ -1,0 +1,16 @@
+.{
+    .name = .temporalz_example,
+    .version = "0.1.2",
+    .fingerprint = 0x686c9dfc777f9593,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .temporalz = .{
+            .path = "../",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

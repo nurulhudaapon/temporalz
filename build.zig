@@ -1,22 +1,85 @@
 const std = @import("std");
+const build_crab = @import("build_crab");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // --- Zig Module: temporalz --- //
     const mod = b.addModule("temporalz", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
+        .optimize = optimize,
     });
-    mod.addObjectFile(b.path(getTemporalRsPath(target)));
-    mod.link_libc = true;
-    if (target.result.os.tag == .linux) mod.linkSystemLibrary("unwind", .{});
-    if (target.result.os.tag == .windows) {
-        mod.linkSystemLibrary("ws2_32", .{});
-        mod.linkSystemLibrary("bcrypt", .{});
-        mod.linkSystemLibrary("advapi32", .{});
-        mod.linkSystemLibrary("userenv", .{});
+
+    // --- Rust C ABI: temporal_capi --- //
+    const temporal_rs = b.dependency("temporal_rs", .{ .target = target, .optimize = optimize });
+    mod.addIncludePath(temporal_rs.path("temporal_capi/bindings/c"));
+
+    // --- Rust Crate: temporal_rs --- //
+    {
+        // Determine target triple string for pre-built library lookup
+        const arch_str = @tagName(target.result.cpu.arch);
+        const os_str = @tagName(target.result.os.tag);
+        const target_triple = b.fmt("{s}-{s}", .{ arch_str, os_str });
+        const lib_name = if (target.result.os.tag == .windows) "temporal_capi.lib" else "libtemporal_capi.a";
+
+        // Check if pre-built library exists in lib/<target>/
+        const prebuilt_lib_path = b.fmt("lib/{s}/{s}", .{ target_triple, lib_name });
+        const prebuilt_lib_file = b.path(prebuilt_lib_path);
+
+        // Try to use pre-built library if it exists by checking the path object
+        const use_prebuilt = blk: {
+            // Use the LazyPath to check if the library exists
+            const lib_full_path = prebuilt_lib_file.getPath(b);
+            const lib_check_file = std.fs.openFileAbsolute(lib_full_path, .{}) catch break :blk false;
+            lib_check_file.close();
+            break :blk true;
+        };
+
+        if (use_prebuilt) {
+            // Use pre-built library (no Rust compiler needed)
+            // std.debug.print("Using pre-built temporal_capi library: {s}\n", .{prebuilt_lib_path});
+            mod.addObjectFile(prebuilt_lib_file);
+        } else {
+            // Build from source using Cargo
+            const build_dir = build_crab.addCargoBuild(
+                b,
+                .{
+                    .manifest_path = b.path("Cargo.toml"),
+                    .cargo_args = if (optimize == .Debug) &.{} else &.{"--release"},
+                },
+                .{
+                    .target = target,
+                    .optimize = .ReleaseSafe,
+                },
+            );
+
+            // Install .a/.lib to lib/<target>/libtemporal_capi.a/temporal_capi.lib
+            const install_lib = b.addInstallDirectory(.{
+                .source_dir = build_dir,
+                .install_dir = .{ .custom = "../lib" },
+                .install_subdir = target_triple,
+            });
+            b.getInstallStep().dependOn(&install_lib.step);
+            mod.addObjectFile(build_dir.path(b, lib_name));
+        }
+
+        // --- Rust Misc Deps --- //
+        if (target.result.os.tag == .windows) mod.linkSystemLibrary("userenv", .{});
+        const unwind_stubs = b.addLibrary(.{
+            .linkage = .static,
+            .name = "unwind_stubs",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/unwind_stubs.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+        mod.linkLibrary(unwind_stubs);
     }
+
+    // --- Zig Executable: temporalz --- //
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
@@ -30,20 +93,21 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(exe);
 
-    // Run command
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| run_cmd.addArgs(args);
-    const run_step = b.step("run", "Run the app");
+    // --- Steps: Run --- //
+    {
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(b.getInstallStep());
+        if (b.args) |args| run_cmd.addArgs(args);
+        const run_step = b.step("run", "Run the app");
+        run_step.dependOn(&run_cmd.step);
+    }
 
-    // Docs
+    // --- Steps: Docs --- //
     {
         const docs_step = b.step("docs", "Build the temporalz docs");
-        const docs_obj = b.addObject(.{
-            .name = "temporalz",
-            .root_module = mod,
-        });
+        const docs_obj = b.addObject(.{ .name = "temporalz", .root_module = mod });
         const docs = docs_obj.getEmittedDocs();
+
         docs_step.dependOn(&b.addInstallDirectory(.{
             .source_dir = docs,
             .install_dir = .prefix,
@@ -51,9 +115,8 @@ pub fn build(b: *std.Build) void {
         }).step);
     }
 
-    // Tests
+    // --- Steps: Test --- //
     {
-        run_step.dependOn(&run_cmd.step);
         const test_step = b.step("test", "Run tests");
         const mod_tests = b.addTest(.{
             .root_module = mod,
@@ -63,141 +126,46 @@ pub fn build(b: *std.Build) void {
             },
         });
         mod_tests.linkLibC();
-        if (target.result.os.tag == .linux) mod_tests.linkSystemLibrary("unwind");
-        if (target.result.os.tag == .windows) {
-            mod_tests.linkSystemLibrary("ws2_32");
-            mod_tests.linkSystemLibrary("bcrypt");
-            mod_tests.linkSystemLibrary("advapi32");
-        }
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
     }
 
-    // Rust cross-compilation prebuild
+    // --- Steps: Build all platforms --- //
     {
-        const rust_prebuild_step = b.step("temporal-rs", "Build and vendor Rust staticlibs for supported targets");
-        var rustup_args: [3 + rust_targets.len][]const u8 = undefined;
-        rustup_args[0] = "rustup";
-        rustup_args[1] = "target";
-        rustup_args[2] = "add";
-        for (rust_targets, 0..) |t, i| {
-            rustup_args[3 + i] = t.triple;
-        }
-        const rustup_add = b.addSystemCommand(&rustup_args);
-        rust_prebuild_step.dependOn(&rustup_add.step);
+        const build_lib_step = b.step("lib", "Build libraries for all common platforms");
 
-        for (rust_targets) |t| {
-            const cargo_build = b.addSystemCommand(&.{
-                "cargo",
-                "build",
-                "--release",
-                "--manifest-path",
-                "vendor/temporal/Cargo.toml",
-                "--target",
-                t.triple,
-            });
-            cargo_build.step.dependOn(&rustup_add.step);
-            rust_prebuild_step.dependOn(&cargo_build.step);
-        }
-    }
+        inline for (platforms) |p| {
+            const query = try std.Build.parseTargetQuery(.{ .arch_os_abi = p });
+            const platform_target = b.resolveTargetQuery(query);
 
-    // Release builds for all platforms
-    {
-        const release_targets = [_]struct {
-            name: []const u8,
-            target: std.Target.Query,
-        }{
-            .{ .name = "linux-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .linux } },
-            .{ .name = "linux-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .linux } },
-            .{ .name = "macos-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .macos } },
-            .{ .name = "macos-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .macos } },
-            .{ .name = "windows-x64", .target = .{ .cpu_arch = .x86_64, .os_tag = .windows, .abi = .msvc } },
-            .{ .name = "windows-aarch64", .target = .{ .cpu_arch = .aarch64, .os_tag = .windows, .abi = .msvc } },
-        };
-
-        const release_step = b.step("release", "Build release binaries for all targets");
-
-        for (release_targets) |release_target| {
-            const resolved_target = b.resolveTargetQuery(release_target.target);
-
-            const release_mod = b.addModule(b.fmt("temporalz-{s}", .{release_target.name}), .{
-                .root_source_file = b.path("src/root.zig"),
-                .target = resolved_target,
-            });
-            release_mod.addObjectFile(b.path(getTemporalRsPath(resolved_target)));
-            release_mod.link_libc = true;
-            if (resolved_target.result.os.tag == .linux) release_mod.linkSystemLibrary("unwind", .{});
-            if (resolved_target.result.os.tag == .windows) {
-                release_mod.linkSystemLibrary("ws2_32", .{});
-                release_mod.linkSystemLibrary("bcrypt", .{});
-                release_mod.linkSystemLibrary("advapi32", .{});
-                release_mod.linkSystemLibrary("userenv", .{});
-            }
-
-            const release_exe = b.addExecutable(.{
-                .name = "temporalz",
-                .root_module = b.createModule(.{
-                    .root_source_file = b.path("src/main.zig"),
-                    .target = resolved_target,
-                    .optimize = .ReleaseSmall,
-                    .imports = &.{
-                        .{ .name = "temporalz", .module = release_mod },
-                    },
-                }),
-            });
-            release_exe.linkLibC();
-            if (resolved_target.result.os.tag == .windows) {
-                release_exe.linkSystemLibrary("ws2_32");
-                release_exe.linkSystemLibrary("bcrypt");
-                release_exe.linkSystemLibrary("advapi32");
-                release_exe.linkSystemLibrary("userenv");
-            }
-
-            const exe_ext = if (resolved_target.result.os.tag == .windows) ".exe" else "";
-            const install_release = b.addInstallArtifact(release_exe, .{
-                .dest_sub_path = b.fmt("release/temporalz-{s}{s}", .{ release_target.name, exe_ext }),
-            });
-
-            const target_step = b.step(
-                b.fmt("release-{s}", .{release_target.name}),
-                b.fmt("Build release binary for {s}", .{release_target.name}),
+            const build_dir = build_crab.addCargoBuild(
+                b,
+                .{
+                    .manifest_path = b.path("Cargo.toml"),
+                    .cargo_args = &.{"--release"},
+                },
+                .{
+                    .target = platform_target,
+                    .optimize = .ReleaseSafe,
+                },
             );
-            target_step.dependOn(&install_release.step);
-            release_step.dependOn(&install_release.step);
+
+            const install_lib = b.addInstallDirectory(.{
+                .source_dir = build_dir,
+                .install_dir = .{ .custom = "../lib" },
+                .install_subdir = p,
+            });
+            build_lib_step.dependOn(&install_lib.step);
         }
     }
 }
 
-// Supported cross-compilation targets
-const rust_targets = [_]struct { triple: []const u8 }{
-    .{ .triple = "aarch64-apple-darwin" },
-    .{ .triple = "x86_64-apple-darwin" },
-    .{ .triple = "x86_64-unknown-linux-gnu" },
-    .{ .triple = "aarch64-unknown-linux-gnu" },
-    .{ .triple = "x86_64-pc-windows-msvc" },
-    .{ .triple = "aarch64-pc-windows-msvc" },
+const platforms = [_][]const u8{
+    "aarch64-macos",
+    "x86_64-macos",
+    "aarch64-linux-gnu",
+    "x86_64-linux-gnu",
+    "x86_64-windows-gnu",
+    "aarch64-windows-gnu",
 };
-
-// Platform-specific Rust library path resolution
-fn getTemporalRsPath(target: std.Build.ResolvedTarget) []const u8 {
-    const arch_tag = target.result.cpu.arch;
-    return switch (target.result.os.tag) {
-        .macos => switch (arch_tag) {
-            .aarch64 => "vendor/temporal/target/aarch64-apple-darwin/release/libtemporal.a",
-            .x86_64 => "vendor/temporal/target/x86_64-apple-darwin/release/libtemporal.a",
-            else => @panic("unsupported macOS architecture"),
-        },
-        .linux => switch (arch_tag) {
-            .x86_64 => "vendor/temporal/target/x86_64-unknown-linux-gnu/release/libtemporal.a",
-            .aarch64 => "vendor/temporal/target/aarch64-unknown-linux-gnu/release/libtemporal.a",
-            else => @panic("unsupported Linux architecture"),
-        },
-        .windows => switch (arch_tag) {
-            .x86_64 => "vendor/temporal/target/x86_64-pc-windows-msvc/release/temporal.lib",
-            .aarch64 => "vendor/temporal/target/aarch64-pc-windows-msvc/release/temporal.lib",
-            else => @panic("unsupported Windows architecture"),
-        },
-        else => @panic("unsupported OS"),
-    };
-}

@@ -113,6 +113,7 @@ test "Temporal.Instant" {
         "ToStringOptions",
         "Unit",
         "RoundingMode",
+        "Sign",
     };
 
     try assertDecls(Instant, checks);
