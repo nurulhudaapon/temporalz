@@ -423,8 +423,11 @@ pub fn second(self: ZonedDateTime) u8 {
 
 pub fn timeZoneId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     const tz = abi.c.temporal_rs_ZonedDateTime_timezone(self._inner);
-    const view = abi.fromDiplomatStringView(tz.normalized_id);
-    return try allocator.dupe(u8, view);
+    var write = abi.DiplomatWrite.init(allocator);
+
+    abi.c.temporal_rs_TimeZone_identifier(tz, &write.inner);
+
+    return try write.toOwnedSlice();
 }
 
 pub fn weekOfYear(self: ZonedDateTime) ?u8 {
@@ -576,7 +579,7 @@ test "props" {
     try std.testing.expectEqual(@as(u8, 0), zdt.second());
     try std.testing.expectEqual(@as(u16, 0), zdt.millisecond());
 
-    // const tzo = try zdt.timeZoneId(std.testing.allocator);
-    // defer std.testing.allocator.free(tzo);
-    // try std.testing.expectEqualStrings("UTC", tzo);
+    const tzo = try zdt.timeZoneId(std.testing.allocator);
+    defer std.testing.allocator.free(tzo);
+    try std.testing.expectEqualStrings("UTC", tzo);
 }
