@@ -282,18 +282,25 @@ pub const TemporalError = error{
 pub inline fn extractResult(result: anytype) TemporalError!Success(@TypeOf(result)) {
     if (success(result)) |value| return value;
 
-    const err = result.unnamed_0.err;
-    // const message = if (fromOption(err.msg)) |sv|
-    //     fromDiplomatStringView(sv)
-    // else
-    //     "(no error message)";
+    // Handle the error - check if the union has an 'err' field
+    const Union = @FieldType(@TypeOf(result), "unnamed_0");
+    if (@hasField(Union, "err")) {
+        const err = result.unnamed_0.err;
+        // const message = if (fromOption(err.msg)) |sv|
+        //     fromDiplomatStringView(sv)
+        // else
+        //     "(no error message)";
 
-    return switch (err.kind) {
-        c.ErrorKind_Generic => TemporalError.Generic,
-        c.ErrorKind_Type => TemporalError.TypeError,
-        c.ErrorKind_Range => TemporalError.RangeError,
-        c.ErrorKind_Syntax => TemporalError.SyntaxError,
-        c.ErrorKind_Assert => @panic("temporal_rs assertion failed"),
-        else => TemporalError.Unknown,
-    };
+        return switch (err.kind) {
+            c.ErrorKind_Generic => TemporalError.Generic,
+            c.ErrorKind_Type => TemporalError.TypeError,
+            c.ErrorKind_Range => TemporalError.RangeError,
+            c.ErrorKind_Syntax => TemporalError.SyntaxError,
+            c.ErrorKind_Assert => @panic("temporal_rs assertion failed"),
+            else => TemporalError.Unknown,
+        };
+    }
+
+    // Fallback for result types without detailed error information
+    return TemporalError.Generic;
 }

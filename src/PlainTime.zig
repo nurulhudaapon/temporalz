@@ -24,7 +24,7 @@ pub const WithOptions = struct {
 
 // Helper to wrap PlainTime pointer
 fn wrapPlainTime(result: anytype) !PlainTime {
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return PlainTime{ ._inner = ptr };
 }
 
@@ -83,14 +83,14 @@ pub fn subtract(self: PlainTime, duration: Duration) !PlainTime {
 pub fn until(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
     const settings = options.toCApi();
     const result = abi.c.temporal_rs_PlainTime_until(self._inner, other._inner, settings);
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
     const settings = options.toCApi();
     const result = abi.c.temporal_rs_PlainTime_since(self._inner, other._inner, settings);
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 

@@ -25,7 +25,7 @@ pub const TimeZone = struct {
     pub fn init(id: []const u8) !TimeZone {
         const view = abi.toDiplomatStringView(id);
         const result = abi.c.temporal_rs_TimeZone_try_from_str(view);
-        const tz = abi.success(result) orelse return error.TemporalError;
+        const tz = try abi.extractResult(result);
         return .{ ._inner = tz };
     }
 
@@ -119,7 +119,7 @@ pub const ToStringOptions = struct {
 
 /// Helper function to wrap a C API result into a ZonedDateTime
 fn wrapZonedDateTime(result: anytype) !ZonedDateTime {
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -170,7 +170,7 @@ pub fn getTimeZoneTransition(self: ZonedDateTime, direction: enum { next, previo
         .previous => abi.c.TransitionDirection_Previous,
     };
     const result = abi.c.temporal_rs_ZonedDateTime_get_time_zone_transition(self._inner, dir);
-    const maybe_ptr = abi.success(result) orelse return error.TemporalError;
+    const maybe_ptr = try abi.extractResult(result);
     if (maybe_ptr) |ptr| {
         return .{ ._inner = ptr };
     }
@@ -184,7 +184,7 @@ pub fn round(self: ZonedDateTime, options: RoundOptions) !ZonedDateTime {
 
 /// Calculate duration since another ZonedDateTime
 pub fn since(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
-    const ptr = abi.success(abi.c.temporal_rs_ZonedDateTime_since(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError;
+    const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_since(self._inner, other._inner, settings.toCApi()));
     return .{ ._inner = ptr };
 }
 
@@ -256,7 +256,7 @@ pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStrin
 
 /// Calculate duration until another ZonedDateTime
 pub fn until(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
-    const ptr = abi.success(abi.c.temporal_rs_ZonedDateTime_until(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError;
+    const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_until(self._inner, other._inner, settings.toCApi()));
     return .{ ._inner = ptr };
 }
 
@@ -277,7 +277,7 @@ pub fn with(self: ZonedDateTime, allocator: std.mem.Allocator, fields: anytype) 
 pub fn withCalendar(self: ZonedDateTime, calendar: []const u8) !ZonedDateTime {
     const cal_view = abi.toDiplomatStringView(calendar);
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
-    const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
+    const cal_kind = try abi.extractResult(cal_result);
     const ptr = abi.c.temporal_rs_ZonedDateTime_with_calendar(self._inner, cal_kind);
     return .{ ._inner = ptr, .calendar_id = calendar };
 }
@@ -354,7 +354,7 @@ pub fn hour(self: ZonedDateTime) u8 {
 
 pub fn hoursInDay(self: ZonedDateTime) !f64 {
     const result = abi.c.temporal_rs_ZonedDateTime_hours_in_day(self._inner);
-    return abi.success(result) orelse error.TemporalError;
+    return try abi.extractResult(result);
 }
 
 pub fn inLeapYear(self: ZonedDateTime) bool {
@@ -396,7 +396,7 @@ pub fn offset(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
     const res = abi.c.temporal_rs_ZonedDateTime_offset(self._inner, &write.inner);
-    _ = abi.success(res) orelse return error.TemporalError;
+    _ = try abi.extractResult(res);
     return try write.toOwnedSlice();
 }
 

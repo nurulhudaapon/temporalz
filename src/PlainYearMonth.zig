@@ -34,7 +34,7 @@ pub const WithOptions = struct {
 
 // Helper to wrap PlainYearMonth pointer
 fn wrapPlainYearMonth(result: anytype) !PlainYearMonth {
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
@@ -44,7 +44,7 @@ pub fn init(year_val: i32, month_val: u8, calendar: ?[]const u8) !PlainYearMonth
     const cal_kind = if (calendar) |cal| blk: {
         const cal_view = abi.toDiplomatStringView(cal);
         const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
-        break :blk abi.success(cal_result) orelse return error.TemporalError;
+        break :blk try abi.extractResult(cal_result);
     } else abi.c.AnyCalendarKind_Iso;
 
     const overflow = abi.c.ArithmeticOverflow_Constrain;
@@ -97,14 +97,14 @@ pub fn subtract(self: PlainYearMonth, duration: Duration) !PlainYearMonth {
 pub fn until(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSettings) !Duration {
     const settings = options.toCApi();
     const result = abi.c.temporal_rs_PlainYearMonth_until(self._inner, other._inner, settings);
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn since(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSettings) !Duration {
     const settings = options.toCApi();
     const result = abi.c.temporal_rs_PlainYearMonth_since(self._inner, other._inner, settings);
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -212,7 +212,7 @@ pub fn toPlainDate(self: PlainYearMonth, day: u8) !PlainDate {
     };
 
     const result = abi.c.temporal_rs_PlainYearMonth_to_plain_date(self._inner, partial_date);
-    const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
 
     return PlainDate{ ._inner = ptr };
 }

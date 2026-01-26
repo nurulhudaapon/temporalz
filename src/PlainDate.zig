@@ -50,7 +50,7 @@ pub fn init(year_val: i32, month_val: u8, day_val: u8) !PlainDate {
 pub fn initWithCalendar(year_val: i32, month_val: u8, day_val: u8, calendar: []const u8) !PlainDate {
     const cal_view = abi.toDiplomatStringView(calendar);
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
-    const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
+    const cal_kind = try abi.extractResult(cal_result);
     return wrapPlainDate(abi.c.temporal_rs_PlainDate_try_new(year_val, month_val, day_val, cal_kind));
 }
 
@@ -104,12 +104,12 @@ pub fn subtract(self: PlainDate, duration: Duration) !PlainDate {
 }
 
 pub fn until(self: PlainDate, other: PlainDate, settings: DifferenceSettings) !Duration {
-    const ptr = (abi.success(abi.c.temporal_rs_PlainDate_until(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_until(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn since(self: PlainDate, other: PlainDate, settings: DifferenceSettings) !Duration {
-    const ptr = (abi.success(abi.c.temporal_rs_PlainDate_since(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_since(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -122,35 +122,35 @@ pub fn with(self: PlainDate, fields: anytype) !PlainDate {
 pub fn withCalendar(self: PlainDate, calendar: []const u8) !PlainDate {
     const cal_view = abi.toDiplomatStringView(calendar);
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
-    const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
-    const ptr = abi.c.temporal_rs_PlainDate_with_calendar(self._inner, cal_kind) orelse return error.TemporalError;
+    const cal_kind = try abi.extractResult(cal_result);
+    const ptr = abi.c.temporal_rs_PlainDate_with_calendar(self._inner, cal_kind) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
 
 pub fn toPlainDateTime(self: PlainDate, time: ?PlainTime) !PlainDateTime {
     const time_ptr = if (time) |t| t._inner else null;
-    const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_plain_date_time(self._inner, time_ptr)) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_plain_date_time(self._inner, time_ptr))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn toPlainMonthDay(self: PlainDate) !PlainMonthDay {
-    const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_plain_month_day(self._inner)) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_plain_month_day(self._inner))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn toPlainYearMonth(self: PlainDate) !PlainYearMonth {
-    const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_plain_year_month(self._inner)) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_plain_year_month(self._inner))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn toZonedDateTime(self: PlainDate, options: ToZonedDateTimeOptions) !ZonedDateTime {
     const tz_view = abi.toDiplomatStringView(options.time_zone);
     const tz_result = abi.c.temporal_rs_TimeZone_try_from_str(tz_view);
-    const time_zone = abi.success(tz_result) orelse return error.TemporalError;
+    const time_zone = try abi.extractResult(tz_result);
 
     const time_ptr = if (options.plain_time) |t| t._inner else null;
-    const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_zoned_date_time(self._inner, time_zone, time_ptr)) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_zoned_date_time(self._inner, time_zone, time_ptr))) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
@@ -276,13 +276,13 @@ pub fn deinit(self: PlainDate) void {
 }
 
 fn wrapPlainDate(res: anytype) !PlainDate {
-    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(res)) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
 
 fn handleVoidResult(res: anytype) !void {
-    _ = abi.success(res) orelse return error.TemporalError;
+    _ = try abi.extractResult(res);
 }
 
 test init {
