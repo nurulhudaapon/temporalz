@@ -10,16 +10,56 @@ pub const ToStringRoundingOptions = temporal.ToStringRoundingOptions;
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;
-pub const PartialDuration = abi.c.PartialDuration;
+
+/// Partial duration specification for creating Duration objects.
+/// This is a wrapper around the C API type to avoid exposing C types directly.
+pub const PartialDuration = struct {
+    years: ?i64 = null,
+    months: ?i64 = null,
+    weeks: ?i64 = null,
+    days: ?i64 = null,
+    hours: ?i64 = null,
+    minutes: ?i64 = null,
+    seconds: ?i64 = null,
+    milliseconds: ?i64 = null,
+    microseconds: ?f64 = null,
+    nanoseconds: ?f64 = null,
+
+    fn toCApi(self: PartialDuration) abi.c.PartialDuration {
+        return .{
+            .years = abi.toOption(abi.c.OptionI64, self.years),
+            .months = abi.toOption(abi.c.OptionI64, self.months),
+            .weeks = abi.toOption(abi.c.OptionI64, self.weeks),
+            .days = abi.toOption(abi.c.OptionI64, self.days),
+            .hours = abi.toOption(abi.c.OptionI64, self.hours),
+            .minutes = abi.toOption(abi.c.OptionI64, self.minutes),
+            .seconds = abi.toOption(abi.c.OptionI64, self.seconds),
+            .milliseconds = abi.toOption(abi.c.OptionI64, self.milliseconds),
+            .microseconds = abi.toOption(abi.c.OptionF64, self.microseconds),
+            .nanoseconds = abi.toOption(abi.c.OptionF64, self.nanoseconds),
+        };
+    }
+};
+
+/// Wrapper for PlainDate reference in RelativeTo
+const PlainDateRef = struct {
+    _inner: *abi.c.PlainDate,
+};
+
+/// Wrapper for ZonedDateTime reference in RelativeTo
+const ZonedDateTimeRef = struct {
+    _inner: *abi.c.ZonedDateTime,
+};
+
 /// Relative-to context for duration operations.
-pub const RelativeTo = extern struct {
-    plain_date: ?*abi.c.PlainDate,
-    zoned_date_time: ?*abi.c.ZonedDateTime,
+pub const RelativeTo = struct {
+    plain_date: ?PlainDateRef = null,
+    zoned_date_time: ?ZonedDateTimeRef = null,
 
     fn toCApi(self: RelativeTo) abi.c.RelativeTo {
         return .{
-            .date = self.plain_date,
-            .zoned = self.zoned_date_time,
+            .date = if (self.plain_date) |pd| pd._inner else null,
+            .zoned = if (self.zoned_date_time) |zdt| zdt._inner else null,
         };
     }
 };
@@ -73,7 +113,7 @@ fn fromUtf16(text: []const u16) !Duration {
 
 /// Create a Duration from a partial duration (where some fields may be omitted).
 fn fromPartialDuration(partial: PartialDuration) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_from_partial_duration(partial));
+    return wrapDuration(abi.c.temporal_rs_Duration_from_partial_duration(partial.toCApi()));
 }
 
 /// Check if the time portion of the duration is within valid ranges.
@@ -362,20 +402,9 @@ test toString {
 }
 
 test fromPartialDuration {
-    const empty_i64 = abi.toOption(abi.c.OptionI64, null);
-    const empty_f64 = abi.toOption(abi.c.OptionF64, null);
-
-    const partial = abi.c.PartialDuration{
-        .years = empty_i64,
-        .months = empty_i64,
-        .weeks = empty_i64,
-        .days = empty_i64,
-        .hours = .{ .is_ok = true, .unnamed_0 = .{ .ok = 3 } },
-        .minutes = .{ .is_ok = true, .unnamed_0 = .{ .ok = 45 } },
-        .seconds = empty_i64,
-        .milliseconds = empty_i64,
-        .microseconds = empty_f64,
-        .nanoseconds = empty_f64,
+    const partial = PartialDuration{
+        .hours = 3,
+        .minutes = 45,
     };
 
     const dur = try Duration.fromPartialDuration(partial);

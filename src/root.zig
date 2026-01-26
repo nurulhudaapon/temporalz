@@ -113,6 +113,7 @@ test Instant {
 
         // Public types
         "ToStringOptions",
+        "TimeZone",
         "Unit",
         "RoundingMode",
         "Sign",
@@ -140,7 +141,8 @@ test Now {
 test PlainDate {
     const checks = .{
         // Constructor
-        "init", // Temporal.PlainDate()
+        "init",
+        "initWithCalendar",
 
         // Static methods
         "compare",
@@ -163,7 +165,7 @@ test PlainDate {
         "with",
         "withCalendar",
 
-        // Properties
+        // Properties (now as methods)
         "calendarId",
         "day",
         "dayOfWeek",
@@ -180,6 +182,15 @@ test PlainDate {
         "weekOfYear",
         "year",
         "yearOfWeek",
+
+        // Public types
+        "ToStringOptions",
+        "CalendarDisplay",
+        "ToZonedDateTimeOptions",
+        "Unit",
+        "RoundingMode",
+        "Sign",
+        "DifferenceSettings",
     };
 
     try assertDecls(PlainDate, checks);
@@ -189,10 +200,13 @@ test PlainDateTime {
     const checks = .{
         // Constructor
         "init", // Temporal.PlainDateTime()
+        "initWithCalendar",
 
         // Static methods
         "compare",
         "from",
+        // "fromUtf8",
+        // "fromUtf16",
 
         // Instance methods
         "add",
@@ -235,6 +249,17 @@ test PlainDateTime {
         "weekOfYear",
         "year",
         "yearOfWeek",
+
+        // Public types
+        "Unit",
+        "RoundingMode",
+        "Sign",
+        "CalendarDisplay",
+        "DifferenceSettings",
+        "RoundOptions",
+        "ToStringOptions",
+        "ToZonedDateTimeOptions",
+        "WithOptions",
     };
 
     try assertDecls(PlainDateTime, checks);
@@ -261,6 +286,11 @@ test PlainMonthDay {
         "calendarId",
         "day",
         "monthCode",
+
+        // Public types
+        "CalendarDisplay",
+        "ToStringOptions",
+        "WithOptions",
     };
 
     try assertDecls(PlainMonthDay, checks);
@@ -295,6 +325,13 @@ test PlainTime {
         "minute",
         "nanosecond",
         "second",
+
+        // Public types
+        "Unit",
+        "RoundingMode",
+        "DifferenceSettings",
+        "RoundOptions",
+        "WithOptions",
     };
 
     try assertDecls(PlainTime, checks);
@@ -333,6 +370,15 @@ test PlainYearMonth {
         "monthCode",
         "monthsInYear",
         "year",
+
+        // Public types
+        "Unit",
+        "RoundingMode",
+        "CalendarDisplay",
+        "DifferenceSettings",
+        "RoundOptions",
+        "ToStringOptions",
+        "WithOptions",
     };
 
     try assertDecls(PlainYearMonth, checks);
@@ -346,9 +392,12 @@ test ZonedDateTime {
         // Static methods
         "compare",
         "from",
+        "fromEpochMilliseconds",
+        "fromEpochNanoseconds",
 
         // Instance methods
         "add",
+        "clone",
         "equals",
         "getTimeZoneTransition",
         "round",
@@ -398,6 +447,20 @@ test ZonedDateTime {
         "weekOfYear",
         "year",
         "yearOfWeek",
+
+        // Public types
+        "Unit",
+        "RoundingMode",
+        "Sign",
+        "DifferenceSettings",
+        "RoundOptions",
+        "TimeZone",
+        "Disambiguation",
+        "OffsetDisambiguation",
+        "CalendarDisplay",
+        "DisplayOffset",
+        "DisplayTimeZone",
+        "ToStringOptions",
     };
 
     try assertDecls(ZonedDateTime, checks);
