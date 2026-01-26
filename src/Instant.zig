@@ -1,6 +1,7 @@
 const std = @import("std");
 const abi = @import("abi.zig");
 const c = abi.c;
+const temporal = @import("temporal.zig");
 
 const Instant = @This();
 
@@ -8,83 +9,9 @@ _inner: *c.Instant,
 epoch_milliseconds: i64,
 epoch_nanoseconds: i128,
 
-pub const Unit = enum {
-    auto,
-    nanosecond,
-    microsecond,
-    millisecond,
-    second,
-    minute,
-    hour,
-    day,
-    week,
-    month,
-    year,
-
-    fn toCApi(self: Unit) c_uint {
-        return switch (self) {
-            .auto => c.Unit_Auto,
-            .nanosecond => c.Unit_Nanosecond,
-            .microsecond => c.Unit_Microsecond,
-            .millisecond => c.Unit_Millisecond,
-            .second => c.Unit_Second,
-            .minute => c.Unit_Minute,
-            .hour => c.Unit_Hour,
-            .day => c.Unit_Day,
-            .week => c.Unit_Week,
-            .month => c.Unit_Month,
-            .year => c.Unit_Year,
-        };
-    }
-};
-
-pub const RoundingMode = enum {
-    ceil,
-    floor,
-    expand,
-    trunc,
-    half_ceil,
-    half_floor,
-    half_expand,
-    half_trunc,
-    half_even,
-
-    fn toCApi(self: RoundingMode) c_uint {
-        return switch (self) {
-            .ceil => c.RoundingMode_Ceil,
-            .floor => c.RoundingMode_Floor,
-            .expand => c.RoundingMode_Expand,
-            .trunc => c.RoundingMode_Trunc,
-            .half_ceil => c.RoundingMode_HalfCeil,
-            .half_floor => c.RoundingMode_HalfFloor,
-            .half_expand => c.RoundingMode_HalfExpand,
-            .half_trunc => c.RoundingMode_HalfTrunc,
-            .half_even => c.RoundingMode_HalfEven,
-        };
-    }
-};
-pub const Sign = enum {
-    positive,
-    zero,
-    negative,
-
-    fn toCApi(self: Sign) c_int {
-        return switch (self) {
-            .positive => c.Sign_Positive,
-            .zero => c.Sign_Zero,
-            .negative => c.Sign_Negative,
-        };
-    }
-
-    fn fromCApi(value: c_int) Sign {
-        return switch (value) {
-            c.Sign_Positive => .positive,
-            c.Sign_Zero => .zero,
-            c.Sign_Negative => .negative,
-            else => .zero,
-        };
-    }
-};
+pub const Unit = temporal.Unit;
+pub const RoundingMode = temporal.RoundingMode;
+pub const Sign = temporal.Sign;
 const TimeZone = c.TimeZone;
 const TimeZone_option = c.TimeZone_option;
 const Precision = c.Precision;

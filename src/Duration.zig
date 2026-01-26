@@ -1,6 +1,7 @@
 const std = @import("std");
 const abi = @import("abi.zig");
 const c = abi.c;
+const temporal = @import("temporal.zig");
 
 const Duration = @This();
 
@@ -108,7 +109,7 @@ pub fn nanoseconds(self: Duration) f64 {
 
 /// Get the sign of the duration: positive (1), zero (0), or negative (-1).
 pub fn sign(self: Duration) Sign {
-    return @as(Sign, @enumFromInt(c.temporal_rs_Duration_sign(self._inner)));
+    return Sign.fromCApi(c.temporal_rs_Duration_sign(self._inner));
 }
 
 /// Check if the duration is zero (all fields are zero).
@@ -162,13 +163,13 @@ fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo,
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, unit: Unit, relative_to: RelativeTo) !f64 {
-    const res = c.temporal_rs_Duration_total(self._inner, @intFromEnum(unit), relative_to);
+    const res = c.temporal_rs_Duration_total(self._inner, unit.toCApi(), relative_to);
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration with an explicit provider.
 fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const c.Provider) !f64 {
-    const res = c.temporal_rs_Duration_total_with_provider(self._inner, @intFromEnum(unit), relative_to, provider);
+    const res = c.temporal_rs_Duration_total_with_provider(self._inner, unit.toCApi(), relative_to, provider);
     return abi.success(res) orelse return error.TemporalError;
 }
 
@@ -252,69 +253,12 @@ const Precision = c.Precision;
 const Unit_option = c.Unit_option;
 const RoundingMode_option = c.RoundingMode_option;
 
-/// Time unit for Temporal operations.
-/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
-pub const Unit = enum {
-    auto,
-    nanosecond,
-    microsecond,
-    millisecond,
-    second,
-    minute,
-    hour,
-    day,
-    week,
-    month,
-    year,
-
-    fn toCApi(self: Unit) c_uint {
-        return switch (self) {
-            .auto => c.Unit_Auto,
-            .nanosecond => c.Unit_Nanosecond,
-            .microsecond => c.Unit_Microsecond,
-            .millisecond => c.Unit_Millisecond,
-            .second => c.Unit_Second,
-            .minute => c.Unit_Minute,
-            .hour => c.Unit_Hour,
-            .day => c.Unit_Day,
-            .week => c.Unit_Week,
-            .month => c.Unit_Month,
-            .year => c.Unit_Year,
-        };
-    }
-};
-
-/// Rounding mode for Temporal operations.
-/// See: https://tc39.es/ecma402/#table-sanctioned-single-unit-identifiers
-pub const RoundingMode = enum(c_uint) {
-    /// Round toward positive infinity
-    ceil = c.RoundingMode_Ceil,
-    /// Round toward negative infinity
-    floor = c.RoundingMode_Floor,
-    /// Round away from zero
-    expand = c.RoundingMode_Expand,
-    /// Round toward zero (truncate)
-    trunc = c.RoundingMode_Trunc,
-    /// Round half toward positive infinity
-    half_ceil = c.RoundingMode_HalfCeil,
-    /// Round half toward negative infinity
-    half_floor = c.RoundingMode_HalfFloor,
-    /// Round half away from zero
-    half_expand = c.RoundingMode_HalfExpand,
-    /// Round half toward zero
-    half_trunc = c.RoundingMode_HalfTrunc,
-    /// Round half to even (banker's rounding)
-    half_even = c.RoundingMode_HalfEven,
-};
-
-pub const Sign = enum(c_int) {
-    positive = c.Sign_Positive,
-    zero = c.Sign_Zero,
-    negative = c.Sign_Negative,
-};
-
 pub const RoundingOptions = c.RoundingOptions;
 pub const ToStringRoundingOptions = c.ToStringRoundingOptions;
+
+pub const Unit = temporal.Unit;
+pub const RoundingMode = temporal.RoundingMode;
+pub const Sign = temporal.Sign;
 
 // --- Tests -------------------------------------------------------------------
 
