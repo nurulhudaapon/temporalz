@@ -162,15 +162,15 @@ fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo,
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, options: TotalOptions) !f64 {
-    const relative_to = if (options.relative_to) |rt| rt.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
-    const res = abi.c.temporal_rs_Duration_total(self._inner, options.unit.toCApi(), relative_to);
+    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const res = abi.c.temporal_rs_Duration_total(self._inner, options.unit.toCApi(), rel);
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration with an explicit provider.
 fn totalWithProvider(self: Duration, options: TotalOptions, provider: *const abi.c.Provider) !f64 {
-    const relative_to = if (options.relative_to) |rt| rt.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
-    const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, options.unit.toCApi(), relative_to, provider);
+    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, options.unit.toCApi(), rel, provider);
     return abi.success(res) orelse return error.TemporalError;
 }
 
