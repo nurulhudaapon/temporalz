@@ -2,9 +2,9 @@ const std = @import("std");
 const PlainMonthDay = @This();
 const PlainDate = @import("PlainDate.zig");
 
-pub var calendarId: []const u8 = "";
-pub var day: i64 = 0;
-pub var monthCode: []const u8 = "";
+calendar_id: []const u8,
+day: i64,
+month_code: []const u8,
 
 pub fn init() error{Todo}!PlainMonthDay {
     return error.Todo;
@@ -42,6 +42,7 @@ pub fn with() error{Todo}!PlainMonthDay {
     return error.Todo;
 }
 
+// ---------- Tests ---------------------
 test from {
     if (true) return error.Todo;
 }

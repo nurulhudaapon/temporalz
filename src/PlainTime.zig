@@ -2,12 +2,12 @@ const std = @import("std");
 const PlainTime = @This();
 const Duration = @import("Duration.zig");
 
-pub var hour: i64 = 0;
-pub var microsecond: i64 = 0;
-pub var millisecond: i64 = 0;
-pub var minute: i64 = 0;
-pub var nanosecond: i64 = 0;
-pub var second: i64 = 0;
+hour: i64,
+microsecond: i64,
+millisecond: i64,
+minute: i64,
+nanosecond: i64,
+second: i64,
 
 pub fn init() error{Todo}!PlainTime {
     return error.Todo;
@@ -65,6 +65,7 @@ pub fn with() error{Todo}!PlainTime {
     return error.Todo;
 }
 
+// ---------- Tests ---------------------
 test compare {
     if (true) return error.Todo;
 }

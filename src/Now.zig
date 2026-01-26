@@ -1,9 +1,10 @@
-const Now = @This();
 const Instant = @import("Instant.zig");
 const PlainDate = @import("PlainDate.zig");
 const PlainDateTime = @import("PlainDateTime.zig");
 const PlainTime = @import("PlainTime.zig");
 const ZonedDateTime = @import("ZonedDateTime.zig");
+
+const Now = @This();
 
 pub fn instant() error{Todo}!Instant {
     return error.Todo;
@@ -29,7 +30,7 @@ pub fn zonedDateTimeISO() error{Todo}!ZonedDateTime {
     return error.Todo;
 }
 
-// --- Tests ---------------------
+// ---------- Tests ---------------------
 test instant {
     if (true) return error.Todo;
 }

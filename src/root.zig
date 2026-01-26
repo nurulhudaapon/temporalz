@@ -12,6 +12,7 @@ const Temporal = @This();
 
 test Temporal {
     const std = @import("std");
+    _ = @import("abi.zig");
 
     const expected_scopes = .{
         "Duration",

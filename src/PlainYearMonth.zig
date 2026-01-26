@@ -3,16 +3,16 @@ const PlainYearMonth = @This();
 const PlainDate = @import("PlainDate.zig");
 const Duration = @import("Duration.zig");
 
-pub var calendarId: []const u8 = "";
-pub var daysInMonth: i64 = 0;
-pub var daysInYear: i64 = 0;
-pub var era: []const u8 = "";
-pub var eraYear: i64 = 0;
-pub var inLeapYear: bool = false;
-pub var month: i64 = 0;
-pub var monthCode: []const u8 = "";
-pub var monthsInYear: i64 = 0;
-pub var year: i64 = 0;
+calendar_id: []const u8,
+days_in_month: i64,
+days_in_year: i64,
+era: []const u8,
+era_year: i64,
+in_leap_year: bool,
+month: i64,
+month_code: []const u8,
+months_in_year: i64,
+year: i64,
 
 pub fn init() error{Todo}!PlainYearMonth {
     return error.Todo;
@@ -70,6 +70,7 @@ pub fn with() error{Todo}!PlainYearMonth {
     return error.Todo;
 }
 
+// ---------- Tests ---------------------
 test compare {
     if (true) return error.Todo;
 }
