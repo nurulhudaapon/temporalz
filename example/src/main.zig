@@ -12,5 +12,6 @@ pub fn main() !void {
     std.debug.print("Instant.toString(): {s}\n", .{instant_str});
 
     const dur = try Temporal.Duration.from("P1Y2M3DT4H5M6S");
+
     defer dur.deinit();
 }

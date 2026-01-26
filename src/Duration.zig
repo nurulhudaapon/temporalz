@@ -254,18 +254,34 @@ const RoundingMode_option = c.RoundingMode_option;
 
 /// Time unit for Temporal operations.
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
-pub const Unit = enum(c_uint) {
-    auto = c.Unit_Auto,
-    nanosecond = c.Unit_Nanosecond,
-    microsecond = c.Unit_Microsecond,
-    millisecond = c.Unit_Millisecond,
-    second = c.Unit_Second,
-    minute = c.Unit_Minute,
-    hour = c.Unit_Hour,
-    day = c.Unit_Day,
-    week = c.Unit_Week,
-    month = c.Unit_Month,
-    year = c.Unit_Year,
+pub const Unit = enum {
+    auto,
+    nanosecond,
+    microsecond,
+    millisecond,
+    second,
+    minute,
+    hour,
+    day,
+    week,
+    month,
+    year,
+
+    fn toCApi(self: Unit) c_uint {
+        return switch (self) {
+            .auto => c.Unit_Auto,
+            .nanosecond => c.Unit_Nanosecond,
+            .microsecond => c.Unit_Microsecond,
+            .millisecond => c.Unit_Millisecond,
+            .second => c.Unit_Second,
+            .minute => c.Unit_Minute,
+            .hour => c.Unit_Hour,
+            .day => c.Unit_Day,
+            .week => c.Unit_Week,
+            .month => c.Unit_Month,
+            .year => c.Unit_Year,
+        };
+    }
 };
 
 /// Rounding mode for Temporal operations.
