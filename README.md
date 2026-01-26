@@ -52,12 +52,12 @@ const exe = b.addExecutable(.{
 
 Prebuilt binaries are available for:
 
-- aarch64-macos
-- x86_64-macos
-- aarch64-linux-gnu
-- x86_64-linux-gnu
-- x86_64-windows-gnu
-- aarch64-windows-gnu
+- `aarch64-macos`
+- `x86_64-macos`
+- `aarch64-linux-gnu`
+- `x86_64-linux-gnu`
+- `x86_64-windows-gnu`
+- `aarch64-windows-gnu`
 
 For unsupported platforms, the library will automatically build from source if the Rust toolchain is installed.
 
