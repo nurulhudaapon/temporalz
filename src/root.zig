@@ -114,6 +114,8 @@ test Instant {
         "Unit",
         "RoundingMode",
         "Sign",
+        "RoundingOptions",
+        "DifferenceSettings",
     };
 
     try assertDecls(Instant, checks);

@@ -140,12 +140,12 @@ pub fn subtract(self: Duration, other: Duration) !Duration {
 
 /// Round the duration according to the specified options (Temporal.Duration.prototype.round).
 pub fn round(self: Duration, options: RoundingOptions, relative_to: RelativeTo) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options, relative_to));
+    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options.toCApi(), relative_to));
 }
 
 /// Round the duration with an explicit provider.
 fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: RelativeTo, provider: *const abi.c.Provider) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_round_with_provider(self._inner, options, relative_to, provider));
+    return wrapDuration(abi.c.temporal_rs_Duration_round_with_provider(self._inner, options.toCApi(), relative_to, provider));
 }
 
 /// Compare two durations (Temporal.Duration.compare).
@@ -252,9 +252,8 @@ const Precision = abi.c.Precision;
 const Unit_option = abi.c.Unit_option;
 const RoundingMode_option = abi.c.RoundingMode_option;
 
-pub const RoundingOptions = abi.c.RoundingOptions;
+pub const RoundingOptions = temporal.RoundingOptions;
 pub const ToStringRoundingOptions = abi.c.ToStringRoundingOptions;
-
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;

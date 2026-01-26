@@ -93,3 +93,45 @@ pub const Sign = enum {
         };
     }
 };
+
+/// Options for rounding operations (Instant.round, Duration.round, etc.).
+pub const RoundingOptions = struct {
+    largest_unit: ?Unit = null,
+    smallest_unit: ?Unit = null,
+    rounding_mode: ?RoundingMode = null,
+    increment: ?u32 = null,
+
+    pub fn toCApi(self: RoundingOptions) c.RoundingOptions {
+        return .{
+            .largest_unit = abi.toUnitOption(toCUnit(self.largest_unit)),
+            .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
+            .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
+            .increment = abi.toOption(c.OptionU32, self.increment),
+        };
+    }
+};
+
+/// Options for computing differences between instants.
+pub const DifferenceSettings = struct {
+    largest_unit: ?Unit = null,
+    smallest_unit: ?Unit = null,
+    rounding_mode: ?RoundingMode = null,
+    increment: ?u32 = null,
+
+    pub fn toCApi(self: DifferenceSettings) c.DifferenceSettings {
+        return .{
+            .largest_unit = abi.toUnitOption(toCUnit(self.largest_unit)),
+            .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
+            .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
+            .increment = abi.toOption(c.OptionU32, self.increment),
+        };
+    }
+};
+
+fn toCUnit(opt: ?Unit) ?c.Unit {
+    return if (opt) |u| @as(c.Unit, @intCast(u.toCApi())) else null;
+}
+
+fn toCRoundingMode(opt: ?RoundingMode) ?c.RoundingMode {
+    return if (opt) |m| @as(c.RoundingMode, @intCast(m.toCApi())) else null;
+}
