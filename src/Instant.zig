@@ -114,13 +114,13 @@ pub fn subtract(self: Instant, duration: *Duration) !Instant {
 
 /// Difference until another instant (Temporal.Instant.prototype.until).
 pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
-    const ptr = (abi.success(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Difference since another instant (Temporal.Instant.prototype.since).
 pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
-    const ptr = (abi.success(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings.toCApi())) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -180,13 +180,13 @@ pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
 
 /// Convert to ZonedDateTime using built-in provider (Temporal.Instant.prototype.toZonedDateTimeISO).
 pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTime {
-    const ptr = (abi.success(abi.c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone._inner)) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone._inner))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Convert to ZonedDateTime using an explicit provider.
 fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const abi.c.Provider) !ZonedDateTime {
-    const ptr = (abi.success(abi.c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone._inner, provider)) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone._inner, provider))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -203,7 +203,7 @@ pub fn deinit(self: Instant) void {
 // --- Helpers -----------------------------------------------------------------
 
 fn wrapInstant(res: anytype) !Instant {
-    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (try abi.extractResult(res)) orelse return abi.TemporalError.Generic;
     return .{
         ._inner = ptr,
         .epoch_milliseconds = abi.c.temporal_rs_Instant_epoch_milliseconds(ptr),
@@ -212,7 +212,7 @@ fn wrapInstant(res: anytype) !Instant {
 }
 
 fn handleVoidResult(res: anytype) !void {
-    _ = abi.success(res) orelse return error.TemporalError;
+    _ = try abi.extractResult(res);
 }
 
 fn defaultPrecision() abi.c.Precision {
@@ -274,8 +274,8 @@ test fromEpochNanoseconds {
     try std.testing.expectEqual(max_ns, max_inst.epoch_nanoseconds);
     try std.testing.expectEqual(min_ns, min_inst.epoch_nanoseconds);
 
-    try std.testing.expectError(error.TemporalError, Instant.fromEpochNanoseconds(max_ns + 1));
-    try std.testing.expectError(error.TemporalError, Instant.fromEpochNanoseconds(min_ns - 1));
+    try std.testing.expectError(error.RangeError, Instant.fromEpochNanoseconds(max_ns + 1));
+    try std.testing.expectError(error.RangeError, Instant.fromEpochNanoseconds(min_ns - 1));
 }
 
 test from {
