@@ -11,7 +11,6 @@ const Duration = @import("Duration.zig");
 const ZonedDateTime = @This();
 
 _inner: *abi.c.ZonedDateTime,
-calendar_id: []const u8,
 
 // Import types from temporal.zig
 pub const Unit = temporal_types.Unit;
@@ -121,11 +120,7 @@ pub const ToStringOptions = struct {
 /// Helper function to wrap a C API result into a ZonedDateTime
 fn wrapZonedDateTime(result: anytype) !ZonedDateTime {
     const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
-    const calendar_ptr = abi.c.temporal_rs_ZonedDateTime_calendar(ptr);
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-    const allocator = std.heap.c_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 /// Create a ZonedDateTime from epoch nanoseconds
@@ -177,11 +172,7 @@ pub fn getTimeZoneTransition(self: ZonedDateTime, direction: enum { next, previo
     const result = abi.c.temporal_rs_ZonedDateTime_get_time_zone_transition(self._inner, dir);
     const maybe_ptr = abi.success(result) orelse return error.TemporalError;
     if (maybe_ptr) |ptr| {
-        const calendar_ptr = abi.c.temporal_rs_ZonedDateTime_calendar(ptr);
-        const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-        const allocator = std.heap.c_allocator;
-        const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-        return .{ ._inner = ptr, .calendar_id = cal_id };
+        return .{ ._inner = ptr };
     }
     return null;
 }
@@ -230,13 +221,13 @@ pub fn toLocaleString(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
 /// Convert to PlainDate
 pub fn toPlainDate(self: ZonedDateTime) !PlainDate {
     const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_date(self._inner) orelse return error.TemporalError;
-    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 /// Convert to PlainDateTime
 pub fn toPlainDateTime(self: ZonedDateTime) !PlainDateTime {
     const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_datetime(self._inner) orelse return error.TemporalError;
-    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 /// Convert to PlainTime
@@ -432,7 +423,7 @@ pub fn second(self: ZonedDateTime) u8 {
 
 pub fn timeZoneId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     const tz = abi.c.temporal_rs_ZonedDateTime_timezone(self._inner);
-    const view = abi.fromDiplomatStringView(tz.id);
+    const view = abi.fromDiplomatStringView(tz.normalized_id);
     return try allocator.dupe(u8, view);
 }
 
@@ -453,15 +444,12 @@ pub fn yearOfWeek(self: ZonedDateTime) ?i32 {
 /// Clone this ZonedDateTime
 pub fn clone(self: ZonedDateTime) ZonedDateTime {
     const ptr = abi.c.temporal_rs_ZonedDateTime_clone(self._inner);
-    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 /// Free the ZonedDateTime
 pub fn deinit(self: ZonedDateTime) void {
     abi.c.temporal_rs_ZonedDateTime_destroy(self._inner);
-    if (self.calendar_id.len > 0) {
-        std.heap.c_allocator.free(self.calendar_id);
-    }
 }
 
 // ---------- Tests ---------------------
@@ -566,8 +554,7 @@ test toPlainTime {
 
 test toString {
     if (true) return error.Todo;
-    const tz = try TimeZone.init("UTC");
-    const zdt = try fromEpochMilliseconds(1609459200000, tz);
+    const zdt = try from("2021-01-01T00:00:00+00:00[UTC]", null, .compatible, .reject);
     defer zdt.deinit();
 
     const str = try zdt.toString(std.testing.allocator, .{});
@@ -588,4 +575,8 @@ test "props" {
     try std.testing.expectEqual(@as(u8, 0), zdt.minute());
     try std.testing.expectEqual(@as(u8, 0), zdt.second());
     try std.testing.expectEqual(@as(u16, 0), zdt.millisecond());
+
+    // const tzo = try zdt.timeZoneId(std.testing.allocator);
+    // defer std.testing.allocator.free(tzo);
+    // try std.testing.expectEqualStrings("UTC", tzo);
 }
