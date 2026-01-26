@@ -6,7 +6,6 @@ const PlainMonthDay = @This();
 const PlainDate = @import("PlainDate.zig");
 
 _inner: *abi.c.PlainMonthDay,
-calendar_id: []const u8,
 
 // Type definitions for API compatibility
 pub const CalendarDisplay = enum {
@@ -29,13 +28,7 @@ pub const WithOptions = struct {
 fn wrapPlainMonthDay(result: anytype) !PlainMonthDay {
     const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainMonthDay_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 // Constructor
@@ -79,8 +72,10 @@ pub fn equals(self: PlainMonthDay, other: PlainMonthDay) bool {
 }
 
 // Property accessors
-pub fn calendarId(self: PlainMonthDay) []const u8 {
-    return self.calendar_id;
+pub fn calendarId(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
+    const calendar_ptr = abi.c.temporal_rs_PlainMonthDay_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
 pub fn day(self: PlainMonthDay) u8 {
@@ -146,13 +141,7 @@ pub fn toPlainDate(self: PlainMonthDay, year: i32) !PlainDate {
     const result = abi.c.temporal_rs_PlainMonthDay_to_plain_date(self._inner, partial_date);
     const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return PlainDate{ ._inner = ptr, .calendar_id = cal_id };
+    return PlainDate{ ._inner = ptr };
 }
 
 // String conversions

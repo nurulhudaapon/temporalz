@@ -7,7 +7,6 @@ const PlainDate = @import("PlainDate.zig");
 const Duration = @import("Duration.zig");
 
 _inner: *abi.c.PlainYearMonth,
-calendar_id: []const u8,
 
 // Import types from temporal.zig
 pub const Unit = temporal_types.Unit;
@@ -37,13 +36,7 @@ pub const WithOptions = struct {
 fn wrapPlainYearMonth(result: anytype) !PlainYearMonth {
     const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainYearMonth_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 // Constructor
@@ -116,8 +109,10 @@ pub fn since(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSet
 }
 
 // Property accessors
-pub fn calendarId(self: PlainYearMonth) []const u8 {
-    return self.calendar_id;
+pub fn calendarId(self: PlainYearMonth, allocator: std.mem.Allocator) ![]u8 {
+    const calendar_ptr = abi.c.temporal_rs_PlainYearMonth_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
 pub fn year(self: PlainYearMonth) i32 {
@@ -128,8 +123,7 @@ pub fn month(self: PlainYearMonth) u8 {
     return abi.c.temporal_rs_PlainYearMonth_month(self._inner);
 }
 
-pub fn monthCode(self: PlainYearMonth) ![]const u8 {
-    const allocator = std.heap.page_allocator;
+pub fn monthCode(self: PlainYearMonth, allocator: std.mem.Allocator) ![]const u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
@@ -153,8 +147,7 @@ pub fn inLeapYear(self: PlainYearMonth) bool {
     return abi.c.temporal_rs_PlainYearMonth_in_leap_year(self._inner);
 }
 
-pub fn era(self: PlainYearMonth) !?[]const u8 {
-    const allocator = std.heap.page_allocator;
+pub fn era(self: PlainYearMonth, allocator: std.mem.Allocator) !?[]const u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
@@ -221,13 +214,7 @@ pub fn toPlainDate(self: PlainYearMonth, day: u8) !PlainDate {
     const result = abi.c.temporal_rs_PlainYearMonth_to_plain_date(self._inner, partial_date);
     const ptr = (abi.success(result) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return PlainDate{ ._inner = ptr, .calendar_id = cal_id };
+    return PlainDate{ ._inner = ptr };
 }
 
 // String conversions
@@ -415,4 +402,40 @@ test toLocaleString {
     defer std.testing.allocator.free(str);
     try std.testing.expect(str.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, str, "2024") != null);
+}
+
+test "props" {
+    const ym = try from("2021-07-01[u-ca=gregory]");
+
+    const cal_id = try ym.calendarId(std.testing.allocator);
+    defer std.testing.allocator.free(cal_id);
+    try std.testing.expectEqualStrings("gregory", cal_id);
+
+    try std.testing.expectEqual(@as(i32, 2021), ym.year());
+    try std.testing.expectEqual(@as(u8, 7), ym.month());
+
+    const month_code = try ym.monthCode(std.testing.allocator);
+    defer std.testing.allocator.free(month_code);
+    try std.testing.expectEqualStrings("M07", month_code);
+    try std.testing.expectEqual(@as(u16, 31), ym.daysInMonth());
+    try std.testing.expectEqual(@as(u16, 365), ym.daysInYear());
+    try std.testing.expectEqual(@as(u16, 12), ym.monthsInYear());
+    try std.testing.expect(ym.inLeapYear() == false);
+
+    const eraa = try ym.era(std.testing.allocator);
+    if (eraa) |e| {
+        defer std.testing.allocator.free(e);
+        std.debug.print("Era: {s}\n", .{e});
+        try std.testing.expectEqualStrings("ce", e);
+    } else {
+        try std.testing.expect(false);
+    }
+
+    const era_year = ym.eraYear();
+    if (era_year) |ey| {
+        std.debug.print("Era Year: {d}\n", .{ey});
+        try std.testing.expectEqual(@as(i32, 2021), ey);
+    } else {
+        try std.testing.expect(false);
+    }
 }

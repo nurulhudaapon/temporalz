@@ -10,7 +10,6 @@ const Duration = @import("Duration.zig");
 const PlainDateTime = @This();
 
 _inner: *abi.c.PlainDateTime,
-calendar_id: []const u8,
 
 // Import types from temporal.zig
 pub const Unit = temporal.Unit;
@@ -130,8 +129,7 @@ pub fn compare(a: PlainDateTime, b: PlainDateTime) i8 {
 }
 
 pub fn equals(self: PlainDateTime, other: PlainDateTime) bool {
-    if (compare(self, other) != 0) return false;
-    return std.mem.eql(u8, self.calendar_id, other.calendar_id);
+    return compare(self, other) == 0;
 }
 
 // Arithmetic
@@ -169,8 +167,10 @@ pub fn round(self: PlainDateTime, options: RoundOptions) !PlainDateTime {
 }
 
 // Property accessors - Date fields
-pub fn calendarId(self: PlainDateTime) []const u8 {
-    return self.calendar_id;
+pub fn calendarId(self: PlainDateTime, allocator: std.mem.Allocator) ![]u8 {
+    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
 pub fn day(self: PlainDateTime) u8 {
@@ -287,7 +287,9 @@ pub fn with(self: PlainDateTime, partial: WithOptions) !PlainDateTime {
     const new_nanosecond = partial.nanosecond orelse self.nanosecond();
 
     // Preserve calendar
-    const cal_view = abi.toDiplomatStringView(self.calendar_id);
+    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    const cal_view = abi.c.DiplomatStringView{ .data = cal_id_view.data, .len = cal_id_view.len };
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
 
@@ -311,12 +313,7 @@ pub fn withCalendar(self: PlainDateTime, calendar: []const u8) !PlainDateTime {
     const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
     const ptr = abi.c.temporal_rs_PlainDateTime_with_calendar(self._inner, cal_kind) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn withPlainTime(self: PlainDateTime, time: ?PlainTime) !PlainDateTime {
@@ -327,7 +324,9 @@ pub fn withPlainTime(self: PlainDateTime, time: ?PlainTime) !PlainDateTime {
     const new_microsecond: u16 = if (time) |t| t.microsecond() else 0;
     const new_nanosecond: u16 = if (time) |t| t.nanosecond() else 0;
 
-    const cal_view = abi.toDiplomatStringView(self.calendar_id);
+    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    const cal_view = abi.c.DiplomatStringView{ .data = cal_id_view.data, .len = cal_id_view.len };
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
 
@@ -349,12 +348,7 @@ pub fn withPlainTime(self: PlainDateTime, time: ?PlainTime) !PlainDateTime {
 pub fn toPlainDate(self: PlainDateTime) !PlainDate {
     const ptr = abi.c.temporal_rs_PlainDateTime_to_plain_date(self._inner) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn toPlainTime(self: PlainDateTime) !PlainTime {
@@ -374,12 +368,7 @@ pub fn toZonedDateTime(self: PlainDateTime, options: ToZonedDateTimeOptions) !Zo
     // Use PlainDate's toZonedDateTime with the time component
     const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_zoned_date_time(date._inner, time_zone, time._inner)) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_ZonedDateTime_calendar(ptr);
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn toString(self: PlainDateTime, allocator: std.mem.Allocator, options: ToStringOptions) ![]u8 {
@@ -433,13 +422,7 @@ pub fn deinit(self: *PlainDateTime) void {
 fn wrapPlainDateTime(res: anytype) !PlainDateTime {
     const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 // ---------- Tests ---------------------
@@ -588,7 +571,9 @@ test withCalendar {
     const result = try dt.withCalendar("iso8601");
 
     try std.testing.expectEqual(@as(i32, 2024), result.year());
-    try std.testing.expectEqualStrings("iso8601", result.calendar_id);
+    const cal_id = try result.calendarId(std.testing.allocator);
+    defer std.testing.allocator.free(cal_id);
+    try std.testing.expectEqualStrings("iso8601", cal_id);
 }
 
 test withPlainTime {

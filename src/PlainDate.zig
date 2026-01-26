@@ -42,7 +42,6 @@ pub const ToZonedDateTimeOptions = struct {
 };
 
 _inner: *abi.c.PlainDate,
-calendar_id: []const u8,
 
 pub fn init(year_val: i32, month_val: u8, day_val: u8) !PlainDate {
     return initWithCalendar(year_val, month_val, day_val, "iso8601");
@@ -126,28 +125,23 @@ pub fn withCalendar(self: PlainDate, calendar: []const u8) !PlainDate {
     const cal_kind = abi.success(cal_result) orelse return error.TemporalError;
     const ptr = abi.c.temporal_rs_PlainDate_with_calendar(self._inner, cal_kind) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
-
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn toPlainDateTime(self: PlainDate, time: ?PlainTime) !PlainDateTime {
     const time_ptr = if (time) |t| t._inner else null;
     const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_plain_date_time(self._inner, time_ptr)) orelse return error.TemporalError) orelse return error.TemporalError;
-    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn toPlainMonthDay(self: PlainDate) !PlainMonthDay {
     const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_plain_month_day(self._inner)) orelse return error.TemporalError) orelse return error.TemporalError;
-    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn toPlainYearMonth(self: PlainDate) !PlainYearMonth {
     const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_plain_year_month(self._inner)) orelse return error.TemporalError) orelse return error.TemporalError;
-    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn toZonedDateTime(self: PlainDate, options: ToZonedDateTimeOptions) !ZonedDateTime {
@@ -159,13 +153,13 @@ pub fn toZonedDateTime(self: PlainDate, options: ToZonedDateTimeOptions) !ZonedD
     const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_zoned_date_time(self._inner, time_zone, time_ptr)) orelse return error.TemporalError) orelse return error.TemporalError;
 
     // Get time zone identifier for ZonedDateTime
-    const allocator = std.heap.page_allocator;
-    var write = abi.DiplomatWrite.init(allocator);
-    defer write.deinit();
-    abi.c.temporal_rs_TimeZone_identifier(time_zone, &write.inner);
-    const tz_id = try write.toOwnedSlice();
+    // const allocator = std.heap.page_allocator;
+    // var write = abi.DiplomatWrite.init(allocator);
+    // defer write.deinit();
+    // abi.c.temporal_rs_TimeZone_identifier(time_zone, &write.inner);
+    // const tz_id = try write.toOwnedSlice();
 
-    return .{ ._inner = ptr, .time_zone_id = tz_id, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn toString(self: PlainDate, allocator: std.mem.Allocator, options: ToStringOptions) ![]u8 {
@@ -246,6 +240,12 @@ pub fn inLeapYear(self: PlainDate) bool {
     return abi.c.temporal_rs_PlainDate_in_leap_year(self._inner);
 }
 
+pub fn calendarId(self: PlainDate, allocator: std.mem.Allocator) ![]u8 {
+    const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
+}
+
 pub fn era(self: PlainDate, allocator: std.mem.Allocator) !?[]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -275,7 +275,7 @@ pub fn yearOfWeek(self: PlainDate) ?i32 {
 
 fn clone(self: PlainDate) PlainDate {
     const ptr = abi.c.temporal_rs_PlainDate_clone(self._inner) orelse unreachable;
-    return .{ ._inner = ptr, .calendar_id = self.calendar_id };
+    return .{ ._inner = ptr };
 }
 
 pub fn deinit(self: PlainDate) void {
@@ -285,13 +285,13 @@ pub fn deinit(self: PlainDate) void {
 fn wrapPlainDate(res: anytype) !PlainDate {
     const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(ptr) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    // const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(ptr) orelse return error.TemporalError;
+    // const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
 
-    const allocator = std.heap.page_allocator;
-    const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
+    // const allocator = std.heap.page_allocator;
+    // const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
 
-    return .{ ._inner = ptr, .calendar_id = cal_id };
+    return .{ ._inner = ptr };
 }
 
 fn handleVoidResult(res: anytype) !void {
@@ -471,12 +471,11 @@ test toPlainYearMonth {
 }
 
 test toZonedDateTime {
-    if (true) return error.SkipZigTest; // ZonedDateTime not fully implemented yet
-    // const date = try PlainDate.init(2024, 1, 15);
-    // const zdt = try date.toZonedDateTime(.{ .time_zone = "UTC", .plain_time = null });
-    // try std.testing.expectEqual(@as(i32, 2024), zdt.year());
-    // try std.testing.expectEqual(@as(u8, 1), zdt.month());
-    // try std.testing.expectEqual(@as(u8, 15), zdt.day());
+    const date = try PlainDate.init(2024, 1, 15);
+    const zdt = try date.toZonedDateTime(.{ .time_zone = "UTC", .plain_time = null });
+    try std.testing.expectEqual(@as(i32, 2024), zdt.year());
+    try std.testing.expectEqual(@as(u8, 1), zdt.month());
+    try std.testing.expectEqual(@as(u8, 15), zdt.day());
 }
 
 test with {
