@@ -76,6 +76,7 @@ test Duration {
         "RoundingOptions",
         "ToStringRoundingOptions",
         "Sign",
+        "TotalOptions",
     };
 
     try assertDecls(Duration, checks);
