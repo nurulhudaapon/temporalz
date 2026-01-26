@@ -1,27 +1,29 @@
 const std = @import("std");
-const PlainDate = @This();
+
 const PlainDateTime = @import("PlainDateTime.zig");
 const PlainMonthDay = @import("PlainMonthDay.zig");
 const PlainYearMonth = @import("PlainYearMonth.zig");
 const ZonedDateTime = @import("ZonedDateTime.zig");
 const Duration = @import("Duration.zig");
 
-pub var calendarId: []const u8 = "";
-pub var day: i64 = 0;
-pub var dayOfWeek: i64 = 0;
-pub var dayOfYear: i64 = 0;
-pub var daysInMonth: i64 = 0;
-pub var daysInWeek: i64 = 0;
-pub var daysInYear: i64 = 0;
-pub var era: []const u8 = "";
-pub var eraYear: i64 = 0;
-pub var inLeapYear: bool = false;
-pub var month: i64 = 0;
-pub var monthCode: []const u8 = "";
-pub var monthsInYear: i64 = 0;
-pub var weekOfYear: i64 = 0;
-pub var year: i64 = 0;
-pub var yearOfWeek: i64 = 0;
+const PlainDate = @This();
+
+calendar_id: []const u8,
+day: i64 = 0,
+day_of_week: i64,
+day_of_year: i64,
+days_in_month: i64,
+days_in_week: i64,
+days_in_year: i64,
+era: []const u8,
+era_year: i64,
+in_leap_year: bool,
+month: i64,
+month_code: []const u8,
+months_in_year: i64,
+week_of_year: i64,
+year: i64,
+year_of_week: i64,
 
 pub fn init() error{Todo}!PlainDate {
     return error.Todo;
@@ -95,6 +97,7 @@ pub fn withCalendar() error{Todo}!PlainDate {
     return error.Todo;
 }
 
+// ---------- Tests ---------------------
 test compare {
     if (true) return error.Todo;
 }

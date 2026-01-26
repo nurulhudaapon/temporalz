@@ -3,17 +3,39 @@ const abi = @import("abi.zig");
 const temporal = @import("temporal.zig");
 
 const Duration = @import("Duration.zig");
-const Instant = @This();
 
-_inner: *abi.c.Instant,
-epoch_milliseconds: i64,
-epoch_nanoseconds: i128,
+const Instant = @This();
 
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;
 pub const RoundingOptions = temporal.RoundingOptions;
 pub const DifferenceSettings = temporal.DifferenceSettings;
+/// Options for Instant.toString()
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toString
+pub const ToStringOptions = struct {
+    /// Either an integer from 0 to 9, or null for "auto".
+    /// If null (auto), trailing zeros are removed from the fractional seconds.
+    /// Otherwise, the fractional part contains this many digits, padded with zeros or rounded as necessary.
+    fractional_second_digits: ?u8 = null,
+
+    /// Specifies how to round off fractional second digits beyond fractionalSecondDigits.
+    /// Defaults to "trunc" (truncate).
+    rounding_mode: ?RoundingMode = null,
+
+    /// Specifies the smallest unit to include in the output.
+    /// Possible values: "minute", "second", "millisecond", "microsecond", "nanosecond".
+    /// If specified, fractional_second_digits is ignored.
+    smallest_unit: ?Unit = null,
+
+    /// Time zone to use. Either a time zone identifier string or null for UTC.
+    /// Note: In the Zig API, this must be pre-resolved to a TimeZone struct.
+    time_zone: ?abi.c.TimeZone = null,
+};
+
+_inner: *abi.c.Instant,
+epoch_milliseconds: i64,
+epoch_nanoseconds: i128,
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn init(epoch_ns: i128) !Instant {
@@ -215,29 +237,7 @@ fn parseDuration(text: []const u8) !DurationHandle {
     return wrapDuration(abi.c.temporal_rs_Duration_from_utf8(view));
 }
 
-// --- Public helper types -----------------------------------------------------
-
-/// Options for Instant.toString()
-/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toString
-pub const ToStringOptions = struct {
-    /// Either an integer from 0 to 9, or null for "auto".
-    /// If null (auto), trailing zeros are removed from the fractional seconds.
-    /// Otherwise, the fractional part contains this many digits, padded with zeros or rounded as necessary.
-    fractional_second_digits: ?u8 = null,
-
-    /// Specifies how to round off fractional second digits beyond fractionalSecondDigits.
-    /// Defaults to "trunc" (truncate).
-    rounding_mode: ?RoundingMode = null,
-
-    /// Specifies the smallest unit to include in the output.
-    /// Possible values: "minute", "second", "millisecond", "microsecond", "nanosecond".
-    /// If specified, fractional_second_digits is ignored.
-    smallest_unit: ?Unit = null,
-
-    /// Time zone to use. Either a time zone identifier string or null for UTC.
-    /// Note: In the Zig API, this must be pre-resolved to a TimeZone struct.
-    time_zone: ?abi.c.TimeZone = null,
-};
+// --- Helper types -----------------------------------------------------
 
 const DurationHandle = struct {
     ptr: *abi.c.Duration,

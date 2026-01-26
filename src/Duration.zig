@@ -4,6 +4,31 @@ const temporal = @import("temporal.zig");
 
 const Duration = @This();
 
+pub const RoundingOptions = temporal.RoundingOptions;
+pub const ToStringOptions = temporal.ToStringRoundingOptions;
+pub const ToStringRoundingOptions = temporal.ToStringRoundingOptions;
+pub const Unit = temporal.Unit;
+pub const RoundingMode = temporal.RoundingMode;
+pub const Sign = temporal.Sign;
+pub const PartialDuration = abi.c.PartialDuration;
+/// Relative-to context for duration operations.
+pub const RelativeTo = extern struct {
+    plain_date: ?*abi.c.PlainDate,
+    zoned_date_time: ?*abi.c.ZonedDateTime,
+
+    fn toCApi(self: RelativeTo) abi.c.RelativeTo {
+        return .{
+            .date = self.plain_date,
+            .zoned = self.zoned_date_time,
+        };
+    }
+};
+/// Options for Duration.total() providing unit and relative-to context.
+pub const TotalOptions = struct {
+    unit: Unit,
+    relative_to: ?RelativeTo = null,
+};
+
 _inner: *abi.c.Duration,
 
 /// Construct a Duration from years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds.
@@ -216,30 +241,7 @@ fn wrapDuration(res: anytype) !Duration {
     return .{ ._inner = ptr };
 }
 
-// --- Public helper types -----------------------------------------------------
-
-pub const PartialDuration = abi.c.PartialDuration;
-
-/// Relative-to context for duration operations.
-pub const RelativeTo = extern struct {
-    plain_date: ?*abi.c.PlainDate,
-    zoned_date_time: ?*abi.c.ZonedDateTime,
-
-    fn toCApi(self: RelativeTo) abi.c.RelativeTo {
-        return .{
-            .date = self.plain_date,
-            .zoned = self.zoned_date_time,
-        };
-    }
-};
-
-/// Options for Duration.total() providing unit and relative-to context.
-pub const TotalOptions = struct {
-    unit: Unit,
-    relative_to: ?RelativeTo = null,
-};
-
-// --- Public type aliases and enums ------------------------------------------
+// --- Aliases and enums ------------------------------------------
 
 const OptionU8 = abi.c.OptionU8;
 const OptionU32 = abi.c.OptionU32;
@@ -248,13 +250,6 @@ const OptionF64 = abi.c.OptionF64;
 const Precision = abi.c.Precision;
 const Unit_option = abi.c.Unit_option;
 const RoundingMode_option = abi.c.RoundingMode_option;
-
-pub const RoundingOptions = temporal.RoundingOptions;
-pub const ToStringOptions = temporal.ToStringRoundingOptions;
-pub const ToStringRoundingOptions = temporal.ToStringRoundingOptions;
-pub const Unit = temporal.Unit;
-pub const RoundingMode = temporal.RoundingMode;
-pub const Sign = temporal.Sign;
 
 // --- Tests -------------------------------------------------------------------
 
