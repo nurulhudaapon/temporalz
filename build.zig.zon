@@ -4,9 +4,6 @@
     .fingerprint = 0xd8d79d59acc4faae,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
-        // .temporal_rs = .{
-        //     .path = "./pkg/temporal_rs",
-        // },
         .temporal_rs = .{
             .url = "git+https://github.com/boa-dev/temporal#v0.1.2",
             .hash = "N-V-__8AANlkNAB77Z946lqp-lgp2qSsOBDADValZC86PhB-",
