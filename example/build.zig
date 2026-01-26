@@ -9,14 +9,12 @@ pub fn build(b: *std.Build) void {
         .name = "example",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
-
             .target = target,
             .optimize = optimize,
-            .imports = &.{
-                .{ .name = "temporalz", .module = temporalz_dep.module("temporalz") },
-            },
+            .imports = &.{},
         }),
     });
+    exe.root_module.addImport("temporalz", temporalz_dep.module("temporalz"));
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
