@@ -1,6 +1,6 @@
 const std = @import("std");
-const temporal_rs = @import("cabi.zig");
-const c = temporal_rs.c;
+const abi = @import("abi.zig");
+const c = abi.c;
 
 const Instant = @This();
 
@@ -68,19 +68,19 @@ pub fn fromEpochMilliseconds(epoch_ms: i64) !Instant {
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
-    const parts = temporal_rs.toI128Nanoseconds(epoch_ns);
+    const parts = abi.toI128Nanoseconds(epoch_ns);
     return wrapInstant(c.temporal_rs_Instant_try_new(parts));
 }
 
 /// Parse an ISO 8601 string (Temporal.Instant.from).
 pub fn from(text: []const u8) !Instant {
-    const view = temporal_rs.toDiplomatStringView(text);
+    const view = abi.toDiplomatStringView(text);
     return wrapInstant(c.temporal_rs_Instant_from_utf8(view));
 }
 
 /// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
 fn fromUtf16(text: []const u16) !Instant {
-    const view = temporal_rs.toDiplomatString16View(text);
+    const view = abi.toDiplomatString16View(text);
     return wrapInstant(c.temporal_rs_Instant_from_utf16(view));
 }
 
@@ -121,10 +121,10 @@ pub fn equals(a: Instant, b: Instant) bool {
 
 /// Convert to string using compiled TZ data; caller owns returned slice.
 pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
-    const zone_opt = temporal_rs.toTimeZoneOption(opts.time_zone);
+    const zone_opt = abi.toTimeZoneOption(opts.time_zone);
     const rounding = optsToRounding(opts);
 
-    var write = temporal_rs.DiplomatWrite.init(allocator);
+    var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
     const res = c.temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, &write.inner);
@@ -135,10 +135,10 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
 
 /// Convert to string using an explicit provider.
 fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *const Provider, opts: ToStringOptions) ![]u8 {
-    const zone_opt = temporal_rs.toTimeZoneOption(opts.time_zone);
+    const zone_opt = abi.toTimeZoneOption(opts.time_zone);
     const rounding = optsToRounding(opts);
 
-    var write = temporal_rs.DiplomatWrite.init(allocator);
+    var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
     const res = c.temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, &write.inner);
@@ -170,7 +170,7 @@ fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *cons
 /// Clone the underlying instant.
 fn clone(self: Instant) Instant {
     const ptr = c.temporal_rs_Instant_clone(self._inner) orelse unreachable;
-    return .{ ._inner = ptr, .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = temporal_rs.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)) };
+    return .{ ._inner = ptr, .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = abi.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
 pub fn deinit(self: Instant) void {
@@ -180,41 +180,41 @@ pub fn deinit(self: Instant) void {
 // --- Helpers -----------------------------------------------------------------
 
 fn wrapInstant(res: anytype) !Instant {
-    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
     return .{
         ._inner = ptr,
         .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr),
-        .epoch_nanoseconds = temporal_rs.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)),
+        .epoch_nanoseconds = abi.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)),
     };
 }
 
 fn wrapDuration(res: anytype) !DurationHandle {
-    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
     return .{ .ptr = ptr };
 }
 
 fn wrapZonedDateTime(res: anytype) !ZonedDateTimeHandle {
-    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
     return .{ .ptr = ptr };
 }
 
 fn handleVoidResult(res: anytype) !void {
-    _ = temporal_rs.success(res) orelse return error.TemporalError;
+    _ = abi.success(res) orelse return error.TemporalError;
 }
 
 fn defaultPrecision() Precision {
-    return .{ .is_minute = false, .precision = temporal_rs.toOption(c.OptionU8, null) };
+    return .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, null) };
 }
 
 fn defaultToStringRoundingOptions() ToStringRoundingOptions {
-    return temporal_rs.to_string_rounding_options_auto;
+    return abi.to_string_rounding_options_auto;
 }
 
 /// Convert ToStringOptions to ToStringRoundingOptions for the C API
 fn optsToRounding(opts: ToStringOptions) ToStringRoundingOptions {
     // If smallest_unit is specified, use it; otherwise use fractional_second_digits for precision
     const precision = if (opts.fractional_second_digits) |digits|
-        Precision{ .is_minute = false, .precision = temporal_rs.toOption(c.OptionU8, digits) }
+        Precision{ .is_minute = false, .precision = abi.toOption(c.OptionU8, digits) }
     else
         defaultPrecision();
 
@@ -223,13 +223,13 @@ fn optsToRounding(opts: ToStringOptions) ToStringRoundingOptions {
 
     return .{
         .precision = precision,
-        .smallest_unit = temporal_rs.toUnitOption(smallest_unit),
-        .rounding_mode = temporal_rs.toRoundingModeOption(rounding_mode),
+        .smallest_unit = abi.toUnitOption(smallest_unit),
+        .rounding_mode = abi.toRoundingModeOption(rounding_mode),
     };
 }
 
 fn parseDuration(text: []const u8) !DurationHandle {
-    const view = temporal_rs.toDiplomatStringView(text);
+    const view = abi.toDiplomatStringView(text);
     return wrapDuration(c.temporal_rs_Duration_from_utf8(view));
 }
 
@@ -370,21 +370,21 @@ test until {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.hour)),
-        .smallest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.second)),
-        .rounding_mode = temporal_rs.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
-        .increment = temporal_rs.toOption(c.OptionU32, null),
+        .largest_unit = abi.toUnitOption(@intFromEnum(Unit.hour)),
+        .smallest_unit = abi.toUnitOption(@intFromEnum(Unit.second)),
+        .rounding_mode = abi.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
+        .increment = abi.toOption(c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
     defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(until_handle.ptr))));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(until_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(until_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(until_handle.ptr));
 
     var since_handle = try later.since(earlier, settings);
     defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(since_handle.ptr))));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(since_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(since_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(since_handle.ptr));
 }
 
 test since {
@@ -394,21 +394,21 @@ test since {
     defer later.deinit();
 
     const settings = DifferenceSettings{
-        .largest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.hour)),
-        .smallest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.second)),
-        .rounding_mode = temporal_rs.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
-        .increment = temporal_rs.toOption(c.OptionU32, null),
+        .largest_unit = abi.toUnitOption(@intFromEnum(Unit.hour)),
+        .smallest_unit = abi.toUnitOption(@intFromEnum(Unit.second)),
+        .rounding_mode = abi.toRoundingModeOption(@intFromEnum(RoundingMode.trunc)),
+        .increment = abi.toOption(c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
     defer until_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(until_handle.ptr))));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(until_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(until_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(until_handle.ptr));
 
     var since_handle = try later.since(earlier, settings);
     defer since_handle.deinit();
-    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(temporal_rs.c.temporal_rs_Duration_sign(since_handle.ptr))));
-    try std.testing.expectEqual(@as(i64, 1), temporal_rs.c.temporal_rs_Duration_hours(since_handle.ptr));
+    try std.testing.expectEqual(Sign.positive, @as(Sign, @enumFromInt(abi.c.temporal_rs_Duration_sign(since_handle.ptr))));
+    try std.testing.expectEqual(@as(i64, 1), abi.c.temporal_rs_Duration_hours(since_handle.ptr));
 }
 
 test round {
@@ -416,10 +416,10 @@ test round {
     defer inst.deinit();
 
     const opts = RoundingOptions{
-        .largest_unit = temporal_rs.toUnitOption(null),
-        .smallest_unit = temporal_rs.toUnitOption(@intFromEnum(Unit.second)),
-        .rounding_mode = temporal_rs.toRoundingModeOption(@intFromEnum(RoundingMode.half_expand)),
-        .increment = temporal_rs.toOption(c.OptionU32, null),
+        .largest_unit = abi.toUnitOption(null),
+        .smallest_unit = abi.toUnitOption(@intFromEnum(Unit.second)),
+        .rounding_mode = abi.toRoundingModeOption(@intFromEnum(RoundingMode.half_expand)),
+        .increment = abi.toOption(c.OptionU32, null),
     };
 
     const rounded = try inst.round(opts);
