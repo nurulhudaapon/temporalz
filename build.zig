@@ -21,8 +21,16 @@ pub fn build(b: *std.Build) !void {
         // Determine target triple string for pre-built library lookup
         const arch_str = @tagName(target.result.cpu.arch);
         const os_str = @tagName(target.result.os.tag);
-        const target_triple = b.fmt("{s}-{s}", .{ arch_str, os_str });
-        const lib_name = if (target.result.os.tag == .windows) "temporal_capi.lib" else "libtemporal_capi.a";
+        const abi = target.result.abi;
+        const abi_str = @tagName(abi);
+        const target_triple = if (abi == .none)
+            b.fmt("{s}-{s}", .{ arch_str, os_str })
+        else
+            b.fmt("{s}-{s}-{s}", .{ arch_str, os_str, abi_str });
+        const lib_name = if (target.result.os.tag == .windows and abi == .msvc)
+            "temporal_capi.lib"
+        else
+            "libtemporal_capi.a";
 
         // Check if pre-built library exists in lib/<target>/
         const prebuilt_lib_path = b.fmt("lib/{s}/{s}", .{ target_triple, lib_name });
