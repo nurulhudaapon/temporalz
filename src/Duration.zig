@@ -580,7 +580,7 @@ test fromPartialDuration {
     try std.testing.expectEqual(@as(i64, 0), dur.days());
 }
 
-test "isTimeWithinRange" {
+test isTimeWithinRange {
     const dur = try Duration.from("PT23H59M59S");
     defer dur.deinit();
 

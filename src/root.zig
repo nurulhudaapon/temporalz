@@ -10,7 +10,7 @@ pub const ZonedDateTime = @import("ZonedDateTime.zig");
 
 const Temporal = @This();
 
-test "Temporal" {
+test Temporal {
     const std = @import("std");
 
     const expected_scopes = .{
@@ -32,7 +32,7 @@ test "Temporal" {
     }
 }
 
-test "Temporal.Duration" {
+test Duration {
     const checks = .{
         // Constructor
         "init", // Temporal.Duration()
@@ -81,7 +81,7 @@ test "Temporal.Duration" {
     try assertDecls(Duration, checks);
 }
 
-test "Temporal.Instant" {
+test Instant {
     const checks = .{
         // Constructor
         "init", // Temporal.Instant()
@@ -119,7 +119,7 @@ test "Temporal.Instant" {
     try assertDecls(Instant, checks);
 }
 
-test "Temporal.Now" {
+test Now {
     if (true) return error.Todo;
 
     const checks = .{
@@ -135,7 +135,7 @@ test "Temporal.Now" {
     try assertDecls(Now, checks);
 }
 
-test "Temporal.PlainDate" {
+test PlainDate {
     if (true) return error.Todo;
 
     const checks = .{
@@ -185,7 +185,7 @@ test "Temporal.PlainDate" {
     try assertDecls(PlainDate, checks);
 }
 
-test "Temporal.PlainDateTime" {
+test PlainDateTime {
     if (true) return error.Todo;
 
     const checks = .{
@@ -242,7 +242,7 @@ test "Temporal.PlainDateTime" {
     try assertDecls(PlainDateTime, checks);
 }
 
-test "Temporal.PlainMonthDay" {
+test PlainMonthDay {
     if (true) return error.Todo;
 
     const checks = .{
@@ -270,7 +270,7 @@ test "Temporal.PlainMonthDay" {
     try assertDecls(PlainMonthDay, checks);
 }
 
-test "Temporal.PlainTime" {
+test PlainTime {
     if (true) return error.Todo;
 
     const checks = .{
@@ -306,7 +306,7 @@ test "Temporal.PlainTime" {
     try assertDecls(PlainTime, checks);
 }
 
-test "Temporal.PlainYearMonth" {
+test PlainYearMonth {
     if (true) return error.Todo;
 
     const checks = .{
@@ -346,7 +346,7 @@ test "Temporal.PlainYearMonth" {
     try assertDecls(PlainYearMonth, checks);
 }
 
-test "Temporal.ZonedDateTime" {
+test ZonedDateTime {
     if (true) return error.Todo;
 
     const checks = .{
