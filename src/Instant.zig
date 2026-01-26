@@ -1,34 +1,17 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const c = abi.c;
 const temporal = @import("temporal.zig");
 
+const Duration = @import("Duration.zig");
 const Instant = @This();
 
-_inner: *c.Instant,
+_inner: *abi.c.Instant,
 epoch_milliseconds: i64,
 epoch_nanoseconds: i128,
 
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;
-const TimeZone = c.TimeZone;
-const TimeZone_option = c.TimeZone_option;
-const Precision = c.Precision;
-const Unit_option = c.Unit_option;
-const RoundingMode_option = c.RoundingMode_option;
-const DifferenceSettings = c.DifferenceSettings;
-const RoundingOptions = c.RoundingOptions;
-const ToStringRoundingOptions = c.ToStringRoundingOptions;
-const OptionU8 = c.OptionU8;
-const OptionU32 = c.OptionU32;
-const TemporalError = c.TemporalError;
-const DiplomatStringView = c.DiplomatStringView;
-const DiplomatString16View = c.DiplomatString16View;
-const DiplomatWrite = c.DiplomatWrite;
-const Duration = c.Duration;
-const ZonedDateTime = c.ZonedDateTime;
-const Provider = c.Provider;
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn init(epoch_ns: i128) !Instant {
@@ -37,60 +20,60 @@ pub fn init(epoch_ns: i128) !Instant {
 
 /// Construct from epoch milliseconds.
 pub fn fromEpochMilliseconds(epoch_ms: i64) !Instant {
-    return wrapInstant(c.temporal_rs_Instant_from_epoch_milliseconds(epoch_ms));
+    return wrapInstant(abi.c.temporal_rs_Instant_from_epoch_milliseconds(epoch_ms));
 }
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
     const parts = abi.toI128Nanoseconds(epoch_ns);
-    return wrapInstant(c.temporal_rs_Instant_try_new(parts));
+    return wrapInstant(abi.c.temporal_rs_Instant_try_new(parts));
 }
 
 /// Parse an ISO 8601 string (Temporal.Instant.from).
 pub fn from(text: []const u8) !Instant {
     const view = abi.toDiplomatStringView(text);
-    return wrapInstant(c.temporal_rs_Instant_from_utf8(view));
+    return wrapInstant(abi.c.temporal_rs_Instant_from_utf8(view));
 }
 
 /// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
 fn fromUtf16(text: []const u16) !Instant {
     const view = abi.toDiplomatString16View(text);
-    return wrapInstant(c.temporal_rs_Instant_from_utf16(view));
+    return wrapInstant(abi.c.temporal_rs_Instant_from_utf16(view));
 }
 
 /// Add a Duration to this instant (Temporal.Instant.prototype.add).
-pub fn add(self: Instant, duration: *const Duration) !Instant {
-    return wrapInstant(c.temporal_rs_Instant_add(self._inner, duration));
+pub fn add(self: Instant, duration: *Duration) !Instant {
+    return wrapInstant(abi.c.temporal_rs_Instant_add(self._inner, duration._inner));
 }
 
 /// Subtract a Duration from this instant (Temporal.Instant.prototype.subtract).
-pub fn subtract(self: Instant, duration: *const Duration) !Instant {
-    return wrapInstant(c.temporal_rs_Instant_subtract(self._inner, duration));
+pub fn subtract(self: Instant, duration: *Duration) !Instant {
+    return wrapInstant(abi.c.temporal_rs_Instant_subtract(self._inner, duration._inner));
 }
 
 /// Difference until another instant (Temporal.Instant.prototype.until).
-pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(c.temporal_rs_Instant_until(self._inner, other._inner, settings));
+pub fn until(self: Instant, other: Instant, settings: abi.c.DifferenceSettings) !DurationHandle {
+    return wrapDuration(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings));
 }
 
 /// Difference since another instant (Temporal.Instant.prototype.since).
-pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !DurationHandle {
-    return wrapDuration(c.temporal_rs_Instant_since(self._inner, other._inner, settings));
+pub fn since(self: Instant, other: Instant, settings: abi.c.DifferenceSettings) !DurationHandle {
+    return wrapDuration(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings));
 }
 
 /// Round this instant (Temporal.Instant.prototype.round).
-pub fn round(self: Instant, options: RoundingOptions) !Instant {
-    return wrapInstant(c.temporal_rs_Instant_round(self._inner, options));
+pub fn round(self: Instant, options: abi.c.RoundingOptions) !Instant {
+    return wrapInstant(abi.c.temporal_rs_Instant_round(self._inner, options));
 }
 
 /// Compare two instants (Temporal.Instant.compare).
 pub fn compare(a: Instant, b: Instant) i8 {
-    return c.temporal_rs_Instant_compare(a._inner, b._inner);
+    return abi.c.temporal_rs_Instant_compare(a._inner, b._inner);
 }
 
 /// Equality check (Temporal.Instant.prototype.equals).
 pub fn equals(a: Instant, b: Instant) bool {
-    return c.temporal_rs_Instant_equals(a._inner, b._inner);
+    return abi.c.temporal_rs_Instant_equals(a._inner, b._inner);
 }
 
 /// Convert to string using compiled TZ data; caller owns returned slice.
@@ -101,21 +84,21 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = c.temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, &write.inner);
+    const res = abi.c.temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
 }
 
 /// Convert to string using an explicit provider.
-fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *const Provider, opts: ToStringOptions) ![]u8 {
+fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *const abi.c.Provider, opts: ToStringOptions) ![]u8 {
     const zone_opt = abi.toTimeZoneOption(opts.time_zone);
     const rounding = optsToRounding(opts);
 
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = c.temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, &write.inner);
+    const res = abi.c.temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
@@ -132,23 +115,23 @@ pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
 }
 
 /// Convert to ZonedDateTime using built-in provider (Temporal.Instant.prototype.toZonedDateTimeISO).
-pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone));
+pub fn toZonedDateTimeISO(self: Instant, zone: abi.c.TimeZone) !ZonedDateTimeHandle {
+    return wrapZonedDateTime(abi.c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone));
 }
 
 /// Convert to ZonedDateTime using an explicit provider.
-fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const Provider) !ZonedDateTimeHandle {
-    return wrapZonedDateTime(c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone, provider));
+fn toZonedDateTimeIsoWithProvider(self: Instant, zone: abi.c.TimeZone, provider: *const abi.c.Provider) !ZonedDateTimeHandle {
+    return wrapZonedDateTime(abi.c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone, provider));
 }
 
 /// Clone the underlying instant.
 fn clone(self: Instant) Instant {
-    const ptr = c.temporal_rs_Instant_clone(self._inner) orelse unreachable;
-    return .{ ._inner = ptr, .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = abi.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)) };
+    const ptr = abi.c.temporal_rs_Instant_clone(self._inner) orelse unreachable;
+    return .{ ._inner = ptr, .epoch_milliseconds = abi.c.temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = abi.fromI128Nanoseconds(abi.c.temporal_rs_Instant_epoch_nanoseconds(ptr)) };
 }
 
 pub fn deinit(self: Instant) void {
-    c.temporal_rs_Instant_destroy(self._inner);
+    abi.c.temporal_rs_Instant_destroy(self._inner);
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -157,8 +140,8 @@ fn wrapInstant(res: anytype) !Instant {
     const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
     return .{
         ._inner = ptr,
-        .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr),
-        .epoch_nanoseconds = abi.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)),
+        .epoch_milliseconds = abi.c.temporal_rs_Instant_epoch_milliseconds(ptr),
+        .epoch_nanoseconds = abi.fromI128Nanoseconds(abi.c.temporal_rs_Instant_epoch_nanoseconds(ptr)),
     };
 }
 
@@ -176,19 +159,19 @@ fn handleVoidResult(res: anytype) !void {
     _ = abi.success(res) orelse return error.TemporalError;
 }
 
-fn defaultPrecision() Precision {
-    return .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, null) };
+fn defaultPrecision() abi.c.Precision {
+    return .{ .is_minute = false, .precision = abi.toOption(abi.c.OptionU8, null) };
 }
 
-fn defaultToStringRoundingOptions() ToStringRoundingOptions {
+fn defaultToStringRoundingOptions() abi.c.ToStringRoundingOptions {
     return abi.to_string_rounding_options_auto;
 }
 
 /// Convert ToStringOptions to ToStringRoundingOptions for the C API
-fn optsToRounding(opts: ToStringOptions) ToStringRoundingOptions {
+fn optsToRounding(opts: ToStringOptions) abi.c.ToStringRoundingOptions {
     // If smallest_unit is specified, use it; otherwise use fractional_second_digits for precision
     const precision = if (opts.fractional_second_digits) |digits|
-        Precision{ .is_minute = false, .precision = abi.toOption(c.OptionU8, digits) }
+        abi.c.Precision{ .is_minute = false, .precision = abi.toOption(abi.c.OptionU8, digits) }
     else
         defaultPrecision();
 
@@ -204,7 +187,7 @@ fn optsToRounding(opts: ToStringOptions) ToStringRoundingOptions {
 
 fn parseDuration(text: []const u8) !DurationHandle {
     const view = abi.toDiplomatStringView(text);
-    return wrapDuration(c.temporal_rs_Duration_from_utf8(view));
+    return wrapDuration(abi.c.temporal_rs_Duration_from_utf8(view));
 }
 
 // --- Public helper types -----------------------------------------------------
@@ -228,22 +211,22 @@ pub const ToStringOptions = struct {
 
     /// Time zone to use. Either a time zone identifier string or null for UTC.
     /// Note: In the Zig API, this must be pre-resolved to a TimeZone struct.
-    time_zone: ?TimeZone = null,
+    time_zone: ?abi.c.TimeZone = null,
 };
 
 const DurationHandle = struct {
-    ptr: *Duration,
+    ptr: *abi.c.Duration,
 
     pub fn deinit(self: DurationHandle) void {
-        c.temporal_rs_Duration_destroy(self.ptr);
+        abi.c.temporal_rs_Duration_destroy(self.ptr);
     }
 };
 
 const ZonedDateTimeHandle = struct {
-    ptr: *ZonedDateTime,
+    ptr: *abi.c.ZonedDateTime,
 
     pub fn deinit(self: ZonedDateTimeHandle) void {
-        c.temporal_rs_ZonedDateTime_destroy(self.ptr);
+        abi.c.temporal_rs_ZonedDateTime_destroy(self.ptr);
     }
 };
 
@@ -297,14 +280,14 @@ test subtract {
     const base = try Instant.fromEpochMilliseconds(0);
     defer base.deinit();
 
-    var dur = try parseDuration("PT1H30M");
+    var dur = try Duration.from("PT1H30M");
     defer dur.deinit();
 
-    const added = try base.add(dur.ptr);
+    const added = try base.add(&dur);
     defer added.deinit();
     try std.testing.expectEqual(@as(i64, 5_400_000), added.epoch_milliseconds);
 
-    const subbed = try added.subtract(dur.ptr);
+    const subbed = try added.subtract(&dur);
     defer subbed.deinit();
     try std.testing.expectEqual(@as(i64, 0), subbed.epoch_milliseconds);
 }
@@ -343,11 +326,11 @@ test until {
     const later = try Instant.fromEpochMilliseconds(3_600_000);
     defer later.deinit();
 
-    const settings = DifferenceSettings{
+    const settings = abi.c.DifferenceSettings{
         .largest_unit = abi.toUnitOption(Unit.hour.toCApi()),
         .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
         .rounding_mode = abi.toRoundingModeOption(RoundingMode.trunc.toCApi()),
-        .increment = abi.toOption(c.OptionU32, null),
+        .increment = abi.toOption(abi.c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
@@ -367,11 +350,11 @@ test since {
     const later = try Instant.fromEpochMilliseconds(3_600_000);
     defer later.deinit();
 
-    const settings = DifferenceSettings{
+    const settings = abi.c.DifferenceSettings{
         .largest_unit = abi.toUnitOption(Unit.hour.toCApi()),
         .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
         .rounding_mode = abi.toRoundingModeOption(RoundingMode.trunc.toCApi()),
-        .increment = abi.toOption(c.OptionU32, null),
+        .increment = abi.toOption(abi.c.OptionU32, null),
     };
 
     var until_handle = try earlier.until(later, settings);
@@ -389,11 +372,11 @@ test round {
     const inst = try Instant.fromEpochNanoseconds(1_609_459_245_123_456_789);
     defer inst.deinit();
 
-    const opts = RoundingOptions{
+    const opts = abi.c.RoundingOptions{
         .largest_unit = abi.toUnitOption(null),
         .smallest_unit = abi.toUnitOption(Unit.second.toCApi()),
         .rounding_mode = abi.toRoundingModeOption(RoundingMode.half_expand.toCApi()),
-        .increment = abi.toOption(c.OptionU32, null),
+        .increment = abi.toOption(abi.c.OptionU32, null),
     };
 
     const rounded = try inst.round(opts);

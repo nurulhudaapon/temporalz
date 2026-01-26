@@ -1,11 +1,10 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const c = abi.c;
 const temporal = @import("temporal.zig");
 
 const Duration = @This();
 
-_inner: *c.Duration,
+_inner: *abi.c.Duration,
 
 /// Construct a Duration from years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds.
 /// Equivalent to `Temporal.Duration.from()` or the constructor.
@@ -21,7 +20,7 @@ pub fn init(
     microseconds_val: f64,
     nanoseconds_val: f64,
 ) !Duration {
-    return wrapDuration(c.temporal_rs_Duration_try_new(
+    return wrapDuration(abi.c.temporal_rs_Duration_try_new(
         years_val,
         months_val,
         weeks_val,
@@ -38,138 +37,138 @@ pub fn init(
 /// Parse an ISO 8601 duration string (Temporal.Duration.from).
 pub fn from(text: []const u8) !Duration {
     const view = abi.toDiplomatStringView(text);
-    return wrapDuration(c.temporal_rs_Duration_from_utf8(view));
+    return wrapDuration(abi.c.temporal_rs_Duration_from_utf8(view));
 }
 
 /// Parse an ISO 8601 UTF-16 duration string.
 fn fromUtf16(text: []const u16) !Duration {
     const view = abi.toDiplomatString16View(text);
-    return wrapDuration(c.temporal_rs_Duration_from_utf16(view));
+    return wrapDuration(abi.c.temporal_rs_Duration_from_utf16(view));
 }
 
 /// Create a Duration from a partial duration (where some fields may be omitted).
 fn fromPartialDuration(partial: PartialDuration) !Duration {
-    return wrapDuration(c.temporal_rs_Duration_from_partial_duration(partial));
+    return wrapDuration(abi.c.temporal_rs_Duration_from_partial_duration(partial));
 }
 
 /// Check if the time portion of the duration is within valid ranges.
 fn isTimeWithinRange(self: Duration) bool {
-    return c.temporal_rs_Duration_is_time_within_range(self._inner);
+    return abi.c.temporal_rs_Duration_is_time_within_range(self._inner);
 }
 
 /// Get the years component of the duration.
 pub fn years(self: Duration) i64 {
-    return c.temporal_rs_Duration_years(self._inner);
+    return abi.c.temporal_rs_Duration_years(self._inner);
 }
 
 /// Get the months component of the duration.
 pub fn months(self: Duration) i64 {
-    return c.temporal_rs_Duration_months(self._inner);
+    return abi.c.temporal_rs_Duration_months(self._inner);
 }
 
 /// Get the weeks component of the duration.
 pub fn weeks(self: Duration) i64 {
-    return c.temporal_rs_Duration_weeks(self._inner);
+    return abi.c.temporal_rs_Duration_weeks(self._inner);
 }
 
 /// Get the days component of the duration.
 pub fn days(self: Duration) i64 {
-    return c.temporal_rs_Duration_days(self._inner);
+    return abi.c.temporal_rs_Duration_days(self._inner);
 }
 
 /// Get the hours component of the duration.
 pub fn hours(self: Duration) i64 {
-    return c.temporal_rs_Duration_hours(self._inner);
+    return abi.c.temporal_rs_Duration_hours(self._inner);
 }
 
 /// Get the minutes component of the duration.
 pub fn minutes(self: Duration) i64 {
-    return c.temporal_rs_Duration_minutes(self._inner);
+    return abi.c.temporal_rs_Duration_minutes(self._inner);
 }
 
 /// Get the seconds component of the duration.
 pub fn seconds(self: Duration) i64 {
-    return c.temporal_rs_Duration_seconds(self._inner);
+    return abi.c.temporal_rs_Duration_seconds(self._inner);
 }
 
 /// Get the milliseconds component of the duration.
 pub fn milliseconds(self: Duration) i64 {
-    return c.temporal_rs_Duration_milliseconds(self._inner);
+    return abi.c.temporal_rs_Duration_milliseconds(self._inner);
 }
 
 /// Get the microseconds component of the duration.
 pub fn microseconds(self: Duration) f64 {
-    return c.temporal_rs_Duration_microseconds(self._inner);
+    return abi.c.temporal_rs_Duration_microseconds(self._inner);
 }
 
 /// Get the nanoseconds component of the duration.
 pub fn nanoseconds(self: Duration) f64 {
-    return c.temporal_rs_Duration_nanoseconds(self._inner);
+    return abi.c.temporal_rs_Duration_nanoseconds(self._inner);
 }
 
 /// Get the sign of the duration: positive (1), zero (0), or negative (-1).
 pub fn sign(self: Duration) Sign {
-    return Sign.fromCApi(c.temporal_rs_Duration_sign(self._inner));
+    return Sign.fromCApi(abi.c.temporal_rs_Duration_sign(self._inner));
 }
 
 /// Check if the duration is zero (all fields are zero).
 pub fn blank(self: Duration) bool {
-    return c.temporal_rs_Duration_is_zero(self._inner);
+    return abi.c.temporal_rs_Duration_is_zero(self._inner);
 }
 
 /// Returns a new Duration with the absolute value (all components positive).
 pub fn abs(self: Duration) Duration {
-    const ptr: *c.Duration = c.temporal_rs_Duration_abs(self._inner) orelse unreachable;
+    const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_abs(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Returns a new Duration with all components negated.
 pub fn negated(self: Duration) Duration {
-    const ptr: *c.Duration = c.temporal_rs_Duration_negated(self._inner) orelse unreachable;
+    const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_negated(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Add two durations together (Temporal.Duration.prototype.add).
 pub fn add(self: Duration, other: Duration) !Duration {
-    return wrapDuration(c.temporal_rs_Duration_add(self._inner, other._inner));
+    return wrapDuration(abi.c.temporal_rs_Duration_add(self._inner, other._inner));
 }
 
 /// Subtract another duration from this one (Temporal.Duration.prototype.subtract).
 pub fn subtract(self: Duration, other: Duration) !Duration {
-    return wrapDuration(c.temporal_rs_Duration_subtract(self._inner, other._inner));
+    return wrapDuration(abi.c.temporal_rs_Duration_subtract(self._inner, other._inner));
 }
 
 /// Round the duration according to the specified options (Temporal.Duration.prototype.round).
 pub fn round(self: Duration, options: RoundingOptions, relative_to: RelativeTo) !Duration {
-    return wrapDuration(c.temporal_rs_Duration_round(self._inner, options, relative_to));
+    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options, relative_to));
 }
 
 /// Round the duration with an explicit provider.
-fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: RelativeTo, provider: *const c.Provider) !Duration {
-    return wrapDuration(c.temporal_rs_Duration_round_with_provider(self._inner, options, relative_to, provider));
+fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: RelativeTo, provider: *const abi.c.Provider) !Duration {
+    return wrapDuration(abi.c.temporal_rs_Duration_round_with_provider(self._inner, options, relative_to, provider));
 }
 
 /// Compare two durations (Temporal.Duration.compare).
 pub fn compare(self: Duration, other: Duration, relative_to: RelativeTo) !i8 {
-    const res = c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to);
+    const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to);
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Compare two durations with an explicit provider.
-fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const c.Provider) !i8 {
-    const res = c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to, provider);
+fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const abi.c.Provider) !i8 {
+    const res = abi.c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to, provider);
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, unit: Unit, relative_to: RelativeTo) !f64 {
-    const res = c.temporal_rs_Duration_total(self._inner, unit.toCApi(), relative_to);
+    const res = abi.c.temporal_rs_Duration_total(self._inner, unit.toCApi(), relative_to);
     return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration with an explicit provider.
-fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const c.Provider) !f64 {
-    const res = c.temporal_rs_Duration_total_with_provider(self._inner, unit.toCApi(), relative_to, provider);
+fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const abi.c.Provider) !f64 {
+    const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, unit.toCApi(), relative_to, provider);
     return abi.success(res) orelse return error.TemporalError;
 }
 
@@ -178,7 +177,7 @@ pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringR
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = c.temporal_rs_Duration_to_string(self._inner, options, &write.inner);
+    const res = abi.c.temporal_rs_Duration_to_string(self._inner, options, &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
@@ -196,12 +195,12 @@ pub fn toLocaleString(self: Duration, allocator: std.mem.Allocator) ![]u8 {
 
 /// Clone the underlying duration.
 fn clone(self: Duration) Duration {
-    const ptr: *c.Duration = c.temporal_rs_Duration_clone(self._inner) orelse unreachable;
+    const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 pub fn deinit(self: Duration) void {
-    c.temporal_rs_Duration_destroy(self._inner);
+    abi.c.temporal_rs_Duration_destroy(self._inner);
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -235,26 +234,26 @@ pub const ToStringOptions = struct {
     smallest_unit: ?Unit = null,
 };
 
-pub const PartialDuration = c.PartialDuration;
+pub const PartialDuration = abi.c.PartialDuration;
 
 /// Relative-to context for duration operations.
 pub const RelativeTo = extern struct {
-    plain_date: ?*c.PlainDate,
-    zoned_date_time: ?*c.ZonedDateTime,
+    plain_date: ?*abi.c.PlainDate,
+    zoned_date_time: ?*abi.c.ZonedDateTime,
 };
 
 // --- Public type aliases and enums ------------------------------------------
 
-const OptionU8 = c.OptionU8;
-const OptionU32 = c.OptionU32;
-const OptionI64 = c.OptionI64;
-const OptionF64 = c.OptionF64;
-const Precision = c.Precision;
-const Unit_option = c.Unit_option;
-const RoundingMode_option = c.RoundingMode_option;
+const OptionU8 = abi.c.OptionU8;
+const OptionU32 = abi.c.OptionU32;
+const OptionI64 = abi.c.OptionI64;
+const OptionF64 = abi.c.OptionF64;
+const Precision = abi.c.Precision;
+const Unit_option = abi.c.Unit_option;
+const RoundingMode_option = abi.c.RoundingMode_option;
 
-pub const RoundingOptions = c.RoundingOptions;
-pub const ToStringRoundingOptions = c.ToStringRoundingOptions;
+pub const RoundingOptions = abi.c.RoundingOptions;
+pub const ToStringRoundingOptions = abi.c.ToStringRoundingOptions;
 
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
@@ -371,10 +370,10 @@ test toString {
 }
 
 test fromPartialDuration {
-    const empty_i64 = abi.toOption(c.OptionI64, null);
-    const empty_f64 = abi.toOption(c.OptionF64, null);
+    const empty_i64 = abi.toOption(abi.c.OptionI64, null);
+    const empty_f64 = abi.toOption(abi.c.OptionF64, null);
 
-    const partial = c.PartialDuration{
+    const partial = abi.c.PartialDuration{
         .years = empty_i64,
         .months = empty_i64,
         .weeks = empty_i64,
