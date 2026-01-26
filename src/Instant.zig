@@ -124,18 +124,13 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
     const zone_opt = temporal_rs.toTimeZoneOption(opts.time_zone);
     const rounding = optsToRounding(opts);
 
-    const writer = c.diplomat_buffer_write_create(128);
-    defer c.diplomat_buffer_write_destroy(writer);
+    var write = temporal_rs.DiplomatWrite.init(allocator);
+    defer write.deinit();
 
-    const res = c.temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, writer);
+    const res = c.temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, &write.inner);
     try handleVoidResult(res);
 
-    const len = c.diplomat_buffer_write_len(writer);
-    const source = c.diplomat_buffer_write_get_bytes(writer)[0..len];
-
-    const out = try allocator.alloc(u8, len);
-    std.mem.copyForwards(u8, out, source);
-    return out;
+    return try write.toOwnedSlice();
 }
 
 /// Convert to string using an explicit provider.
@@ -143,18 +138,13 @@ fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *
     const zone_opt = temporal_rs.toTimeZoneOption(opts.time_zone);
     const rounding = optsToRounding(opts);
 
-    const writer = c.diplomat_buffer_write_create(128);
-    defer c.diplomat_buffer_write_destroy(writer);
+    var write = temporal_rs.DiplomatWrite.init(allocator);
+    defer write.deinit();
 
-    const res = c.temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, writer);
+    const res = c.temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, &write.inner);
     try handleVoidResult(res);
 
-    const len = c.diplomat_buffer_write_len(writer);
-    const source = c.diplomat_buffer_write_get_bytes(writer)[0..len];
-
-    const out = try allocator.alloc(u8, len);
-    std.mem.copyForwards(u8, out, source);
-    return out;
+    return try write.toOwnedSlice();
 }
 
 pub fn toJSON(self: Instant, allocator: std.mem.Allocator) ![]u8 {
@@ -190,43 +180,26 @@ pub fn deinit(self: Instant) void {
 // --- Helpers -----------------------------------------------------------------
 
 fn wrapInstant(res: anytype) !Instant {
-    if (!res.is_ok) return error.TemporalError;
-    const maybe_ptr = res.unnamed_0.ok;
-    if (maybe_ptr == null) return error.TemporalError;
-    const ptr: *c.Instant = maybe_ptr.?;
-    return .{ ._inner = ptr, .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr), .epoch_nanoseconds = temporal_rs.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)) };
+    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{
+        ._inner = ptr,
+        .epoch_milliseconds = c.temporal_rs_Instant_epoch_milliseconds(ptr),
+        .epoch_nanoseconds = temporal_rs.fromI128Nanoseconds(c.temporal_rs_Instant_epoch_nanoseconds(ptr)),
+    };
 }
 
 fn wrapDuration(res: anytype) !DurationHandle {
-    if (!res.is_ok) return error.TemporalError;
-    return .{ .ptr = res.unnamed_0.ok orelse return error.TemporalError };
+    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ .ptr = ptr };
 }
 
 fn wrapZonedDateTime(res: anytype) !ZonedDateTimeHandle {
-    if (!res.is_ok) return error.TemporalError;
-    return .{ .ptr = res.unnamed_0.ok orelse return error.TemporalError };
+    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    return .{ .ptr = ptr };
 }
 
 fn handleVoidResult(res: anytype) !void {
-    if (!res.is_ok) return error.TemporalError;
-}
-
-fn i128ToParts(value: i128) temporal_rs.c.I128Nanoseconds {
-    const is_neg = value < 0;
-    const mag: u128 = if (is_neg) @intCast(@as(u128, @intCast(-value))) else @intCast(value);
-    const mask: u64 = 1 << 63;
-    var high: u64 = @intCast(mag >> 64);
-    const low: u64 = @intCast(mag & 0xffff_ffff_ffff_ffff);
-    if (is_neg) high |= mask;
-    return .{ .high = high, .low = low };
-}
-
-fn partsToI128(value: temporal_rs.c.I128Nanoseconds) i128 {
-    const mask: u64 = 1 << 63;
-    const is_neg = (value.high & mask) != 0;
-    const mag: u128 = ((@as(u128, value.high & ~mask)) << 64) | value.low;
-    if (is_neg) return -@as(i128, @intCast(mag));
-    return @as(i128, @intCast(mag));
+    _ = temporal_rs.success(res) orelse return error.TemporalError;
 }
 
 fn defaultPrecision() Precision {
