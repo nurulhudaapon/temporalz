@@ -152,13 +152,6 @@ pub fn toZonedDateTime(self: PlainDate, options: ToZonedDateTimeOptions) !ZonedD
     const time_ptr = if (options.plain_time) |t| t._inner else null;
     const ptr = (abi.success(abi.c.temporal_rs_PlainDate_to_zoned_date_time(self._inner, time_zone, time_ptr)) orelse return error.TemporalError) orelse return error.TemporalError;
 
-    // Get time zone identifier for ZonedDateTime
-    // const allocator = std.heap.page_allocator;
-    // var write = abi.DiplomatWrite.init(allocator);
-    // defer write.deinit();
-    // abi.c.temporal_rs_TimeZone_identifier(time_zone, &write.inner);
-    // const tz_id = try write.toOwnedSlice();
-
     return .{ ._inner = ptr };
 }
 
@@ -284,12 +277,6 @@ pub fn deinit(self: PlainDate) void {
 
 fn wrapPlainDate(res: anytype) !PlainDate {
     const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
-
-    // const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(ptr) orelse return error.TemporalError;
-    // const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-
-    // const allocator = std.heap.page_allocator;
-    // const cal_id = allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]) catch "iso8601";
 
     return .{ ._inner = ptr };
 }

@@ -261,3 +261,39 @@ pub fn Success(comptime Result: type) type {
     if (!@hasField(Union, "ok")) return void;
     return @FieldType(Union, "ok");
 }
+
+/// Temporal error set mapping to C API error kinds
+pub const TemporalError = error{
+    /// Generic temporal error
+    Generic,
+    /// Type error (invalid type or conversion)
+    TypeError,
+    /// Range error (value out of valid range)
+    RangeError,
+    /// Syntax error (invalid format or parsing)
+    SyntaxError,
+    /// Assertion failed (should not happen)
+    AssertionFailed,
+    /// Other unspecified error
+    Unknown,
+};
+
+/// Extract result from C API, mapping errors to specific Zig error types.
+pub inline fn extractResult(result: anytype) TemporalError!Success(@TypeOf(result)) {
+    if (success(result)) |value| return value;
+
+    const err = result.unnamed_0.err;
+    // const message = if (fromOption(err.msg)) |sv|
+    //     fromDiplomatStringView(sv)
+    // else
+    //     "(no error message)";
+
+    return switch (err.kind) {
+        c.ErrorKind_Generic => TemporalError.Generic,
+        c.ErrorKind_Type => TemporalError.TypeError,
+        c.ErrorKind_Range => TemporalError.RangeError,
+        c.ErrorKind_Syntax => TemporalError.SyntaxError,
+        c.ErrorKind_Assert => @panic("temporal_rs assertion failed"),
+        else => TemporalError.Unknown,
+    };
+}
