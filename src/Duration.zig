@@ -2,139 +2,6 @@ const std = @import("std");
 const temporal_rs = @import("cabi.zig");
 const c = temporal_rs.c;
 
-/// The Zig implementation of `Temporal.Duration`.
-///
-/// Represents a span of time such as "2 hours and 30 minutes" or "3 years, 2 months".
-/// Unlike `Instant` which represents a specific moment in time, Duration represents
-/// the amount of time between two moments.
-///
-/// A Duration consists of two categories of components:
-/// - Date components: years, months, weeks, and days
-/// - Time components: hours, minutes, seconds, and subsecond units (nanosecond precision)
-///
-/// Note that date arithmetic can be complex. For example, adding "1 month" to January 31st
-/// could result in February 28th (non-leap year), February 29th (leap year), or March 3rd
-/// (if you overflow February), depending on the calendar system and overflow handling.
-///
-/// ## Examples
-///
-/// ### Creating durations
-///
-/// ```zig
-/// const Duration = @import("Duration.zig");
-///
-/// // Create a duration with specific components
-/// // 2 weeks and 3 days, no time components
-/// const vacation_duration = try Duration.init(
-///     0, 0, 2, 3,    // years, months, weeks, days
-///     0, 0, 0,       // hours, minutes, seconds
-///     0, 0, 0        // milliseconds, microseconds, nanoseconds
-/// );
-/// defer vacation_duration.deinit();
-///
-/// try std.testing.expectEqual(@as(i64, 2), vacation_duration.weeks());
-/// try std.testing.expectEqual(@as(i64, 3), vacation_duration.days());
-/// ```
-///
-/// ### Parsing ISO 8601 duration strings
-///
-/// ```zig
-/// const Duration = @import("Duration.zig");
-///
-/// // Complex duration with multiple components
-/// const complex = try Duration.from("P1Y2M3DT4H5M6.789S");
-/// defer complex.deinit();
-/// try std.testing.expectEqual(@as(i64, 1), complex.years());
-/// try std.testing.expectEqual(@as(i64, 2), complex.months());
-/// try std.testing.expectEqual(@as(i64, 3), complex.days());
-/// try std.testing.expectEqual(@as(i64, 4), complex.hours());
-/// try std.testing.expectEqual(@as(i64, 5), complex.minutes());
-/// try std.testing.expectEqual(@as(i64, 6), complex.seconds());
-///
-/// // Time-only duration
-/// const movie_length = try Duration.from("PT2H30M");
-/// defer movie_length.deinit();
-/// try std.testing.expectEqual(@as(i64, 2), movie_length.hours());
-/// try std.testing.expectEqual(@as(i64, 30), movie_length.minutes());
-///
-/// // Negative durations
-/// const negative = try Duration.from("-P1D");
-/// defer negative.deinit();
-/// try std.testing.expectEqual(@as(i64, -1), negative.days());
-/// ```
-///
-/// ### Duration arithmetic
-///
-/// ```zig
-/// const Duration = @import("Duration.zig");
-///
-/// const commute_time = try Duration.from("PT45M");
-/// defer commute_time.deinit();
-/// const lunch_break = try Duration.from("PT1H");
-/// defer lunch_break.deinit();
-///
-/// // Add durations together
-/// const total_time = try commute_time.add(lunch_break);
-/// defer total_time.deinit();
-/// try std.testing.expectEqual(@as(i64, 1), total_time.hours());    // Results in 1 hour 45 minutes
-/// try std.testing.expectEqual(@as(i64, 45), total_time.minutes());
-///
-/// // Subtract duration components
-/// const shortened = try lunch_break.subtract(try Duration.from("PT15M"));
-/// defer shortened.deinit();
-/// try std.testing.expectEqual(@as(i64, 45), shortened.minutes());
-/// ```
-///
-/// ### Working with partial durations
-///
-/// ```zig
-/// const Duration = @import("Duration.zig");
-///
-/// var partial = Duration.PartialDuration.empty();
-/// partial = partial.withHours(3);
-/// partial = partial.withMinutes(45);
-///
-/// const duration = try Duration.fromPartialDuration(partial);
-/// defer duration.deinit();
-/// try std.testing.expectEqual(@as(i64, 3), duration.hours());
-/// try std.testing.expectEqual(@as(i64, 45), duration.minutes());
-/// try std.testing.expectEqual(@as(i64, 0), duration.days()); // other fields default to 0
-/// ```
-///
-/// ### Duration properties
-///
-/// ```zig
-/// const Duration = @import("Duration.zig");
-///
-/// const duration = try Duration.from("P1Y2M3D");
-/// defer duration.deinit();
-///
-/// // Check if duration is zero
-/// try std.testing.expect(!duration.isZero());
-///
-/// // Get the sign of the duration
-/// const sign_val = duration.sign();
-///
-/// // Get absolute value
-/// const abs_duration = duration.abs();
-/// defer abs_duration.deinit();
-/// try std.testing.expectEqual(@as(i64, 1), abs_duration.years());
-/// try std.testing.expectEqual(@as(i64, 2), abs_duration.months());
-/// try std.testing.expectEqual(@as(i64, 3), abs_duration.days());
-///
-/// // Negate duration
-/// const negated_dur = duration.negated();
-/// defer negated_dur.deinit();
-/// try std.testing.expectEqual(@as(i64, -1), negated_dur.years());
-/// try std.testing.expectEqual(@as(i64, -2), negated_dur.months());
-/// try std.testing.expectEqual(@as(i64, -3), negated_dur.days());
-/// ```
-///
-/// ## Reference
-///
-/// For more information, see the [MDN documentation][mdn-duration].
-///
-/// [mdn-duration]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration
 const Duration = @This();
 
 _inner: *c.Duration,
@@ -284,45 +151,36 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
 /// Compare two durations (Temporal.Duration.compare).
 pub fn compare(self: Duration, other: Duration, relative_to: RelativeTo) !i8 {
     const res = c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to);
-    if (!res.is_ok) return error.TemporalError;
-    return res.unnamed_0.ok;
+    return temporal_rs.success(res) orelse return error.TemporalError;
 }
 
 /// Compare two durations with an explicit provider.
 fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const c.Provider) !i8 {
     const res = c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to, provider);
-    if (!res.is_ok) return error.TemporalError;
-    return res.unnamed_0.ok;
+    return temporal_rs.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, unit: Unit, relative_to: RelativeTo) !f64 {
     const res = c.temporal_rs_Duration_total(self._inner, @intFromEnum(unit), relative_to);
-    if (!res.is_ok) return error.TemporalError;
-    return res.unnamed_0.ok;
+    return temporal_rs.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration with an explicit provider.
 fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const c.Provider) !f64 {
     const res = c.temporal_rs_Duration_total_with_provider(self._inner, @intFromEnum(unit), relative_to, provider);
-    if (!res.is_ok) return error.TemporalError;
-    return res.unnamed_0.ok;
+    return temporal_rs.success(res) orelse return error.TemporalError;
 }
 
 /// Convert to string (Temporal.Duration.prototype.toString); caller owns returned slice.
 pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringRoundingOptions) ![]u8 {
-    const writer = c.diplomat_buffer_write_create(128);
-    defer c.diplomat_buffer_write_destroy(writer);
+    var write = temporal_rs.DiplomatWrite.init(allocator);
+    defer write.deinit();
 
-    const res = c.temporal_rs_Duration_to_string(self._inner, options, writer);
+    const res = c.temporal_rs_Duration_to_string(self._inner, options, &write.inner);
     try handleVoidResult(res);
 
-    const len = c.diplomat_buffer_write_len(writer);
-    const source = c.diplomat_buffer_write_get_bytes(writer)[0..len];
-
-    const out = try allocator.alloc(u8, len);
-    std.mem.copyForwards(u8, out, source);
-    return out;
+    return try write.toOwnedSlice();
 }
 
 pub fn toJSON(self: Duration, allocator: std.mem.Allocator) ![]u8 {
@@ -348,14 +206,11 @@ pub fn deinit(self: Duration) void {
 // --- Helpers -----------------------------------------------------------------
 
 fn handleVoidResult(res: anytype) !void {
-    if (!res.is_ok) return error.TemporalError;
+    _ = temporal_rs.success(res) orelse return error.TemporalError;
 }
 
 fn wrapDuration(res: anytype) !Duration {
-    if (!res.is_ok) return error.TemporalError;
-    const maybe_ptr = res.unnamed_0.ok;
-    if (maybe_ptr == null) return error.TemporalError;
-    const ptr: *c.Duration = maybe_ptr.?;
+    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
     return .{ ._inner = ptr };
 }
 
