@@ -1,6 +1,6 @@
 const std = @import("std");
-const temporal_rs = @import("cabi.zig");
-const c = temporal_rs.c;
+const abi = @import("abi.zig");
+const c = abi.c;
 
 const Duration = @This();
 
@@ -36,13 +36,13 @@ pub fn init(
 
 /// Parse an ISO 8601 duration string (Temporal.Duration.from).
 pub fn from(text: []const u8) !Duration {
-    const view = temporal_rs.toDiplomatStringView(text);
+    const view = abi.toDiplomatStringView(text);
     return wrapDuration(c.temporal_rs_Duration_from_utf8(view));
 }
 
 /// Parse an ISO 8601 UTF-16 duration string.
 fn fromUtf16(text: []const u16) !Duration {
-    const view = temporal_rs.toDiplomatString16View(text);
+    const view = abi.toDiplomatString16View(text);
     return wrapDuration(c.temporal_rs_Duration_from_utf16(view));
 }
 
@@ -151,30 +151,30 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
 /// Compare two durations (Temporal.Duration.compare).
 pub fn compare(self: Duration, other: Duration, relative_to: RelativeTo) !i8 {
     const res = c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to);
-    return temporal_rs.success(res) orelse return error.TemporalError;
+    return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Compare two durations with an explicit provider.
 fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const c.Provider) !i8 {
     const res = c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to, provider);
-    return temporal_rs.success(res) orelse return error.TemporalError;
+    return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, unit: Unit, relative_to: RelativeTo) !f64 {
     const res = c.temporal_rs_Duration_total(self._inner, @intFromEnum(unit), relative_to);
-    return temporal_rs.success(res) orelse return error.TemporalError;
+    return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Get the total value of the duration with an explicit provider.
 fn totalWithProvider(self: Duration, unit: Unit, relative_to: RelativeTo, provider: *const c.Provider) !f64 {
     const res = c.temporal_rs_Duration_total_with_provider(self._inner, @intFromEnum(unit), relative_to, provider);
-    return temporal_rs.success(res) orelse return error.TemporalError;
+    return abi.success(res) orelse return error.TemporalError;
 }
 
 /// Convert to string (Temporal.Duration.prototype.toString); caller owns returned slice.
 pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringRoundingOptions) ![]u8 {
-    var write = temporal_rs.DiplomatWrite.init(allocator);
+    var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
     const res = c.temporal_rs_Duration_to_string(self._inner, options, &write.inner);
@@ -206,16 +206,16 @@ pub fn deinit(self: Duration) void {
 // --- Helpers -----------------------------------------------------------------
 
 fn handleVoidResult(res: anytype) !void {
-    _ = temporal_rs.success(res) orelse return error.TemporalError;
+    _ = abi.success(res) orelse return error.TemporalError;
 }
 
 fn wrapDuration(res: anytype) !Duration {
-    const ptr = (temporal_rs.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
+    const ptr = (abi.success(res) orelse return error.TemporalError) orelse return error.TemporalError;
     return .{ ._inner = ptr };
 }
 
 fn defaultToStringRoundingOptions() ToStringRoundingOptions {
-    return temporal_rs.to_string_rounding_options_auto;
+    return abi.to_string_rounding_options_auto;
 }
 
 // --- Public helper types -----------------------------------------------------
@@ -411,8 +411,8 @@ test toString {
 }
 
 test fromPartialDuration {
-    const empty_i64 = temporal_rs.toOption(c.OptionI64, null);
-    const empty_f64 = temporal_rs.toOption(c.OptionF64, null);
+    const empty_i64 = abi.toOption(c.OptionI64, null);
+    const empty_f64 = abi.toOption(c.OptionF64, null);
 
     const partial = c.PartialDuration{
         .years = empty_i64,
