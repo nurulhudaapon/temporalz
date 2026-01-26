@@ -133,6 +133,7 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
+        mod_tests.linkLibC();
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
