@@ -91,7 +91,7 @@ pub fn build(b: *std.Build) !void {
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
+            .root_source_file = b.path("example/src/main.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{
@@ -133,7 +133,6 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
-        mod_tests.linkLibC();
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
