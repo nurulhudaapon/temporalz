@@ -362,7 +362,7 @@ test until {
         .largest_unit = .hour,
         .smallest_unit = .second,
         .rounding_mode = .trunc,
-        .increment = null,
+        .rounding_increment = null,
     };
 
     var until_handle = try earlier.until(later, settings);
@@ -386,7 +386,7 @@ test since {
         .largest_unit = .hour,
         .smallest_unit = .second,
         .rounding_mode = .trunc,
-        .increment = null,
+        .rounding_increment = null,
     };
 
     var until_handle = try earlier.until(later, settings);
@@ -408,7 +408,7 @@ test round {
         .largest_unit = null,
         .smallest_unit = .second,
         .rounding_mode = .half_expand,
-        .increment = null,
+        .rounding_increment = null,
     };
 
     const rounded = try inst.round(opts);

@@ -177,14 +177,14 @@ pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringR
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = abi.c.temporal_rs_Duration_to_string(self._inner, options, &write.inner);
+    const res = abi.c.temporal_rs_Duration_to_string(self._inner, options.toCApi(), &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
 }
 
 pub fn toJSON(self: Duration, allocator: std.mem.Allocator) ![]u8 {
-    return self.toString(allocator, defaultToStringRoundingOptions());
+    return self.toString(allocator, .{});
 }
 
 pub fn toLocaleString(self: Duration, allocator: std.mem.Allocator) ![]u8 {
@@ -214,25 +214,7 @@ fn wrapDuration(res: anytype) !Duration {
     return .{ ._inner = ptr };
 }
 
-fn defaultToStringRoundingOptions() ToStringRoundingOptions {
-    return abi.to_string_rounding_options_auto;
-}
-
 // --- Public helper types -----------------------------------------------------
-
-/// Options for Duration.toString()
-/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/toString
-pub const ToStringOptions = struct {
-    /// Specifies the number of fractional seconds digits to display.
-    fractional_second_digits: ?u8 = null,
-
-    /// Specifies how to round off fractional second digits.
-    /// Defaults to "trunc" (truncate).
-    rounding_mode: ?RoundingMode = null,
-
-    /// Specifies the smallest unit to include in the output.
-    smallest_unit: ?Unit = null,
-};
 
 pub const PartialDuration = abi.c.PartialDuration;
 
@@ -253,7 +235,8 @@ const Unit_option = abi.c.Unit_option;
 const RoundingMode_option = abi.c.RoundingMode_option;
 
 pub const RoundingOptions = temporal.RoundingOptions;
-pub const ToStringRoundingOptions = abi.c.ToStringRoundingOptions;
+pub const ToStringOptions = temporal.ToStringRoundingOptions;
+pub const ToStringRoundingOptions = temporal.ToStringRoundingOptions;
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;
@@ -361,7 +344,7 @@ test toString {
     defer dur.deinit();
 
     const allocator = std.testing.allocator;
-    const str = try dur.toString(allocator, defaultToStringRoundingOptions());
+    const str = try dur.toString(allocator, .{});
     defer allocator.free(str);
 
     // Should output ISO 8601 duration format
