@@ -95,35 +95,66 @@ pub const Sign = enum {
 };
 
 /// Options for rounding operations (Instant.round, Duration.round, etc.).
+/// MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/round
 pub const RoundingOptions = struct {
     largest_unit: ?Unit = null,
     smallest_unit: ?Unit = null,
     rounding_mode: ?RoundingMode = null,
-    increment: ?u32 = null,
+    rounding_increment: ?u32 = null,
 
     pub fn toCApi(self: RoundingOptions) c.RoundingOptions {
         return .{
             .largest_unit = abi.toUnitOption(toCUnit(self.largest_unit)),
             .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
             .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
-            .increment = abi.toOption(c.OptionU32, self.increment),
+            .increment = abi.toOption(c.OptionU32, self.rounding_increment),
         };
     }
 };
 
 /// Options for computing differences between instants.
+/// MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/until
 pub const DifferenceSettings = struct {
     largest_unit: ?Unit = null,
     smallest_unit: ?Unit = null,
     rounding_mode: ?RoundingMode = null,
-    increment: ?u32 = null,
+    rounding_increment: ?u32 = null,
 
     pub fn toCApi(self: DifferenceSettings) c.DifferenceSettings {
         return .{
             .largest_unit = abi.toUnitOption(toCUnit(self.largest_unit)),
             .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
             .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
-            .increment = abi.toOption(c.OptionU32, self.increment),
+            .increment = abi.toOption(c.OptionU32, self.rounding_increment),
+        };
+    }
+};
+
+/// Options for Duration.toString() formatting.
+/// MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/toString
+pub const ToStringRoundingOptions = struct {
+    fractional_second_digits: ?u8 = null,
+    smallest_unit: ?Unit = null,
+    rounding_mode: ?RoundingMode = null,
+
+    pub fn toCApi(self: ToStringRoundingOptions) c.ToStringRoundingOptions {
+        const precision: c.Precision = if (self.fractional_second_digits) |fsd|
+            .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, fsd) }
+        else if (self.smallest_unit) |su|
+            switch (su) {
+                .second => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 0) },
+                .millisecond => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 3) },
+                .microsecond => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 6) },
+                .nanosecond => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 9) },
+                else => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, null) },
+            }
+        else
+            .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, null) };
+
+        return .{
+            .precision = precision,
+            .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
+            .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
         };
     }
 };
