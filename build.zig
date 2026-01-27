@@ -13,7 +13,10 @@ pub fn build(b: *std.Build) !void {
     });
 
     // --- Rust C ABI: temporal_capi --- //
-    const temporal_rs = b.dependency("temporal_rs", .{ .target = target, .optimize = optimize });
+    const temporal_rs = b.dependency("temporal_rs", .{
+        .target = target,
+        .optimize = optimize,
+    });
     mod.addIncludePath(temporal_rs.path("temporal_capi/bindings/c"));
 
     // --- Rust Crate: temporal_rs --- //
@@ -137,6 +140,27 @@ pub fn build(b: *std.Build) !void {
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
+    }
+
+    // --- Steps: test-262 --- //
+    {
+        const test262_step = b.step("test262", "Run test-262 tests");
+        const test262_tests = b.addTest(.{
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("test/test262/root.zig"),
+                .target = target,
+                .optimize = optimize,
+                .imports = &.{
+                    .{ .name = "temporalz", .module = mod },
+                },
+            }),
+            .test_runner = .{
+                .path = b.path("test/runner.zig"),
+                .mode = .simple,
+            },
+        });
+        test262_tests.linkLibC();
+        test262_step.dependOn(&b.addRunArtifact(test262_tests).step);
     }
 
     // --- Steps: Build all platforms --- //

@@ -1,5 +1,7 @@
 # Temporalz
 
+[![CI](https://github.com/nurulhudaapon/temporalz/actions/workflows/ci.yml/badge.svg)](https://github.com/nurulhudaapon/temporalz/actions/workflows/ci.yml)
+
 A Zig library for working with temporal types based on the [Temporal Standard](https://tc39.es/proposal-temporal/).
 
 Temporalz provides Zig bindings to the Rust-based [temporal_rs](https://github.com/boa-dev/temporal) library for handling dates, times, and durations with proper timezone support.
@@ -10,12 +12,12 @@ Temporalz provides Zig bindings to the Rust-based [temporal_rs](https://github.c
 #### Prerequisites
 
 - Zig 0.15.2
-- Rust toolchain (only required if [prebuilt binaries](#prebuilt) are not available for your platform)
+- Rust toolchain (only required if [prebuilt staticlibs](#prebuilt) are not available for your platform)
 
 #### Add as a Dependency
 
 ```bash
-zig fetch --save https://github.com/nurulhudaapon/temporalz/archive/refs/tags/v0.1.2.tar.gz
+zig fetch --save https://github.com/nurulhudaapon/temporalz/archive/v0.1.2.tar.gz
 ```
 
 #### Use in build.zig
@@ -23,24 +25,27 @@ zig fetch --save https://github.com/nurulhudaapon/temporalz/archive/refs/tags/v0
 Add temporalz to your executable in `build.zig`:
 
 ```zig
-const temporalz_dep = b.dependency("temporalz", .{ .target = target, .optimize = optimize });
+const temporalz = b.dependency("temporalz", .{
+    .target = target,
+    .optimize = optimize,
+});
 
 const exe = b.addExecutable(.{...});
 
-exe.root_module.addImport("temporalz", temporalz_dep.module("temporalz"));
+exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
 ```
 
 
-## Checklist
+## Checklist ([Test262](https://github.com/tc39/test262/tree/main/test/built-ins/Temporal))
 
 - [x] Instant
 - [x] Duration
-- [ ] PlainDate
-- [ ] PlainTime
-- [ ] PlainDateTime
-- [ ] PlainYearMonth
-- [ ] PlainMonthDay
-- [ ] ZonedDateTime
+- [x] PlainDate
+- [x] PlainTime
+- [x] PlainDateTime
+- [x] PlainYearMonth
+- [x] PlainMonthDay
+- [x] ZonedDateTime
 
 ## Prebuilt
 

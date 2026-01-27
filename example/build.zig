@@ -4,7 +4,10 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const temporalz_dep = b.dependency("temporalz", .{ .target = target, .optimize = optimize });
+    const temporalz = b.dependency("temporalz", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const exe = b.addExecutable(.{
         .name = "example",
         .root_module = b.createModule(.{
@@ -14,7 +17,7 @@ pub fn build(b: *std.Build) void {
             .imports = &.{},
         }),
     });
-    exe.root_module.addImport("temporalz", temporalz_dep.module("temporalz"));
+    exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
