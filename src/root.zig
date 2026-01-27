@@ -78,6 +78,7 @@ test Duration {
         "ToStringRoundingOptions",
         "Sign",
         "TotalOptions",
+        "CompareOptions",
     };
 
     try assertDecls(Duration, checks);
@@ -142,7 +143,7 @@ test PlainDate {
     const checks = .{
         // Constructor
         "init",
-        "initWithCalendar",
+        "calInit",
 
         // Static methods
         "compare",
@@ -200,7 +201,7 @@ test PlainDateTime {
     const checks = .{
         // Constructor
         "init", // Temporal.PlainDateTime()
-        "initWithCalendar",
+        "calInit",
 
         // Static methods
         "compare",

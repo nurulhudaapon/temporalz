@@ -159,10 +159,10 @@ pub const ToStringRoundingOptions = struct {
     }
 };
 
-fn toCUnit(opt: ?Unit) ?c.Unit {
+pub fn toCUnit(opt: ?Unit) ?c.Unit {
     return if (opt) |u| @as(c.Unit, @intCast(u.toCApi())) else null;
 }
 
-fn toCRoundingMode(opt: ?RoundingMode) ?c.RoundingMode {
+pub fn toCRoundingMode(opt: ?RoundingMode) ?c.RoundingMode {
     return if (opt) |m| @as(c.RoundingMode, @intCast(m.toCApi())) else null;
 }

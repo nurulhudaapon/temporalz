@@ -98,7 +98,7 @@ fn currentParts() CurrentParts {
 test instant {
     const inst = try instant();
     defer inst.deinit();
-    try std.testing.expect(inst.epoch_nanoseconds > 0);
+    try std.testing.expect(inst.epochNanoseconds() > 0);
 }
 
 test plainDateISO {

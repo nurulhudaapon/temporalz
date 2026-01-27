@@ -44,10 +44,10 @@ pub const ToZonedDateTimeOptions = struct {
 _inner: *abi.c.PlainDate,
 
 pub fn init(year_val: i32, month_val: u8, day_val: u8) !PlainDate {
-    return initWithCalendar(year_val, month_val, day_val, "iso8601");
+    return calInit(year_val, month_val, day_val, "iso8601");
 }
 
-pub fn initWithCalendar(year_val: i32, month_val: u8, day_val: u8, calendar: []const u8) !PlainDate {
+pub fn calInit(year_val: i32, month_val: u8, day_val: u8, calendar: []const u8) !PlainDate {
     const cal_view = abi.toDiplomatStringView(calendar);
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = try abi.extractResult(cal_result);

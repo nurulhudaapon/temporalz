@@ -202,10 +202,7 @@ pub fn subtract(self: ZonedDateTime, duration: Duration) !ZonedDateTime {
 /// Convert to Instant
 pub fn toInstant(self: ZonedDateTime) !Instant {
     const instant_ptr = abi.c.temporal_rs_ZonedDateTime_to_instant(self._inner) orelse return error.TemporalError;
-    const epoch_ms = abi.c.temporal_rs_Instant_epoch_milliseconds(instant_ptr);
-    const epoch_ns_parts = abi.c.temporal_rs_Instant_epoch_nanoseconds(instant_ptr);
-    const epoch_ns = abi.fromI128Nanoseconds(epoch_ns_parts);
-    return .{ ._inner = instant_ptr, .epoch_milliseconds = epoch_ms, .epoch_nanoseconds = epoch_ns };
+    return .{ ._inner = instant_ptr };
 }
 
 /// Convert to JSON string (ISO 8601 format)
@@ -502,7 +499,7 @@ test toInstant {
     const instant = try zdt.toInstant();
     defer instant.deinit();
 
-    try std.testing.expectEqual(@as(i64, 1609459200000), instant.epoch_milliseconds);
+    try std.testing.expectEqual(@as(i64, 1609459200000), instant.epochMilliseconds());
 }
 
 test toPlainDate {
