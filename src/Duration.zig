@@ -2,14 +2,34 @@ const std = @import("std");
 const abi = @import("abi.zig");
 const temporal = @import("temporal.zig");
 
+const PlainDate = @import("PlainDate.zig");
+const PlainDateTime = @import("PlainDateTime.zig");
+const ZonedDateTime = @import("ZonedDateTime.zig");
+
 const Duration = @This();
 
-pub const RoundingOptions = temporal.RoundingOptions;
 pub const ToStringOptions = temporal.ToStringRoundingOptions;
 pub const ToStringRoundingOptions = temporal.ToStringRoundingOptions;
 pub const Unit = temporal.Unit;
 pub const RoundingMode = temporal.RoundingMode;
 pub const Sign = temporal.Sign;
+
+pub const RoundingOptions = struct {
+    largest_unit: ?Unit = null,
+    smallest_unit: ?Unit = null,
+    rounding_mode: ?RoundingMode = null,
+    rounding_increment: ?u32 = null,
+    relative_to: ?RelativeTo = null,
+
+    pub fn toCApi(self: RoundingOptions) abi.c.RoundingOptions {
+        return .{
+            .largest_unit = abi.toUnitOption(temporal.toCUnit(self.largest_unit)),
+            .smallest_unit = abi.toUnitOption(temporal.toCUnit(self.smallest_unit)),
+            .rounding_mode = abi.toRoundingModeOption(temporal.toCRoundingMode(self.rounding_mode)),
+            .increment = abi.toOption(abi.c.OptionU32, self.rounding_increment),
+        };
+    }
+};
 
 /// Partial duration specification for creating Duration objects.
 /// This is a wrapper around the C API type to avoid exposing C types directly.
@@ -52,20 +72,27 @@ const ZonedDateTimeRef = struct {
 };
 
 /// Relative-to context for duration operations.
-pub const RelativeTo = struct {
-    plain_date: ?PlainDateRef = null,
-    zoned_date_time: ?ZonedDateTimeRef = null,
+pub const RelativeTo = union(enum) {
+    plain_date: PlainDate,
+    plain_date_time: PlainDateTime,
+    zoned_date_time: ZonedDateTime,
 
     fn toCApi(self: RelativeTo) abi.c.RelativeTo {
-        return .{
-            .date = if (self.plain_date) |pd| pd._inner else null,
-            .zoned = if (self.zoned_date_time) |zdt| zdt._inner else null,
-        };
+        switch (self) {
+            .plain_date => |pd| return .{ .date = pd._inner },
+            .zoned_date_time => |zdt| return .{ .zoned = zdt._inner },
+            .plain_date_time => |pdt| return .{ .date = (pdt.toPlainDate() catch unreachable)._inner },
+        }
     }
 };
+
 /// Options for Duration.total() providing unit and relative-to context.
 pub const TotalOptions = struct {
     unit: Unit,
+    relative_to: ?RelativeTo = null,
+};
+
+pub const CompareOptions = struct {
     relative_to: ?RelativeTo = null,
 };
 
@@ -99,16 +126,52 @@ pub fn init(
     ));
 }
 
-/// Parse an ISO 8601 duration string (Temporal.Duration.from).
-pub fn from(text: []const u8) !Duration {
-    const view = abi.toDiplomatStringView(text);
-    return wrapDuration(abi.c.temporal_rs_Duration_from_utf8(view));
+/// The Temporal.Duration.from() static method creates a new Temporal.Duration object from one of the following:
+/// - A Temporal.Duration instance, which creates a copy of the instance.
+/// - An ISO 8601 string representing a duration.
+/// - A @Temporal.Duration.PartialDuration struct containing at least one of the following properties:
+///   - days
+///   - hours
+///   - microseconds
+///   - milliseconds
+///   - minutes
+///   - months
+///   - nanoseconds
+///   - seconds
+///   - weeks
+///   - years
+/// The resulting duration must not have mixed signs, so all of these properties must have the same sign (or zero). Missing properties are treated as zero.
+pub fn from(info: anytype) !Duration {
+    const T = @TypeOf(info);
+
+    if (T == Duration) return info.clone();
+    if (T == PartialDuration) return fromPartialDuration(info);
+
+    // Handle string types (both literals and slices)
+    const type_info = @typeInfo(T);
+    switch (type_info) {
+        .pointer => {
+            const ptr = type_info.pointer;
+            const ChildType = switch (@typeInfo(ptr.child)) {
+                .array => |arr| arr.child,
+                else => ptr.child,
+            };
+
+            if (ChildType == u8) return fromUtf8(info);
+            if (ChildType == u16) return fromUtf16(info);
+        },
+        else => @compileError("from() expects a Duration, []const u8, or []const u16, or Temporal.Duration.PartialDuration"),
+    }
 }
 
-/// Parse an ISO 8601 UTF-16 duration string.
-fn fromUtf16(text: []const u16) !Duration {
+inline fn fromUtf16(text: []const u16) !Duration {
     const view = abi.toDiplomatString16View(text);
     return wrapDuration(abi.c.temporal_rs_Duration_from_utf16(view));
+}
+
+inline fn fromUtf8(text: []const u8) !Duration {
+    const view = abi.toDiplomatStringView(text);
+    return wrapDuration(abi.c.temporal_rs_Duration_from_utf8(view));
 }
 
 /// Create a Duration from a partial duration (where some fields may be omitted).
@@ -204,8 +267,9 @@ pub fn subtract(self: Duration, other: Duration) !Duration {
 }
 
 /// Round the duration according to the specified options (Temporal.Duration.prototype.round).
-pub fn round(self: Duration, options: RoundingOptions, relative_to: RelativeTo) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options.toCApi(), relative_to.toCApi()));
+pub fn round(self: Duration, options: RoundingOptions) !Duration {
+    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options.toCApi(), rel));
 }
 
 /// Round the duration with an explicit provider.
@@ -214,8 +278,9 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
 }
 
 /// Compare two durations (Temporal.Duration.compare).
-pub fn compare(self: Duration, other: Duration, relative_to: RelativeTo) !i8 {
-    const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, relative_to.toCApi());
+pub fn compare(self: Duration, other: Duration, options: CompareOptions) !i8 {
+    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, rel);
     return try abi.extractResult(res);
 }
 
@@ -304,32 +369,54 @@ test init {
 }
 
 test from {
-    // P1Y2M3DT4H5M6.789S = 1 year, 2 months, 3 days, 4 hours, 5 minutes, 6.789 seconds
-    const dur = try Duration.from("P1Y2M3DT4H5M6.789S");
-    defer dur.deinit();
+    { // P1Y2M3DT4H5M6.789S = 1 year, 2 months, 3 days, 4 hours, 5 minutes, 6.789 seconds
+        const dur = try Duration.from("P1Y2M3DT4H5M6.789S");
+        defer dur.deinit();
 
-    try std.testing.expectEqual(@as(i64, 1), dur.years());
-    try std.testing.expectEqual(@as(i64, 2), dur.months());
-    try std.testing.expectEqual(@as(i64, 3), dur.days());
-    try std.testing.expectEqual(@as(i64, 4), dur.hours());
-    try std.testing.expectEqual(@as(i64, 5), dur.minutes());
-    try std.testing.expectEqual(@as(i64, 6), dur.seconds());
+        try std.testing.expectEqual(@as(i64, 1), dur.years());
+        try std.testing.expectEqual(@as(i64, 2), dur.months());
+        try std.testing.expectEqual(@as(i64, 3), dur.days());
+        try std.testing.expectEqual(@as(i64, 4), dur.hours());
+        try std.testing.expectEqual(@as(i64, 5), dur.minutes());
+        try std.testing.expectEqual(@as(i64, 6), dur.seconds());
 
-    // from-time
-    // PT2H30M = 2 hours, 30 minutes
-    const dur_time = try Duration.from("PT2H30M");
-    defer dur_time.deinit();
+        // from-time
+        // PT2H30M = 2 hours, 30 minutes
+        const dur_time = try Duration.from("PT2H30M");
+        defer dur_time.deinit();
 
-    try std.testing.expectEqual(@as(i64, 0), dur_time.years());
-    try std.testing.expectEqual(@as(i64, 2), dur_time.hours());
-    try std.testing.expectEqual(@as(i64, 30), dur_time.minutes());
+        try std.testing.expectEqual(@as(i64, 0), dur_time.years());
+        try std.testing.expectEqual(@as(i64, 2), dur_time.hours());
+        try std.testing.expectEqual(@as(i64, 30), dur_time.minutes());
 
-    // from-negative
-    const dur_negative = try Duration.from("-P1D");
-    defer dur_negative.deinit();
+        // from-negative
+        const dur_negative = try Duration.from("-P1D");
+        defer dur_negative.deinit();
 
-    try std.testing.expectEqual(@as(i64, -1), dur_negative.days());
-    try std.testing.expectEqual(Sign.negative, dur_negative.sign());
+        try std.testing.expectEqual(@as(i64, -1), dur_negative.days());
+        try std.testing.expectEqual(Sign.negative, dur_negative.sign());
+    }
+    {
+        const partial = PartialDuration{
+            .hours = 3,
+            .minutes = 45,
+        };
+
+        const dur = try Duration.from(partial);
+        defer dur.deinit();
+
+        try std.testing.expectEqual(@as(i64, 3), dur.hours());
+        try std.testing.expectEqual(@as(i64, 45), dur.minutes());
+    }
+    {
+        const dur1 = try Duration.from("PT1H");
+        defer dur1.deinit();
+        const dur2 = try Duration.from(dur1);
+        defer dur2.deinit();
+
+        try std.testing.expectEqual(@as(i64, 1), dur2.hours());
+        try std.testing.expectEqual(@as(i64, 0), dur2.minutes());
+    }
 }
 
 test blank {
@@ -351,6 +438,17 @@ test add {
 
     try std.testing.expectEqual(@as(i64, 1), result.hours());
     try std.testing.expectEqual(@as(i64, 30), result.minutes());
+}
+
+test compare {
+    const dur1 = try Duration.from("PT1H");
+    defer dur1.deinit();
+    const dur2 = try Duration.from("PT30M");
+    defer dur2.deinit();
+
+    const result = try dur1.compare(dur2, .{});
+
+    try std.testing.expectEqual(@as(i8, 1), result);
 }
 
 test subtract {
@@ -430,6 +528,51 @@ test clone {
     defer cloned.deinit();
 
     try std.testing.expectEqual(dur.hours(), cloned.hours());
+}
+
+test round {
+    {
+        const dur = try Duration.from("PT1H30M");
+        defer dur.deinit();
+
+        const rounded = try dur.round(.{
+            .smallest_unit = .hour,
+            .relative_to = .{
+                .plain_date_time = try PlainDateTime.init(2024, 1, 1, 12, 0, 0, 0, 0, 0),
+            },
+        });
+        defer rounded.deinit();
+
+        try std.testing.expectEqual(@as(i64, 2), rounded.hours());
+        try std.testing.expectEqual(@as(i64, 0), rounded.minutes());
+    }
+
+    {
+        const dur = try Duration.from("PT1H30M");
+        defer dur.deinit();
+
+        const rounded = try dur.round(.{
+            .smallest_unit = .hour,
+            .relative_to = .{
+                .plain_date = try PlainDate.init(2024, 1, 1),
+            },
+        });
+        defer rounded.deinit();
+
+        try std.testing.expectEqual(@as(i64, 2), rounded.hours());
+        try std.testing.expectEqual(@as(i64, 0), rounded.minutes());
+    }
+
+    {
+        const dur = try Duration.from("PT1H30M");
+        defer dur.deinit();
+
+        const rounded = try dur.round(.{ .smallest_unit = .hour });
+        defer rounded.deinit();
+
+        try std.testing.expectEqual(@as(i64, 2), rounded.hours());
+        try std.testing.expectEqual(@as(i64, 0), rounded.minutes());
+    }
 }
 
 test total {

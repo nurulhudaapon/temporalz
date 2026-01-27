@@ -48,6 +48,7 @@ pub const WithOptions = struct {
     microsecond: ?u16 = null,
     nanosecond: ?u16 = null,
 };
+const PartialDateTime = struct {};
 
 // Constructor - creates a PlainDateTime with all parameters
 pub fn init(
@@ -75,7 +76,7 @@ pub fn init(
     ));
 }
 
-pub fn initWithCalendar(
+pub fn calInit(
     year_val: i32,
     month_val: u8,
     day_val: u8,
@@ -105,8 +106,37 @@ pub fn initWithCalendar(
 }
 
 // Parse from string
-pub fn from(s: []const u8) !PlainDateTime {
-    return fromUtf8(s);
+pub fn from(info: anytype) !PlainDateTime {
+    const T = @TypeOf(info);
+
+    if (T == PlainDateTime) return info.clone();
+    if (T == PartialDateTime) return fromPartial(info);
+
+    // Handle string types (both literals and slices)
+    const type_info = @typeInfo(T);
+    switch (type_info) {
+        .pointer => {
+            const ptr = type_info.pointer;
+            const ChildType = switch (@typeInfo(ptr.child)) {
+                .array => |arr| arr.child,
+                else => ptr.child,
+            };
+
+            if (ChildType == u8) return fromUtf8(info);
+            if (ChildType == u16) return fromUtf16(info);
+        },
+        else => @compileError("from() expects a Duration, []const u8, or []const u16, or Temporal.Duration.PartialDuration"),
+    }
+}
+
+fn fromPartial(info: PartialDateTime) !PlainDateTime {
+    _ = info;
+    return error.NotImplemented;
+    // return abi.c.temporal_rs_PlainDateTime_from_partial(.{
+    //     .date = .{
+    //         .
+    //     }
+    // }, overflow: struct_ArithmeticOverflow_option)
 }
 
 fn fromUtf8(utf8: []const u8) !PlainDateTime {
