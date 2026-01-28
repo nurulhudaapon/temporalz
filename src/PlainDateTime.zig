@@ -48,7 +48,40 @@ pub const WithOptions = struct {
     microsecond: ?u16 = null,
     nanosecond: ?u16 = null,
 };
-const PartialDateTime = struct {};
+
+const FromOptions = struct {
+    overflow: ?Overflow = null,
+};
+
+const Overflow = enum {
+    constrain,
+    reject,
+
+    fn toCApi(self: Overflow) abi.c.ArithmeticOverflow {
+        return switch (self) {
+            .constrain => abi.c.ArithmeticOverflow_Constrain,
+            .reject => abi.c.ArithmeticOverflow_Reject,
+        };
+    }
+};
+
+const PartialDateTime = struct {
+    // Date fields (recognized by PlainDate.from)
+    calendar: ?[]const u8 = null,
+    era: ?[]const u8 = null,
+    eraYear: ?u32 = null,
+    year: ?i32 = null,
+    month: ?u8 = null,
+    monthCode: ?[]const u8 = null,
+    day: ?u8 = null,
+    // Time fields (recognized by PlainTime.from)
+    hour: ?u8 = null,
+    minute: ?u8 = null,
+    second: ?u8 = null,
+    millisecond: ?u16 = null,
+    microsecond: ?u16 = null,
+    nanosecond: ?u16 = null,
+};
 
 // Constructor - creates a PlainDateTime with all parameters
 pub fn init(
@@ -105,38 +138,32 @@ pub fn calInit(
     ));
 }
 
-// Parse from string
-pub fn from(info: anytype) !PlainDateTime {
+const FromInit = union(enum) { plain_date: PlainDate, plain_date_time: PlainDateTime };
+
+// Parse from string or object
+pub fn from(info: anytype, opts: FromOptions) !PlainDateTime {
     const T = @TypeOf(info);
 
+    const overflow = if (opts.overflow) |f| f.toCApi() else null;
     if (T == PlainDateTime) return info.clone();
-    if (T == PartialDateTime) return fromPartial(info);
+    if (T == PlainTime) return abi.c.temporal_rs_PlainDateTime_from_partial(.{ .time = info._inner }, abi.toArithmeticOverflowOption(overflow));
+    if (T == PlainDate) return abi.c.temporal_rs_PlainDateTime_from_partial(.{ .date = info._inner }, abi.toArithmeticOverflowOption(overflow));
 
     // Handle string types (both literals and slices)
     const type_info = @typeInfo(T);
     switch (type_info) {
-        .pointer => {
-            const ptr = type_info.pointer;
-            const ChildType = switch (@typeInfo(ptr.child)) {
+        .pointer => |ptr_info| {
+            const ChildType = switch (@typeInfo(ptr_info.child)) {
                 .array => |arr| arr.child,
-                else => ptr.child,
+                else => ptr_info.child,
             };
 
             if (ChildType == u8) return fromUtf8(info);
             if (ChildType == u16) return fromUtf16(info);
+            return abi.TemporalError.Generic;
         },
-        else => @compileError("from() expects a Duration, []const u8, or []const u16, or Temporal.Duration.PartialDuration"),
+        else => return abi.TemporalError.Generic,
     }
-}
-
-fn fromPartial(info: PartialDateTime) !PlainDateTime {
-    _ = info;
-    return error.NotImplemented;
-    // return abi.c.temporal_rs_PlainDateTime_from_partial(.{
-    //     .date = .{
-    //         .
-    //     }
-    // }, overflow: struct_ArithmeticOverflow_option)
 }
 
 fn fromUtf8(utf8: []const u8) !PlainDateTime {
@@ -168,6 +195,7 @@ pub fn add(self: PlainDateTime, duration: Duration) !PlainDateTime {
         .is_ok = true,
         .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
     };
+
     return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_add(self._inner, duration._inner, overflow_opt));
 }
 
@@ -441,12 +469,11 @@ pub fn valueOf(self: PlainDateTime) !void {
 
 // Helper functions
 fn clone(self: PlainDateTime) PlainDateTime {
-    return self;
+    return abi.c.temporal_rs_PlainDateTime_clone(self._inner);
 }
 
 pub fn deinit(self: *PlainDateTime) void {
-    _ = self;
-    // The C API manages memory
+    abi.c.temporal_rs_PlainDateTime_destroy(self._inner);
 }
 
 fn wrapPlainDateTime(res: anytype) !PlainDateTime {
@@ -467,7 +494,7 @@ test init {
 }
 
 test from {
-    const dt = try PlainDateTime.from("2024-01-15T14:30:45");
+    const dt = try PlainDateTime.from("2024-01-15T14:30:45", .{});
     try std.testing.expectEqual(@as(i32, 2024), dt.year());
     try std.testing.expectEqual(@as(u8, 1), dt.month());
     try std.testing.expectEqual(@as(u8, 15), dt.day());
