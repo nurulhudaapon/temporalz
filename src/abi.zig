@@ -304,3 +304,145 @@ pub inline fn extractResult(result: anytype) TemporalError!Success(@TypeOf(resul
     // Fallback for result types without detailed error information
     return TemporalError.Generic;
 }
+
+const t = @import("temporal.zig");
+const dur = @import("Duration.zig");
+const ins = @import("Instant.zig");
+
+pub const to = struct {
+    pub fn unit(opt: ?t.Unit) ?c.Unit {
+        return if (opt) |u| @as(c.Unit, @intCast(to.unitToCApi(u))) else null;
+    }
+
+    fn unitToCApi(u: t.Unit) c_uint {
+        return switch (u) {
+            .auto => c.Unit_Auto,
+            .nanosecond => c.Unit_Nanosecond,
+            .microsecond => c.Unit_Microsecond,
+            .millisecond => c.Unit_Millisecond,
+            .second => c.Unit_Second,
+            .minute => c.Unit_Minute,
+            .hour => c.Unit_Hour,
+            .day => c.Unit_Day,
+            .week => c.Unit_Week,
+            .month => c.Unit_Month,
+            .year => c.Unit_Year,
+        };
+    }
+
+    pub fn roundingMode(opt: ?t.RoundingMode) ?c.RoundingMode {
+        return if (opt) |m| @as(c.RoundingMode, @intCast(to.roundingModeToCApi(m))) else null;
+    }
+
+    fn roundingModeToCApi(m: t.RoundingMode) c_uint {
+        return switch (m) {
+            .ceil => c.RoundingMode_Ceil,
+            .floor => c.RoundingMode_Floor,
+            .expand => c.RoundingMode_Expand,
+            .trunc => c.RoundingMode_Trunc,
+            .half_ceil => c.RoundingMode_HalfCeil,
+            .half_floor => c.RoundingMode_HalfFloor,
+            .half_expand => c.RoundingMode_HalfExpand,
+            .half_trunc => c.RoundingMode_HalfTrunc,
+            .half_even => c.RoundingMode_HalfEven,
+        };
+    }
+
+    pub fn sign(opt: ?t.Sign) ?c.Sign {
+        return if (opt) |s| @as(c.Sign, @intCast(to.signToCApi(s))) else null;
+    }
+
+    fn signToCApi(s: t.Sign) c_int {
+        return switch (s) {
+            .positive => c.Sign_Positive,
+            .zero => c.Sign_Zero,
+            .negative => c.Sign_Negative,
+        };
+    }
+
+    pub fn strRoundingOpts(self: t.ToStringRoundingOptions) c.ToStringRoundingOptions {
+        const precision: c.Precision = if (self.fractional_second_digits) |fsd|
+            .{ .is_minute = false, .precision = toOption(c.OptionU8, fsd) }
+        else if (self.smallest_unit) |su|
+            switch (su) {
+                .second => .{ .is_minute = false, .precision = toOption(c.OptionU8, 0) },
+                .millisecond => .{ .is_minute = false, .precision = toOption(c.OptionU8, 3) },
+                .microsecond => .{ .is_minute = false, .precision = toOption(c.OptionU8, 6) },
+                .nanosecond => .{ .is_minute = false, .precision = toOption(c.OptionU8, 9) },
+                else => .{ .is_minute = false, .precision = toOption(c.OptionU8, null) },
+            }
+        else
+            .{ .is_minute = false, .precision = toOption(c.OptionU8, null) };
+
+        return .{
+            .precision = precision,
+            .smallest_unit = toUnitOption(unit(self.smallest_unit)),
+            .rounding_mode = toRoundingModeOption(roundingMode(self.rounding_mode)),
+        };
+    }
+
+    pub fn durRoundingOpts(self: dur.RoundingOptions) c.RoundingOptions {
+        return .{
+            .largest_unit = toUnitOption(unit(self.largest_unit)),
+            .smallest_unit = toUnitOption(unit(self.smallest_unit)),
+            .rounding_mode = toRoundingModeOption(roundingMode(self.rounding_mode)),
+            .increment = toOption(c.OptionU32, self.rounding_increment),
+        };
+    }
+
+    pub fn tz(self: ins.TimeZone) c.TimeZone {
+        return self._inner;
+    }
+
+    pub fn partialdur(self: dur.PartialDuration) c.PartialDuration {
+        return .{
+            .years = toOption(c.OptionI64, self.years),
+            .months = toOption(c.OptionI64, self.months),
+            .weeks = toOption(c.OptionI64, self.weeks),
+            .days = toOption(c.OptionI64, self.days),
+            .hours = toOption(c.OptionI64, self.hours),
+            .minutes = toOption(c.OptionI64, self.minutes),
+            .seconds = toOption(c.OptionI64, self.seconds),
+            .milliseconds = toOption(c.OptionI64, self.milliseconds),
+            .microseconds = toOption(c.OptionF64, self.microseconds),
+            .nanoseconds = toOption(c.OptionF64, self.nanoseconds),
+        };
+    }
+
+    pub fn durRelativeTo(self: dur.RelativeTo) c.RelativeTo {
+        switch (self) {
+            .plain_date => |pd| return .{ .date = pd._inner },
+            .zoned_date_time => |zdt| return .{ .zoned = zdt._inner },
+            .plain_date_time => |pdt| return .{ .date = (pdt.toPlainDate() catch unreachable)._inner },
+        }
+    }
+
+    pub fn roundingOpts(self: t.RoundingOptions) c.RoundingOptions {
+        return .{
+            .largest_unit = toUnitOption(to.unit(self.largest_unit)),
+            .smallest_unit = toUnitOption(to.unit(self.smallest_unit)),
+            .rounding_mode = toRoundingModeOption(to.roundingMode(self.rounding_mode)),
+            .increment = toOption(c.OptionU32, self.rounding_increment),
+        };
+    }
+
+    pub fn diffsettings(self: t.DifferenceSettings) c.DifferenceSettings {
+        return .{
+            .largest_unit = toUnitOption(to.unit(self.largest_unit)),
+            .smallest_unit = toUnitOption(to.unit(self.smallest_unit)),
+            .rounding_mode = toRoundingModeOption(to.roundingMode(self.rounding_mode)),
+            .increment = toOption(c.OptionU32, self.rounding_increment),
+        };
+    }
+};
+
+pub const from = struct {
+    pub fn sign(value: c_int) t.Sign {
+        return switch (value) {
+            c.Sign_Positive => .positive,
+            c.Sign_Zero => .zero,
+            c.Sign_Negative => .negative,
+            else => .zero,
+        };
+    }
+};

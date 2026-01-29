@@ -1,30 +1,19 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal = @import("temporal.zig");
+const t = @import("temporal.zig");
 
 const Duration = @import("Duration.zig");
 
 const Instant = @This();
 
-pub const Unit = temporal.Unit;
-pub const RoundingMode = temporal.RoundingMode;
-pub const Sign = temporal.Sign;
-pub const RoundingOptions = temporal.RoundingOptions;
-pub const DifferenceSettings = temporal.DifferenceSettings;
+_inner: *abi.c.Instant,
 
-/// Time zone identifier for Temporal operations
-pub const TimeZone = struct {
-    _inner: abi.c.TimeZone,
-
-    pub fn init(id: []const u8) TimeZone {
-        const view = abi.toDiplomatStringView(id);
-        return .{ ._inner = .{ .id = view } };
-    }
-
-    fn toCApi(self: TimeZone) abi.c.TimeZone {
-        return self._inner;
-    }
-};
+pub const Unit = t.Unit;
+pub const RoundingMode = t.RoundingMode;
+pub const Sign = t.Sign;
+pub const RoundingOptions = t.RoundingOptions;
+pub const DifferenceSettings = t.DifferenceSettings;
+pub const TimeZone = t.TimeZone;
 
 /// Options for Instant.toString()
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toString
@@ -46,8 +35,6 @@ pub const ToStringOptions = struct {
     /// Time zone to use. Either a time zone identifier string or null for UTC.
     time_zone: ?TimeZone = null,
 };
-
-_inner: *abi.c.Instant,
 
 /// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
 pub fn init(epoch_ns: i128) !Instant {
@@ -112,19 +99,19 @@ pub fn subtract(self: Instant, duration: *Duration) !Instant {
 
 /// Difference until another instant (Temporal.Instant.prototype.until).
 pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_until(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_until(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Difference since another instant (Temporal.Instant.prototype.since).
 pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_since(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_since(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Round this instant (Temporal.Instant.prototype.round).
 pub fn round(self: Instant, options: RoundingOptions) !Instant {
-    return wrapInstant(abi.c.temporal_rs_Instant_round(self._inner, options.toCApi()));
+    return wrapInstant(abi.c.temporal_rs_Instant_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 /// Compare two instants (Temporal.Instant.compare).
@@ -235,8 +222,8 @@ fn optsToRounding(opts: ToStringOptions) abi.c.ToStringRoundingOptions {
     else
         defaultPrecision();
 
-    const smallest_unit = if (opts.smallest_unit) |unit| unit.toCApi() else null;
-    const rounding_mode = if (opts.rounding_mode) |mode| mode.toCApi() else null;
+    const smallest_unit = if (opts.smallest_unit) |unit| abi.to.unit(unit).? else null;
+    const rounding_mode = if (opts.rounding_mode) |mode| abi.to.roundingMode(mode) else null;
 
     return .{
         .precision = precision,

@@ -1,17 +1,18 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal_types = @import("temporal.zig");
+const t = @import("temporal.zig");
+
+const Duration = @import("Duration.zig");
 
 const PlainTime = @This();
-const Duration = @import("Duration.zig");
 
 _inner: *abi.c.PlainTime,
 
 // Import types from temporal.zig
-pub const Unit = temporal_types.Unit;
-pub const RoundingMode = temporal_types.RoundingMode;
-pub const DifferenceSettings = temporal_types.DifferenceSettings;
-pub const RoundOptions = temporal_types.RoundingOptions;
+pub const Unit = t.Unit;
+pub const RoundingMode = t.RoundingMode;
+pub const DifferenceSettings = t.DifferenceSettings;
+pub const RoundOptions = t.RoundingOptions;
 
 pub const WithOptions = struct {
     hour: ?u8 = null,
@@ -81,14 +82,14 @@ pub fn subtract(self: PlainTime, duration: Duration) !PlainTime {
 }
 
 pub fn until(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
-    const settings = options.toCApi();
+    const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainTime_until(self._inner, other._inner, settings);
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
-    const settings = options.toCApi();
+    const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainTime_since(self._inner, other._inner, settings);
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
@@ -96,7 +97,7 @@ pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Du
 
 // Rounding
 pub fn round(self: PlainTime, options: RoundOptions) !PlainTime {
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_round(self._inner, options.toCApi()));
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 // Property accessors
@@ -146,8 +147,8 @@ pub fn toString(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
     return toStringWithOptions(self, allocator, .{});
 }
 
-fn toStringWithOptions(self: PlainTime, allocator: std.mem.Allocator, options: temporal_types.ToStringRoundingOptions) ![]u8 {
-    const rounding_opts = options.toCApi();
+fn toStringWithOptions(self: PlainTime, allocator: std.mem.Allocator, options: t.ToStringRoundingOptions) ![]u8 {
+    const rounding_opts = abi.to.strRoundingOpts(options);
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 

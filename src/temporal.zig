@@ -1,6 +1,3 @@
-const abi = @import("abi.zig");
-const c = abi.c;
-
 /// Time unit for Temporal operations.
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
 pub const Unit = enum {
@@ -15,22 +12,6 @@ pub const Unit = enum {
     week,
     month,
     year,
-
-    pub fn toCApi(self: Unit) c_uint {
-        return switch (self) {
-            .auto => c.Unit_Auto,
-            .nanosecond => c.Unit_Nanosecond,
-            .microsecond => c.Unit_Microsecond,
-            .millisecond => c.Unit_Millisecond,
-            .second => c.Unit_Second,
-            .minute => c.Unit_Minute,
-            .hour => c.Unit_Hour,
-            .day => c.Unit_Day,
-            .week => c.Unit_Week,
-            .month => c.Unit_Month,
-            .year => c.Unit_Year,
-        };
-    }
 };
 
 /// Rounding mode for Temporal operations.
@@ -54,20 +35,6 @@ pub const RoundingMode = enum {
     half_trunc,
     /// Round half to even (banker's rounding)
     half_even,
-
-    pub fn toCApi(self: RoundingMode) c_uint {
-        return switch (self) {
-            .ceil => c.RoundingMode_Ceil,
-            .floor => c.RoundingMode_Floor,
-            .expand => c.RoundingMode_Expand,
-            .trunc => c.RoundingMode_Trunc,
-            .half_ceil => c.RoundingMode_HalfCeil,
-            .half_floor => c.RoundingMode_HalfFloor,
-            .half_expand => c.RoundingMode_HalfExpand,
-            .half_trunc => c.RoundingMode_HalfTrunc,
-            .half_even => c.RoundingMode_HalfEven,
-        };
-    }
 };
 
 /// Sign of a duration or time value.
@@ -75,23 +42,6 @@ pub const Sign = enum {
     positive,
     zero,
     negative,
-
-    pub fn toCApi(self: Sign) c_int {
-        return switch (self) {
-            .positive => c.Sign_Positive,
-            .zero => c.Sign_Zero,
-            .negative => c.Sign_Negative,
-        };
-    }
-
-    pub fn fromCApi(value: c_int) Sign {
-        return switch (value) {
-            c.Sign_Positive => .positive,
-            c.Sign_Zero => .zero,
-            c.Sign_Negative => .negative,
-            else => .zero,
-        };
-    }
 };
 
 /// Options for rounding operations (Instant.round, Duration.round, etc.).
@@ -101,15 +51,6 @@ pub const RoundingOptions = struct {
     smallest_unit: ?Unit = null,
     rounding_mode: ?RoundingMode = null,
     rounding_increment: ?u32 = null,
-
-    pub fn toCApi(self: RoundingOptions) c.RoundingOptions {
-        return .{
-            .largest_unit = abi.toUnitOption(toCUnit(self.largest_unit)),
-            .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
-            .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
-            .increment = abi.toOption(c.OptionU32, self.rounding_increment),
-        };
-    }
 };
 
 /// Options for computing differences between instants.
@@ -119,15 +60,6 @@ pub const DifferenceSettings = struct {
     smallest_unit: ?Unit = null,
     rounding_mode: ?RoundingMode = null,
     rounding_increment: ?u32 = null,
-
-    pub fn toCApi(self: DifferenceSettings) c.DifferenceSettings {
-        return .{
-            .largest_unit = abi.toUnitOption(toCUnit(self.largest_unit)),
-            .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
-            .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
-            .increment = abi.toOption(c.OptionU32, self.rounding_increment),
-        };
-    }
 };
 
 /// Options for Duration.toString() formatting.
@@ -136,33 +68,16 @@ pub const ToStringRoundingOptions = struct {
     fractional_second_digits: ?u8 = null,
     smallest_unit: ?Unit = null,
     rounding_mode: ?RoundingMode = null,
+};
 
-    pub fn toCApi(self: ToStringRoundingOptions) c.ToStringRoundingOptions {
-        const precision: c.Precision = if (self.fractional_second_digits) |fsd|
-            .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, fsd) }
-        else if (self.smallest_unit) |su|
-            switch (su) {
-                .second => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 0) },
-                .millisecond => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 3) },
-                .microsecond => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 6) },
-                .nanosecond => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, 9) },
-                else => .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, null) },
-            }
-        else
-            .{ .is_minute = false, .precision = abi.toOption(c.OptionU8, null) };
+/// Time zone identifier for Temporal operations
+pub const TimeZone = struct {
+    _inner: abi.c.TimeZone,
 
-        return .{
-            .precision = precision,
-            .smallest_unit = abi.toUnitOption(toCUnit(self.smallest_unit)),
-            .rounding_mode = abi.toRoundingModeOption(toCRoundingMode(self.rounding_mode)),
-        };
+    pub fn init(id: []const u8) TimeZone {
+        const view = abi.toDiplomatStringView(id);
+        return .{ ._inner = .{ .id = view } };
     }
 };
 
-pub fn toCUnit(opt: ?Unit) ?c.Unit {
-    return if (opt) |u| @as(c.Unit, @intCast(u.toCApi())) else null;
-}
-
-pub fn toCRoundingMode(opt: ?RoundingMode) ?c.RoundingMode {
-    return if (opt) |m| @as(c.RoundingMode, @intCast(m.toCApi())) else null;
-}
+const abi = @import("abi.zig");

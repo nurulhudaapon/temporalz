@@ -1,9 +1,10 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal_types = @import("temporal.zig");
+const t = @import("temporal.zig");
+
+const PlainDate = @import("PlainDate.zig");
 
 const PlainMonthDay = @This();
-const PlainDate = @import("PlainDate.zig");
 
 _inner: *abi.c.PlainMonthDay,
 

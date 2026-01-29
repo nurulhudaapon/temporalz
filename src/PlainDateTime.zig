@@ -1,6 +1,6 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal = @import("temporal.zig");
+const t = @import("temporal.zig");
 
 const PlainDate = @import("PlainDate.zig");
 const PlainTime = @import("PlainTime.zig");
@@ -12,11 +12,11 @@ const PlainDateTime = @This();
 _inner: *abi.c.PlainDateTime,
 
 // Import types from temporal.zig
-pub const Unit = temporal.Unit;
-pub const RoundingMode = temporal.RoundingMode;
-pub const Sign = temporal.Sign;
-pub const DifferenceSettings = temporal.DifferenceSettings;
-pub const RoundOptions = temporal.RoundingOptions;
+pub const Unit = t.Unit;
+pub const RoundingMode = t.RoundingMode;
+pub const Sign = t.Sign;
+pub const DifferenceSettings = t.DifferenceSettings;
+pub const RoundOptions = t.RoundingOptions;
 // Type definitions for API compatibility
 pub const CalendarDisplay = enum {
     auto,
@@ -208,20 +208,20 @@ pub fn subtract(self: PlainDateTime, duration: Duration) !PlainDateTime {
 }
 
 pub fn until(self: PlainDateTime, other: PlainDateTime, options: DifferenceSettings) !Duration {
-    const result = abi.c.temporal_rs_PlainDateTime_until(self._inner, other._inner, options.toCApi());
+    const result = abi.c.temporal_rs_PlainDateTime_until(self._inner, other._inner, abi.to.diffsettings(options));
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn since(self: PlainDateTime, other: PlainDateTime, options: DifferenceSettings) !Duration {
-    const result = abi.c.temporal_rs_PlainDateTime_since(self._inner, other._inner, options.toCApi());
+    const result = abi.c.temporal_rs_PlainDateTime_since(self._inner, other._inner, abi.to.diffsettings(options));
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 // Rounding
 pub fn round(self: PlainDateTime, options: RoundOptions) !PlainDateTime {
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_round(self._inner, options.toCApi()));
+    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 // Property accessors - Date fields
@@ -375,12 +375,12 @@ pub fn withCalendar(self: PlainDateTime, calendar: []const u8) !PlainDateTime {
 }
 
 pub fn withPlainTime(self: PlainDateTime, time: ?PlainTime) !PlainDateTime {
-    const new_hour: u8 = if (time) |t| t.hour() else 0;
-    const new_minute: u8 = if (time) |t| t.minute() else 0;
-    const new_second: u8 = if (time) |t| t.second() else 0;
-    const new_millisecond: u16 = if (time) |t| t.millisecond() else 0;
-    const new_microsecond: u16 = if (time) |t| t.microsecond() else 0;
-    const new_nanosecond: u16 = if (time) |t| t.nanosecond() else 0;
+    const new_hour: u8 = if (time) |tt| tt.hour() else 0;
+    const new_minute: u8 = if (time) |tt| tt.minute() else 0;
+    const new_second: u8 = if (time) |tt| tt.second() else 0;
+    const new_millisecond: u16 = if (time) |tt| tt.millisecond() else 0;
+    const new_microsecond: u16 = if (time) |tt| tt.microsecond() else 0;
+    const new_nanosecond: u16 = if (time) |tt| tt.nanosecond() else 0;
 
     const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
     const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
@@ -597,10 +597,10 @@ test toPlainDate {
 
 test toPlainTime {
     const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 0, 0, 0);
-    const t = try dt.toPlainTime();
-    try std.testing.expectEqual(@as(u8, 14), t.hour());
-    try std.testing.expectEqual(@as(u8, 30), t.minute());
-    try std.testing.expectEqual(@as(u8, 45), t.second());
+    const tt = try dt.toPlainTime();
+    try std.testing.expectEqual(@as(u8, 14), tt.hour());
+    try std.testing.expectEqual(@as(u8, 30), tt.minute());
+    try std.testing.expectEqual(@as(u8, 45), tt.second());
 }
 
 test toZonedDateTime {
@@ -635,8 +635,8 @@ test withCalendar {
 
 test withPlainTime {
     const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 0, 0, 0, 0);
-    const t = try PlainTime.from("10:15:30");
-    const result = try dt.withPlainTime(t);
+    const tt = try PlainTime.from("10:15:30");
+    const result = try dt.withPlainTime(tt);
     try std.testing.expectEqual(@as(u8, 10), result.hour());
     try std.testing.expectEqual(@as(u8, 15), result.minute());
     try std.testing.expectEqual(@as(u8, 30), result.second());
