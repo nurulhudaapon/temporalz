@@ -1,6 +1,6 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal_types = @import("temporal.zig");
+const t = @import("temporal.zig");
 
 const Instant = @import("Instant.zig");
 const PlainDate = @import("PlainDate.zig");
@@ -13,11 +13,11 @@ const ZonedDateTime = @This();
 _inner: *abi.c.ZonedDateTime,
 
 // Import types from temporal.zig
-pub const Unit = temporal_types.Unit;
-pub const RoundingMode = temporal_types.RoundingMode;
-pub const Sign = temporal_types.Sign;
-pub const DifferenceSettings = temporal_types.DifferenceSettings;
-pub const RoundOptions = temporal_types.RoundingOptions;
+pub const Unit = t.Unit;
+pub const RoundingMode = t.RoundingMode;
+pub const Sign = t.Sign;
+pub const DifferenceSettings = t.DifferenceSettings;
+pub const RoundOptions = t.RoundingOptions;
 
 pub const TimeZone = struct {
     _inner: abi.c.TimeZone,
@@ -179,12 +179,12 @@ pub fn getTimeZoneTransition(self: ZonedDateTime, direction: enum { next, previo
 
 /// Round to the given options
 pub fn round(self: ZonedDateTime, options: RoundOptions) !ZonedDateTime {
-    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_round(self._inner, options.toCApi()));
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 /// Calculate duration since another ZonedDateTime
 pub fn since(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
-    const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_since(self._inner, other._inner, settings.toCApi()));
+    const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_since(self._inner, other._inner, abi.to.diffsettings(settings)));
     return .{ ._inner = ptr };
 }
 
@@ -253,7 +253,7 @@ pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStrin
 
 /// Calculate duration until another ZonedDateTime
 pub fn until(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
-    const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_until(self._inner, other._inner, settings.toCApi()));
+    const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_until(self._inner, other._inner, abi.to.diffsettings(settings)));
     return .{ ._inner = ptr };
 }
 
@@ -281,7 +281,7 @@ pub fn withCalendar(self: ZonedDateTime, calendar: []const u8) !ZonedDateTime {
 
 /// Create a new ZonedDateTime with a different time
 pub fn withPlainTime(self: ZonedDateTime, time: ?PlainTime) !ZonedDateTime {
-    const time_ptr = if (time) |t| t._inner else null;
+    const time_ptr = if (time) |tt| tt._inner else null;
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with_plain_time(self._inner, time_ptr));
 }
 

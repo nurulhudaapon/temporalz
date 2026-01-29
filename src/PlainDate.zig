@@ -1,6 +1,6 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal = @import("temporal.zig");
+const t = @import("temporal.zig");
 
 const PlainDateTime = @import("PlainDateTime.zig");
 const PlainMonthDay = @import("PlainMonthDay.zig");
@@ -11,10 +11,12 @@ const Duration = @import("Duration.zig");
 
 const PlainDate = @This();
 
-pub const Unit = temporal.Unit;
-pub const RoundingMode = temporal.RoundingMode;
-pub const Sign = temporal.Sign;
-pub const DifferenceSettings = temporal.DifferenceSettings;
+_inner: *abi.c.PlainDate,
+
+pub const Unit = t.Unit;
+pub const RoundingMode = t.RoundingMode;
+pub const Sign = t.Sign;
+pub const DifferenceSettings = t.DifferenceSettings;
 
 pub const ToStringOptions = struct {
     calendar_id: ?CalendarDisplay = null,
@@ -40,8 +42,6 @@ pub const ToZonedDateTimeOptions = struct {
     time_zone: []const u8,
     plain_time: ?PlainTime = null,
 };
-
-_inner: *abi.c.PlainDate,
 
 pub fn init(year_val: i32, month_val: u8, day_val: u8) !PlainDate {
     return calInit(year_val, month_val, day_val, "iso8601");
@@ -104,12 +104,12 @@ pub fn subtract(self: PlainDate, duration: Duration) !PlainDate {
 }
 
 pub fn until(self: PlainDate, other: PlainDate, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_until(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_until(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn since(self: PlainDate, other: PlainDate, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_since(self._inner, other._inner, settings.toCApi()))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_since(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -129,7 +129,7 @@ pub fn withCalendar(self: PlainDate, calendar: []const u8) !PlainDate {
 }
 
 pub fn toPlainDateTime(self: PlainDate, time: ?PlainTime) !PlainDateTime {
-    const time_ptr = if (time) |t| t._inner else null;
+    const time_ptr = if (time) |tt| tt._inner else null;
     const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_plain_date_time(self._inner, time_ptr))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
@@ -149,7 +149,7 @@ pub fn toZonedDateTime(self: PlainDate, options: ToZonedDateTimeOptions) !ZonedD
     const tz_result = abi.c.temporal_rs_TimeZone_try_from_str(tz_view);
     const time_zone = try abi.extractResult(tz_result);
 
-    const time_ptr = if (options.plain_time) |t| t._inner else null;
+    const time_ptr = if (options.plain_time) |tt| tt._inner else null;
     const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_zoned_date_time(self._inner, time_zone, time_ptr))) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };

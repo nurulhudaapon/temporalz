@@ -1,6 +1,6 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal = @import("temporal.zig");
+const t = @import("temporal.zig");
 
 const PlainDate = @import("PlainDate.zig");
 const PlainDateTime = @import("PlainDateTime.zig");
@@ -8,11 +8,13 @@ const ZonedDateTime = @import("ZonedDateTime.zig");
 
 const Duration = @This();
 
-pub const ToStringOptions = temporal.ToStringRoundingOptions;
-pub const ToStringRoundingOptions = temporal.ToStringRoundingOptions;
-pub const Unit = temporal.Unit;
-pub const RoundingMode = temporal.RoundingMode;
-pub const Sign = temporal.Sign;
+_inner: *abi.c.Duration,
+
+pub const ToStringOptions = t.ToStringRoundingOptions;
+pub const ToStringRoundingOptions = t.ToStringRoundingOptions;
+pub const Unit = t.Unit;
+pub const RoundingMode = t.RoundingMode;
+pub const Sign = t.Sign;
 
 pub const RoundingOptions = struct {
     largest_unit: ?Unit = null,
@@ -20,15 +22,6 @@ pub const RoundingOptions = struct {
     rounding_mode: ?RoundingMode = null,
     rounding_increment: ?u32 = null,
     relative_to: ?RelativeTo = null,
-
-    pub fn toCApi(self: RoundingOptions) abi.c.RoundingOptions {
-        return .{
-            .largest_unit = abi.toUnitOption(temporal.toCUnit(self.largest_unit)),
-            .smallest_unit = abi.toUnitOption(temporal.toCUnit(self.smallest_unit)),
-            .rounding_mode = abi.toRoundingModeOption(temporal.toCRoundingMode(self.rounding_mode)),
-            .increment = abi.toOption(abi.c.OptionU32, self.rounding_increment),
-        };
-    }
 };
 
 /// Partial duration specification for creating Duration objects.
@@ -44,31 +37,6 @@ pub const PartialDuration = struct {
     milliseconds: ?i64 = null,
     microseconds: ?f64 = null,
     nanoseconds: ?f64 = null,
-
-    fn toCApi(self: PartialDuration) abi.c.PartialDuration {
-        return .{
-            .years = abi.toOption(abi.c.OptionI64, self.years),
-            .months = abi.toOption(abi.c.OptionI64, self.months),
-            .weeks = abi.toOption(abi.c.OptionI64, self.weeks),
-            .days = abi.toOption(abi.c.OptionI64, self.days),
-            .hours = abi.toOption(abi.c.OptionI64, self.hours),
-            .minutes = abi.toOption(abi.c.OptionI64, self.minutes),
-            .seconds = abi.toOption(abi.c.OptionI64, self.seconds),
-            .milliseconds = abi.toOption(abi.c.OptionI64, self.milliseconds),
-            .microseconds = abi.toOption(abi.c.OptionF64, self.microseconds),
-            .nanoseconds = abi.toOption(abi.c.OptionF64, self.nanoseconds),
-        };
-    }
-};
-
-/// Wrapper for PlainDate reference in RelativeTo
-const PlainDateRef = struct {
-    _inner: *abi.c.PlainDate,
-};
-
-/// Wrapper for ZonedDateTime reference in RelativeTo
-const ZonedDateTimeRef = struct {
-    _inner: *abi.c.ZonedDateTime,
 };
 
 /// Relative-to context for duration operations.
@@ -76,14 +44,6 @@ pub const RelativeTo = union(enum) {
     plain_date: PlainDate,
     plain_date_time: PlainDateTime,
     zoned_date_time: ZonedDateTime,
-
-    fn toCApi(self: RelativeTo) abi.c.RelativeTo {
-        switch (self) {
-            .plain_date => |pd| return .{ .date = pd._inner },
-            .zoned_date_time => |zdt| return .{ .zoned = zdt._inner },
-            .plain_date_time => |pdt| return .{ .date = (pdt.toPlainDate() catch unreachable)._inner },
-        }
-    }
 };
 
 /// Options for Duration.total() providing unit and relative-to context.
@@ -95,8 +55,6 @@ pub const TotalOptions = struct {
 pub const CompareOptions = struct {
     relative_to: ?RelativeTo = null,
 };
-
-_inner: *abi.c.Duration,
 
 /// Construct a Duration from years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds.
 /// Equivalent to `Temporal.Duration.from()` or the constructor.
@@ -176,7 +134,7 @@ inline fn fromUtf8(text: []const u8) !Duration {
 
 /// Create a Duration from a partial duration (where some fields may be omitted).
 fn fromPartialDuration(partial: PartialDuration) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_from_partial_duration(partial.toCApi()));
+    return wrapDuration(abi.c.temporal_rs_Duration_from_partial_duration(abi.to.partialdur(partial)));
 }
 
 /// Check if the time portion of the duration is within valid ranges.
@@ -236,7 +194,7 @@ pub fn nanoseconds(self: Duration) f64 {
 
 /// Get the sign of the duration: positive (1), zero (0), or negative (-1).
 pub fn sign(self: Duration) Sign {
-    return Sign.fromCApi(abi.c.temporal_rs_Duration_sign(self._inner));
+    return abi.from.sign(abi.c.temporal_rs_Duration_sign(self._inner));
 }
 
 /// Check if the duration is zero (all fields are zero).
@@ -268,8 +226,8 @@ pub fn subtract(self: Duration, other: Duration) !Duration {
 
 /// Round the duration according to the specified options (Temporal.Duration.prototype.round).
 pub fn round(self: Duration, options: RoundingOptions) !Duration {
-    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
-    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, options.toCApi(), rel));
+    const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
+    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, abi.to.durRoundingOpts(options), rel));
 }
 
 /// Round the duration with an explicit provider.
@@ -279,7 +237,7 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
 
 /// Compare two durations (Temporal.Duration.compare).
 pub fn compare(self: Duration, other: Duration, options: CompareOptions) !i8 {
-    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
     const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, rel);
     return try abi.extractResult(res);
 }
@@ -292,14 +250,14 @@ fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo,
 
 /// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
 pub fn total(self: Duration, options: TotalOptions) !f64 {
-    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
-    const res = abi.c.temporal_rs_Duration_total(self._inner, options.unit.toCApi(), rel);
+    const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const res = abi.c.temporal_rs_Duration_total(self._inner, abi.to.unit(options.unit).?, rel);
     return try abi.extractResult(res);
 }
 
 /// Get the total value of the duration with an explicit provider.
 fn totalWithProvider(self: Duration, options: TotalOptions, provider: *const abi.c.Provider) !f64 {
-    const rel = if (options.relative_to) |r| r.toCApi() else abi.c.RelativeTo{ .date = null, .zoned = null };
+    const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
     const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, options.unit.toCApi(), rel, provider);
     return try abi.extractResult(res);
 }
@@ -309,7 +267,7 @@ pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringR
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = abi.c.temporal_rs_Duration_to_string(self._inner, options.toCApi(), &write.inner);
+    const res = abi.c.temporal_rs_Duration_to_string(self._inner, abi.to.strRoundingOpts(options), &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
@@ -580,15 +538,15 @@ test total {
         const dur = try Duration.init(0, 0, 0, 0, 1, 30, 0, 0, 0, 0);
         defer dur.deinit();
 
-        const t = try dur.total(.{ .unit = .hour });
-        try std.testing.expectEqual(1.5, t);
+        const ttl = try dur.total(.{ .unit = .hour });
+        try std.testing.expectEqual(1.5, ttl);
     }
     {
         const dur = try Duration.from("PT4H5M6S");
         defer dur.deinit();
 
-        const t = try dur.total(.{ .unit = .hour });
-        try std.testing.expectEqual(4.085, t);
+        const ttl = try dur.total(.{ .unit = .hour });
+        try std.testing.expectEqual(4.085, ttl);
     }
 
     {

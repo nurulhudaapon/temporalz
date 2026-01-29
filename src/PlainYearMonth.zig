@@ -1,18 +1,19 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const temporal_types = @import("temporal.zig");
+const t = @import("temporal.zig");
 
-const PlainYearMonth = @This();
 const PlainDate = @import("PlainDate.zig");
 const Duration = @import("Duration.zig");
+
+const PlainYearMonth = @This();
 
 _inner: *abi.c.PlainYearMonth,
 
 // Import types from temporal.zig
-pub const Unit = temporal_types.Unit;
-pub const RoundingMode = temporal_types.RoundingMode;
-pub const DifferenceSettings = temporal_types.DifferenceSettings;
-pub const RoundOptions = temporal_types.RoundingOptions;
+pub const Unit = t.Unit;
+pub const RoundingMode = t.RoundingMode;
+pub const DifferenceSettings = t.DifferenceSettings;
+pub const RoundOptions = t.RoundingOptions;
 
 // Type definitions for API compatibility
 pub const CalendarDisplay = enum {
@@ -95,14 +96,14 @@ pub fn subtract(self: PlainYearMonth, duration: Duration) !PlainYearMonth {
 }
 
 pub fn until(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSettings) !Duration {
-    const settings = options.toCApi();
+    const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainYearMonth_until(self._inner, other._inner, settings);
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 pub fn since(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSettings) !Duration {
-    const settings = options.toCApi();
+    const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainYearMonth_since(self._inner, other._inner, settings);
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
