@@ -310,51 +310,66 @@ const dur = @import("Duration.zig");
 const ins = @import("Instant.zig");
 
 pub const to = struct {
-        pub fn toTimeZone(val: anytype) c.TimeZone {
-            return val._inner;
-        }
+    pub fn toArithmeticOverflow(val: anytype) c.ArithmeticOverflow {
+        return switch (val) {
+            .constrain => c.ArithmeticOverflow_Constrain,
+            .reject => c.ArithmeticOverflow_Reject,
+        };
+    }
 
-        pub fn toDisambiguation(d: anytype) c.Disambiguation {
-            return switch (d) {
-                .compatible => c.Disambiguation_Compatible,
-                .earlier => c.Disambiguation_Earlier,
-                .later => c.Disambiguation_Later,
-                .reject => c.Disambiguation_Reject,
-            };
-        }
+    pub fn toShowCalendar(val: anytype) c.ShowCalendar {
+        return switch (val) {
+            .auto => c.ShowCalendar_Auto,
+            .always => c.ShowCalendar_Always,
+            .never => c.ShowCalendar_Never,
+            .critical => c.ShowCalendar_Critical,
+        };
+    }
+    pub fn toTimeZone(val: anytype) c.TimeZone {
+        return val._inner;
+    }
 
-        pub fn toOffsetDisambiguation(o: anytype) c.OffsetDisambiguation {
-            return switch (o) {
-                .use_offset => c.OffsetDisambiguation_Use,
-                .prefer_offset => c.OffsetDisambiguation_Prefer,
-                .ignore_offset => c.OffsetDisambiguation_Ignore,
-                .reject => c.OffsetDisambiguation_Reject,
-            };
-        }
+    pub fn toDisambiguation(d: anytype) c.Disambiguation {
+        return switch (d) {
+            .compatible => c.Disambiguation_Compatible,
+            .earlier => c.Disambiguation_Earlier,
+            .later => c.Disambiguation_Later,
+            .reject => c.Disambiguation_Reject,
+        };
+    }
 
-        pub fn calendarDisplay(cd: anytype) c.DisplayCalendar {
-            return switch (cd) {
-                .auto => c.DisplayCalendar_Auto,
-                .always => c.DisplayCalendar_Always,
-                .never => c.DisplayCalendar_Never,
-                .critical => c.DisplayCalendar_Critical,
-            };
-        }
+    pub fn toOffsetDisambiguation(o: anytype) c.OffsetDisambiguation {
+        return switch (o) {
+            .use_offset => c.OffsetDisambiguation_Use,
+            .prefer_offset => c.OffsetDisambiguation_Prefer,
+            .ignore_offset => c.OffsetDisambiguation_Ignore,
+            .reject => c.OffsetDisambiguation_Reject,
+        };
+    }
 
-        pub fn displayOffset(o: anytype) c.DisplayOffset {
-            return switch (o) {
-                .auto => c.DisplayOffset_Auto,
-                .never => c.DisplayOffset_Never,
-            };
-        }
+    pub fn calendarDisplay(cd: anytype) c.DisplayCalendar {
+        return switch (cd) {
+            .auto => c.DisplayCalendar_Auto,
+            .always => c.DisplayCalendar_Always,
+            .never => c.DisplayCalendar_Never,
+            .critical => c.DisplayCalendar_Critical,
+        };
+    }
 
-        pub fn toDisplayTimeZone(val: anytype) c.DisplayTimeZone {
-            return switch (val) {
-                .auto => c.DisplayTimeZone_Auto,
-                .never => c.DisplayTimeZone_Never,
-                .critical => c.DisplayTimeZone_Critical,
-            };
-        }
+    pub fn displayOffset(o: anytype) c.DisplayOffset {
+        return switch (o) {
+            .auto => c.DisplayOffset_Auto,
+            .never => c.DisplayOffset_Never,
+        };
+    }
+
+    pub fn toDisplayTimeZone(val: anytype) c.DisplayTimeZone {
+        return switch (val) {
+            .auto => c.DisplayTimeZone_Auto,
+            .never => c.DisplayTimeZone_Never,
+            .critical => c.DisplayTimeZone_Critical,
+        };
+    }
     pub fn unit(opt: ?t.Unit) ?c.Unit {
         return if (opt) |u| @as(c.Unit, @intCast(to.unitToCApi(u))) else null;
     }
