@@ -27,15 +27,6 @@ pub const CalendarDisplay = enum {
     always,
     never,
     critical,
-
-    fn toCApi(self: CalendarDisplay) abi.c.ShowCalendar {
-        return switch (self) {
-            .auto => .Auto,
-            .always => .Always,
-            .never => .Never,
-            .critical => .Critical,
-        };
-    }
 };
 
 pub const ToZonedDateTimeOptions = struct {

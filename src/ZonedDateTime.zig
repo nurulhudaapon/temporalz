@@ -28,8 +28,6 @@ pub const TimeZone = struct {
         const tz = try abi.extractResult(result);
         return .{ ._inner = tz };
     }
-
-    // ...existing code...
 };
 
 pub const Disambiguation = enum {
@@ -37,8 +35,6 @@ pub const Disambiguation = enum {
     earlier,
     later,
     reject,
-
-    // ...existing code...
 };
 
 pub const OffsetDisambiguation = enum {
@@ -46,8 +42,6 @@ pub const OffsetDisambiguation = enum {
     prefer_offset,
     ignore_offset,
     reject,
-
-    // ...existing code...
 };
 
 pub const CalendarDisplay = enum {
@@ -55,23 +49,17 @@ pub const CalendarDisplay = enum {
     always,
     never,
     critical,
-
-    // ...existing code...
 };
 
 pub const DisplayOffset = enum {
     auto,
     never,
-
-    // ...existing code...
 };
 
 pub const DisplayTimeZone = enum {
     auto,
     never,
     critical,
-
-    // ...existing code...
 };
 
 pub const ToStringOptions = struct {

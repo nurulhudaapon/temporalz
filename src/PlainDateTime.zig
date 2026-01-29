@@ -56,13 +56,6 @@ const FromOptions = struct {
 const Overflow = enum {
     constrain,
     reject,
-
-    fn toCApi(self: Overflow) abi.c.ArithmeticOverflow {
-        return switch (self) {
-            .constrain => abi.c.ArithmeticOverflow_Constrain,
-            .reject => abi.c.ArithmeticOverflow_Reject,
-        };
-    }
 };
 
 const PartialDateTime = struct {
@@ -144,7 +137,7 @@ const FromInit = union(enum) { plain_date: PlainDate, plain_date_time: PlainDate
 pub fn from(info: anytype, opts: FromOptions) !PlainDateTime {
     const T = @TypeOf(info);
 
-    const overflow = if (opts.overflow) |f| f.toCApi() else null;
+    const overflow = if (opts.overflow) |f| abi.to.toArithmeticOverflow(f) else null;
     if (T == PlainDateTime) return info.clone();
     if (T == PlainTime) return abi.c.temporal_rs_PlainDateTime_from_partial(.{ .time = info._inner }, abi.toArithmeticOverflowOption(overflow));
     if (T == PlainDate) return abi.c.temporal_rs_PlainDateTime_from_partial(.{ .date = info._inner }, abi.toArithmeticOverflowOption(overflow));
