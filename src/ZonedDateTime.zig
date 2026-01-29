@@ -29,9 +29,7 @@ pub const TimeZone = struct {
         return .{ ._inner = tz };
     }
 
-    fn toCApi(self: TimeZone) abi.c.TimeZone {
-        return self._inner;
-    }
+    // ...existing code...
 };
 
 pub const Disambiguation = enum {
@@ -40,14 +38,7 @@ pub const Disambiguation = enum {
     later,
     reject,
 
-    fn toCApi(self: Disambiguation) abi.c.Disambiguation {
-        return switch (self) {
-            .compatible => abi.c.Disambiguation_Compatible,
-            .earlier => abi.c.Disambiguation_Earlier,
-            .later => abi.c.Disambiguation_Later,
-            .reject => abi.c.Disambiguation_Reject,
-        };
-    }
+    // ...existing code...
 };
 
 pub const OffsetDisambiguation = enum {
@@ -56,14 +47,7 @@ pub const OffsetDisambiguation = enum {
     ignore_offset,
     reject,
 
-    fn toCApi(self: OffsetDisambiguation) abi.c.OffsetDisambiguation {
-        return switch (self) {
-            .use_offset => abi.c.OffsetDisambiguation_Use,
-            .prefer_offset => abi.c.OffsetDisambiguation_Prefer,
-            .ignore_offset => abi.c.OffsetDisambiguation_Ignore,
-            .reject => abi.c.OffsetDisambiguation_Reject,
-        };
-    }
+    // ...existing code...
 };
 
 pub const CalendarDisplay = enum {
@@ -72,26 +56,14 @@ pub const CalendarDisplay = enum {
     never,
     critical,
 
-    fn toCApi(self: CalendarDisplay) abi.c.DisplayCalendar {
-        return switch (self) {
-            .auto => abi.c.DisplayCalendar_Auto,
-            .always => abi.c.DisplayCalendar_Always,
-            .never => abi.c.DisplayCalendar_Never,
-            .critical => abi.c.DisplayCalendar_Critical,
-        };
-    }
+    // ...existing code...
 };
 
 pub const DisplayOffset = enum {
     auto,
     never,
 
-    fn toCApi(self: DisplayOffset) abi.c.DisplayOffset {
-        return switch (self) {
-            .auto => abi.c.DisplayOffset_Auto,
-            .never => abi.c.DisplayOffset_Never,
-        };
-    }
+    // ...existing code...
 };
 
 pub const DisplayTimeZone = enum {
@@ -99,13 +71,7 @@ pub const DisplayTimeZone = enum {
     never,
     critical,
 
-    fn toCApi(self: DisplayTimeZone) abi.c.DisplayTimeZone {
-        return switch (self) {
-            .auto => abi.c.DisplayTimeZone_Auto,
-            .never => abi.c.DisplayTimeZone_Never,
-            .critical => abi.c.DisplayTimeZone_Critical,
-        };
-    }
+    // ...existing code...
 };
 
 pub const ToStringOptions = struct {
@@ -126,25 +92,25 @@ fn wrapZonedDateTime(result: anytype) !ZonedDateTime {
 /// Create a ZonedDateTime from epoch nanoseconds
 pub fn init(epoch_ns: i128, time_zone: TimeZone) !ZonedDateTime {
     const ns_parts = abi.toI128Nanoseconds(epoch_ns);
-    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, time_zone.toCApi()));
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, abi.to.toTimeZone(time_zone)));
 }
 
 /// Create from epoch milliseconds
 pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: TimeZone) !ZonedDateTime {
-    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_milliseconds(epoch_ms, time_zone.toCApi()));
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_milliseconds(epoch_ms, abi.to.toTimeZone(time_zone)));
 }
 
 /// Create from epoch nanoseconds
 pub fn fromEpochNanoseconds(epoch_ns: i128, time_zone: TimeZone) !ZonedDateTime {
     const ns_parts = abi.toI128Nanoseconds(epoch_ns);
-    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, time_zone.toCApi()));
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, abi.to.toTimeZone(time_zone)));
 }
 
 /// Parse from string
 pub fn from(s: []const u8, time_zone: ?TimeZone, disambiguation: Disambiguation, offset_disambiguation: OffsetDisambiguation) !ZonedDateTime {
     _ = time_zone; // The time zone is parsed from the string
     const view = abi.toDiplomatStringView(s);
-    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_utf8(view, disambiguation.toCApi(), offset_disambiguation.toCApi()));
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_utf8(view, abi.to.toDisambiguation(disambiguation), abi.to.toOffsetDisambiguation(offset_disambiguation)));
 }
 
 /// Compare two ZonedDateTime instances
@@ -240,9 +206,9 @@ pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStrin
 
     const result = abi.c.temporal_rs_ZonedDateTime_to_ixdtf_string(
         self._inner,
-        opts.offset_display.toCApi(),
-        opts.time_zone_name.toCApi(),
-        opts.calendar_display.toCApi(),
+        abi.to.displayOffset(opts.offset_display),
+        abi.to.toDisplayTimeZone(opts.time_zone_name),
+        abi.to.calendarDisplay(opts.calendar_display),
         abi.to_string_rounding_options_auto,
         &write.inner,
     );
@@ -287,7 +253,7 @@ pub fn withPlainTime(self: ZonedDateTime, time: ?PlainTime) !ZonedDateTime {
 
 /// Create a new ZonedDateTime with a different time zone
 pub fn withTimeZone(self: ZonedDateTime, time_zone: TimeZone) !ZonedDateTime {
-    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with_timezone(self._inner, time_zone.toCApi()));
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with_timezone(self._inner, abi.to.toTimeZone(time_zone)));
 }
 
 // Property accessors
