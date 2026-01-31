@@ -4,18 +4,27 @@ const t = @import("temporal.zig");
 
 const Duration = @import("Duration.zig");
 
+/// The `Temporal.Instant` object represents a unique point in time, with nanosecond precision.
+/// It is fundamentally represented as the number of nanoseconds since the Unix epoch (midnight at the beginning of January 1, 1970, UTC), without any time zone or calendar system.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant
 const Instant = @This();
 
 _inner: *abi.c.Instant,
 
+/// Units supported by Temporal.Instant (e.g., nanosecond, microsecond, millisecond, second, minute, hour).
 pub const Unit = t.Unit;
+/// Rounding modes for Instant operations.
 pub const RoundingMode = t.RoundingMode;
+/// The sign of a Duration: positive, zero, or negative.
 pub const Sign = t.Sign;
+/// Options for rounding an Instant.
 pub const RoundingOptions = t.RoundingOptions;
+/// Options for difference calculations between Instants.
 pub const DifferenceSettings = t.DifferenceSettings;
+/// Time zone identifier or object for use with toString and toZonedDateTimeISO.
 pub const TimeZone = t.TimeZone;
 
-/// Options for Instant.toString()
+/// Options for Instant.toString().
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toString
 pub const ToStringOptions = struct {
     /// Either an integer from 0 to 9, or null for "auto".
@@ -36,23 +45,27 @@ pub const ToStringOptions = struct {
     time_zone: ?TimeZone = null,
 };
 
-/// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
+/// Construct an Instant from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/fromEpochNanoseconds
 pub fn init(epoch_ns: i128) !Instant {
     return fromEpochNanoseconds(epoch_ns);
 }
 
-/// Construct from epoch milliseconds.
+/// Construct an Instant from epoch milliseconds (Temporal.Instant.fromEpochMilliseconds).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/fromEpochMilliseconds
 pub fn fromEpochMilliseconds(epoch_ms: i64) !Instant {
     return wrapInstant(abi.c.temporal_rs_Instant_from_epoch_milliseconds(epoch_ms));
 }
 
-/// Construct from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
+/// Construct an Instant from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/fromEpochNanoseconds
 pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
     const parts = abi.toI128Nanoseconds(epoch_ns);
     return wrapInstant(abi.c.temporal_rs_Instant_try_new(parts));
 }
 
-/// Parse an ISO 8601 string (Temporal.Instant.from) or from another Temporal.Instant.
+/// Parse an RFC 9557 string (Temporal.Instant.from) or from another Temporal.Instant.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/from
 pub fn from(info: anytype) !Instant {
     const T = @TypeOf(info);
 
@@ -87,44 +100,52 @@ inline fn fromUtf8(text: []const u8) !Instant {
     return wrapInstant(abi.c.temporal_rs_Instant_from_utf8(view));
 }
 
-/// Add a Duration to this instant (Temporal.Instant.prototype.add).
+/// Returns a new Instant representing this instant moved forward by a given Duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/add
 pub fn add(self: Instant, duration: *Duration) !Instant {
     return wrapInstant(abi.c.temporal_rs_Instant_add(self._inner, duration._inner));
 }
 
-/// Subtract a Duration from this instant (Temporal.Instant.prototype.subtract).
+/// Returns a new Instant representing this instant moved backward by a given Duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/subtract
 pub fn subtract(self: Instant, duration: *Duration) !Instant {
     return wrapInstant(abi.c.temporal_rs_Instant_subtract(self._inner, duration._inner));
 }
 
-/// Difference until another instant (Temporal.Instant.prototype.until).
+/// Returns a Duration representing the difference from this instant until another instant.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/until
 pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
     const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_until(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
-/// Difference since another instant (Temporal.Instant.prototype.since).
+/// Returns a Duration representing the difference from another instant until this instant.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/since
 pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
     const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_since(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
-/// Round this instant (Temporal.Instant.prototype.round).
+/// Returns a new Instant rounded to the given unit.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/round
 pub fn round(self: Instant, options: RoundingOptions) !Instant {
     return wrapInstant(abi.c.temporal_rs_Instant_round(self._inner, abi.to.roundingOpts(options)));
 }
 
-/// Compare two instants (Temporal.Instant.compare).
+/// Compares two Instants, returning -1, 0, or 1 if the first is before, equal, or after the second.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/compare
 pub fn compare(a: Instant, b: Instant) i8 {
     return abi.c.temporal_rs_Instant_compare(a._inner, b._inner);
 }
 
-/// Equality check (Temporal.Instant.prototype.equals).
+/// Returns true if two Instants are equal (same epoch nanoseconds).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/equals
 pub fn equals(a: Instant, b: Instant) bool {
     return abi.c.temporal_rs_Instant_equals(a._inner, b._inner);
 }
 
-/// Convert to string using compiled TZ data; caller owns returned slice.
+/// Returns a string representing this instant in the RFC 9557 format, optionally using a time zone.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toString
 pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
     const zone_opt = if (opts.time_zone) |tz| abi.toTimeZoneOption(tz._inner) else abi.toTimeZoneOption(null);
     const rounding = optsToRounding(opts);
@@ -152,18 +173,20 @@ fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *
     return try write.toOwnedSlice();
 }
 
+/// Returns a string representing this instant in the RFC 9557 format (same as toString). Intended for JSON serialization.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toJSON
 pub fn toJSON(self: Instant, allocator: std.mem.Allocator) ![]u8 {
     return self.toString(allocator, .{});
 }
 
-/// Convert to a locale string representation.
-/// Per Temporal spec, toLocaleString returns a formatted string without taking locale/options parameters.
-/// This uses auto precision for fractional seconds.
+/// Returns a string with a language-sensitive representation of this instant.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toLocaleString
 pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
     return self.toString(allocator, .{});
 }
 
-/// Convert to ZonedDateTime using built-in provider (Temporal.Instant.prototype.toZonedDateTimeISO).
+/// Returns a ZonedDateTime representing this instant in the specified time zone using the ISO 8601 calendar system.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toZonedDateTimeISO
 pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTime {
     const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone._inner))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
@@ -181,14 +204,19 @@ fn clone(self: Instant) Instant {
     return .{ ._inner = ptr };
 }
 
+/// Returns the number of milliseconds since the Unix epoch for this instant.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/epochMilliseconds
 pub fn epochMilliseconds(self: Instant) i64 {
     return abi.c.temporal_rs_Instant_epoch_milliseconds(self._inner);
 }
 
+/// Returns the number of nanoseconds since the Unix epoch for this instant.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/epochNanoseconds
 pub fn epochNanoseconds(self: Instant) i128 {
     return abi.fromI128Nanoseconds(abi.c.temporal_rs_Instant_epoch_nanoseconds(self._inner));
 }
 
+/// Deinitialize the Instant, freeing underlying resources.
 pub fn deinit(self: Instant) void {
     abi.c.temporal_rs_Instant_destroy(self._inner);
 }

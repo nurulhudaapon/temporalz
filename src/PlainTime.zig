@@ -4,6 +4,11 @@ const t = @import("temporal.zig");
 
 const Duration = @import("Duration.zig");
 
+/// # Temporal.PlainTime
+///
+/// The `Temporal.PlainTime` object represents a wall-clock time, with no date or time zone.
+///
+/// - [MDN Temporal.PlainTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime)
 const PlainTime = @This();
 
 _inner: *abi.c.PlainTime,
@@ -29,7 +34,9 @@ fn wrapPlainTime(result: anytype) !PlainTime {
     return PlainTime{ ._inner = ptr };
 }
 
-// Constructor - creates a PlainTime with all parameters
+/// Creates a new PlainTime from the given time components.
+/// Equivalent to the Temporal.PlainTime constructor.
+/// See [MDN Temporal.PlainTime() constructor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/PlainTime)
 pub fn init(
     hour_val: u8,
     minute_val: u8,
@@ -48,7 +55,8 @@ pub fn init(
     ));
 }
 
-// Parse from string
+/// Parses a PlainTime from a string.
+/// See [MDN Temporal.PlainTime.from()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/from)
 pub fn from(s: []const u8) !PlainTime {
     return fromUtf8(s);
 }
@@ -63,24 +71,33 @@ fn fromUtf16(utf16: []const u16) !PlainTime {
     return wrapPlainTime(abi.c.temporal_rs_PlainTime_from_utf16(view));
 }
 
-// Comparison
+/// Compares two PlainTime instances by their time values.
+/// Returns -1, 0, or 1 if the first is before, equal, or after the second.
+/// See [MDN Temporal.PlainTime.compare()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/compare)
 pub fn compare(a: PlainTime, b: PlainTime) i8 {
     return abi.c.temporal_rs_PlainTime_compare(a._inner, b._inner);
 }
 
+/// Returns true if this PlainTime is equal to another (same time values).
+/// See [MDN Temporal.PlainTime.prototype.equals()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/equals)
 pub fn equals(self: PlainTime, other: PlainTime) bool {
     return abi.c.temporal_rs_PlainTime_equals(self._inner, other._inner);
 }
 
-// Arithmetic
+/// Returns a new PlainTime moved forward by the given duration, wrapping around the clock if necessary.
+/// See [MDN Temporal.PlainTime.prototype.add()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/add)
 pub fn add(self: PlainTime, duration: Duration) !PlainTime {
     return wrapPlainTime(abi.c.temporal_rs_PlainTime_add(self._inner, duration._inner));
 }
 
+/// Returns a new PlainTime moved backward by the given duration, wrapping around the clock if necessary.
+/// See [MDN Temporal.PlainTime.prototype.subtract()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/subtract)
 pub fn subtract(self: PlainTime, duration: Duration) !PlainTime {
     return wrapPlainTime(abi.c.temporal_rs_PlainTime_subtract(self._inner, duration._inner));
 }
 
+/// Returns the duration from this PlainTime to another.
+/// See [MDN Temporal.PlainTime.prototype.until()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/until)
 pub fn until(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
     const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainTime_until(self._inner, other._inner, settings);
@@ -88,6 +105,8 @@ pub fn until(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Du
     return .{ ._inner = ptr };
 }
 
+/// Returns the duration from another PlainTime to this one.
+/// See [MDN Temporal.PlainTime.prototype.since()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/since)
 pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
     const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainTime_since(self._inner, other._inner, settings);
@@ -96,36 +115,52 @@ pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Du
 }
 
 // Rounding
+/// Returns a new PlainTime rounded to the given unit and options.
+/// See [MDN Temporal.PlainTime.prototype.round()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/round)
 pub fn round(self: PlainTime, options: RoundOptions) !PlainTime {
     return wrapPlainTime(abi.c.temporal_rs_PlainTime_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 // Property accessors
+/// Returns the hour component of this time (0-23).
+/// See [MDN Temporal.PlainTime.prototype.hour](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/hour)
 pub fn hour(self: PlainTime) u8 {
     return abi.c.temporal_rs_PlainTime_hour(self._inner);
 }
 
+/// Returns the minute component of this time (0-59).
+/// See [MDN Temporal.PlainTime.prototype.minute](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/minute)
 pub fn minute(self: PlainTime) u8 {
     return abi.c.temporal_rs_PlainTime_minute(self._inner);
 }
 
+/// Returns the second component of this time (0-59).
+/// See [MDN Temporal.PlainTime.prototype.second](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/second)
 pub fn second(self: PlainTime) u8 {
     return abi.c.temporal_rs_PlainTime_second(self._inner);
 }
 
+/// Returns the millisecond component of this time (0-999).
+/// See [MDN Temporal.PlainTime.prototype.millisecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/millisecond)
 pub fn millisecond(self: PlainTime) u16 {
     return abi.c.temporal_rs_PlainTime_millisecond(self._inner);
 }
 
+/// Returns the microsecond component of this time (0-999).
+/// See [MDN Temporal.PlainTime.prototype.microsecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/microsecond)
 pub fn microsecond(self: PlainTime) u16 {
     return abi.c.temporal_rs_PlainTime_microsecond(self._inner);
 }
 
+/// Returns the nanosecond component of this time (0-999).
+/// See [MDN Temporal.PlainTime.prototype.nanosecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/nanosecond)
 pub fn nanosecond(self: PlainTime) u16 {
     return abi.c.temporal_rs_PlainTime_nanosecond(self._inner);
 }
 
 // Modification
+/// Returns a new PlainTime with some fields replaced by new values.
+/// See [MDN Temporal.PlainTime.prototype.with()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/with)
 pub fn with(self: PlainTime, options: WithOptions) !PlainTime {
     const partial = abi.c.PartialTime{
         .hour = abi.toOption(abi.c.OptionU8, options.hour),
@@ -143,6 +178,8 @@ pub fn with(self: PlainTime, options: WithOptions) !PlainTime {
 }
 
 // String conversions
+/// Returns a string representing this PlainTime in RFC 9557 format.
+/// See [MDN Temporal.PlainTime.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/toString)
 pub fn toString(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
     return toStringWithOptions(self, allocator, .{});
 }
@@ -163,15 +200,21 @@ fn toStringWithOptions(self: PlainTime, allocator: std.mem.Allocator, options: t
     return try write.toOwnedSlice();
 }
 
+/// Returns a string representing this PlainTime in RFC 9557 format (ISO 8601).
+/// See [MDN Temporal.PlainTime.prototype.toJSON()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/toJSON)
 pub fn toJSON(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
     return toString(self, allocator);
 }
 
+/// Returns a language-sensitive string representation of this PlainTime.
+/// See [MDN Temporal.PlainTime.prototype.toLocaleString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/toLocaleString)
 pub fn toLocaleString(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
     // For now, just use toString - locale-specific formatting would require more work
     return toString(self, allocator);
 }
 
+/// Throws an error; valueOf() is not supported for PlainTime.
+/// See [MDN Temporal.PlainTime.prototype.valueOf()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/valueOf)
 pub fn valueOf(self: PlainTime) !void {
     _ = self;
     // PlainTime should not be used in arithmetic/comparison operations implicitly

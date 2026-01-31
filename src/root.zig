@@ -1,14 +1,53 @@
-pub const Duration = @import("Duration.zig");
-pub const Instant = @import("Instant.zig");
-pub const Now = @import("Now.zig");
-pub const PlainDate = @import("PlainDate.zig");
-pub const PlainDateTime = @import("PlainDateTime.zig");
-pub const PlainMonthDay = @import("PlainMonthDay.zig");
-pub const PlainTime = @import("PlainTime.zig");
-pub const PlainYearMonth = @import("PlainYearMonth.zig");
-pub const ZonedDateTime = @import("ZonedDateTime.zig");
-
+// The `Temporal` namespace contains date and time related objects and functions, providing a modern alternative to the existing `Date` object in JavaScript.
 const Temporal = @This();
+
+/// The `Temporal.Duration` object represents a difference between two time points, which can be used in date/time arithmetic.
+/// It is fundamentally represented as a combination of years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds values.
+///
+/// - [MDN Temporal.Duration](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration)
+pub const Duration = @import("Duration.zig");
+
+/// The `Temporal.Instant` object represents a unique point in time, with nanosecond precision.
+/// It is fundamentally represented as the number of nanoseconds since the Unix epoch (midnight at the beginning of January 1, 1970, UTC), without any time zone or calendar system.
+///
+/// - [MDN Temporal.Instant](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant)
+pub const Instant = @import("Instant.zig");
+
+/// The `Temporal.Now` namespace object contains static methods for getting the current time in various formats.
+/// All properties and methods are static.
+///
+/// - [MDN Temporal.Now](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now)
+pub const Now = @import("Now.zig");
+
+/// The `Temporal.PlainDate` object represents a calendar date (year, month, day) with no time or time zone.
+///
+/// - [MDN Temporal.PlainDate](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate)
+pub const PlainDate = @import("PlainDate.zig");
+
+/// The `Temporal.PlainDateTime` object represents a calendar date and wall-clock time, but no time zone or offset.
+///
+/// - [MDN Temporal.PlainDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime)
+pub const PlainDateTime = @import("PlainDateTime.zig");
+
+/// The `Temporal.PlainMonthDay` object represents a month and day in a calendar, with no year or time.
+///
+/// - [MDN Temporal.PlainMonthDay](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay)
+pub const PlainMonthDay = @import("PlainMonthDay.zig");
+
+/// The `Temporal.PlainTime` object represents a wall-clock time, with no date or time zone.
+///
+/// - [MDN Temporal.PlainTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime)
+pub const PlainTime = @import("PlainTime.zig");
+
+/// The `Temporal.PlainYearMonth` object represents a particular month in a specific year, with no day or time.
+///
+/// - [MDN Temporal.PlainYearMonth](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth)
+pub const PlainYearMonth = @import("PlainYearMonth.zig");
+
+/// The `Temporal.ZonedDateTime` object represents an exact time, including a time zone and calendar.
+///
+/// - [MDN Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime)
+pub const ZonedDateTime = @import("ZonedDateTime.zig");
 
 test Temporal {
     const std = @import("std");

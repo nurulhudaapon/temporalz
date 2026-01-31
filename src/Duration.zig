@@ -6,26 +6,41 @@ const PlainDate = @import("PlainDate.zig");
 const PlainDateTime = @import("PlainDateTime.zig");
 const ZonedDateTime = @import("ZonedDateTime.zig");
 
+/// The `Temporal.Duration` object represents a difference between two time points, which can be used in date/time arithmetic.
+/// It is fundamentally represented as a combination of years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds values.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration
 const Duration = @This();
 
 _inner: *abi.c.Duration,
 
+/// Options for controlling stringification of a Duration.
 pub const ToStringOptions = t.ToStringRoundingOptions;
+/// Options for controlling stringification of a Duration (alias).
 pub const ToStringRoundingOptions = t.ToStringRoundingOptions;
+/// Units supported by Temporal.Duration (years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds).
 pub const Unit = t.Unit;
+/// Rounding modes for Duration operations.
 pub const RoundingMode = t.RoundingMode;
+/// The sign of a Duration: positive, zero, or negative.
 pub const Sign = t.Sign;
 
+/// Options for rounding a Duration.
 pub const RoundingOptions = struct {
+    /// The largest unit to round to.
     largest_unit: ?Unit = null,
+    /// The smallest unit to round to.
     smallest_unit: ?Unit = null,
+    /// The rounding mode to use.
     rounding_mode: ?RoundingMode = null,
+    /// The increment to round to.
     rounding_increment: ?u32 = null,
+    /// The relative-to context (PlainDate, PlainDateTime, or ZonedDateTime).
     relative_to: ?RelativeTo = null,
 };
 
 /// Partial duration specification for creating Duration objects.
 /// This is a wrapper around the C API type to avoid exposing C types directly.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/from
 pub const PartialDuration = struct {
     years: ?i64 = null,
     months: ?i64 = null,
@@ -39,7 +54,8 @@ pub const PartialDuration = struct {
     nanoseconds: ?f64 = null,
 };
 
-/// Relative-to context for duration operations.
+/// Relative-to context for duration operations, used for balancing and calendar-aware math.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration#calendar_durations
 pub const RelativeTo = union(enum) {
     plain_date: PlainDate,
     plain_date_time: PlainDateTime,
@@ -48,16 +64,21 @@ pub const RelativeTo = union(enum) {
 
 /// Options for Duration.total() providing unit and relative-to context.
 pub const TotalOptions = struct {
+    /// The unit to total in.
     unit: Unit,
+    /// The relative-to context (PlainDate, PlainDateTime, or ZonedDateTime).
     relative_to: ?RelativeTo = null,
 };
 
+/// Options for Duration.compare() providing relative-to context.
 pub const CompareOptions = struct {
+    /// The relative-to context (PlainDate, PlainDateTime, or ZonedDateTime).
     relative_to: ?RelativeTo = null,
 };
 
 /// Construct a Duration from years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds.
-/// Equivalent to `Temporal.Duration.from()` or the constructor.
+/// Equivalent to `Temporal.Duration()` constructor.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/Duration
 pub fn init(
     years_val: i64,
     months_val: i64,
@@ -142,89 +163,106 @@ fn isTimeWithinRange(self: Duration) bool {
     return abi.c.temporal_rs_Duration_is_time_within_range(self._inner);
 }
 
-/// Get the years component of the duration.
+/// Returns the number of years in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/years
 pub fn years(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_years(self._inner);
 }
 
-/// Get the months component of the duration.
+/// Returns the number of months in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/months
 pub fn months(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_months(self._inner);
 }
 
-/// Get the weeks component of the duration.
+/// Returns the number of weeks in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/weeks
 pub fn weeks(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_weeks(self._inner);
 }
 
-/// Get the days component of the duration.
+/// Returns the number of days in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/days
 pub fn days(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_days(self._inner);
 }
 
-/// Get the hours component of the duration.
+/// Returns the number of hours in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/hours
 pub fn hours(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_hours(self._inner);
 }
 
-/// Get the minutes component of the duration.
+/// Returns the number of minutes in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/minutes
 pub fn minutes(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_minutes(self._inner);
 }
 
-/// Get the seconds component of the duration.
+/// Returns the number of seconds in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/seconds
 pub fn seconds(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_seconds(self._inner);
 }
 
-/// Get the milliseconds component of the duration.
+/// Returns the number of milliseconds in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/milliseconds
 pub fn milliseconds(self: Duration) i64 {
     return abi.c.temporal_rs_Duration_milliseconds(self._inner);
 }
 
-/// Get the microseconds component of the duration.
+/// Returns the number of microseconds in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/microseconds
 pub fn microseconds(self: Duration) f64 {
     return abi.c.temporal_rs_Duration_microseconds(self._inner);
 }
 
-/// Get the nanoseconds component of the duration.
+/// Returns the number of nanoseconds in the duration.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/nanoseconds
 pub fn nanoseconds(self: Duration) f64 {
     return abi.c.temporal_rs_Duration_nanoseconds(self._inner);
 }
 
-/// Get the sign of the duration: positive (1), zero (0), or negative (-1).
+/// Returns the sign of the duration: positive (1), zero (0), or negative (-1).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/sign
 pub fn sign(self: Duration) Sign {
     return abi.from.sign(abi.c.temporal_rs_Duration_sign(self._inner));
 }
 
-/// Check if the duration is zero (all fields are zero).
+/// Returns true if the duration is zero (all fields are zero), false otherwise.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/blank
 pub fn blank(self: Duration) bool {
     return abi.c.temporal_rs_Duration_is_zero(self._inner);
 }
 
 /// Returns a new Duration with the absolute value (all components positive).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/abs
 pub fn abs(self: Duration) Duration {
     const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_abs(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
-/// Returns a new Duration with all components negated.
+/// Returns a new Duration with all components negated (sign reversed).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/negated
 pub fn negated(self: Duration) Duration {
     const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_negated(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
-/// Add two durations together (Temporal.Duration.prototype.add).
+/// Returns a new Duration with the sum of this duration and another (balanced as needed).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/add
 pub fn add(self: Duration, other: Duration) !Duration {
     return wrapDuration(abi.c.temporal_rs_Duration_add(self._inner, other._inner));
 }
 
-/// Subtract another duration from this one (Temporal.Duration.prototype.subtract).
+/// Returns a new Duration with the difference between this duration and another (balanced as needed).
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/subtract
 pub fn subtract(self: Duration, other: Duration) !Duration {
     return wrapDuration(abi.c.temporal_rs_Duration_subtract(self._inner, other._inner));
 }
 
-/// Round the duration according to the specified options (Temporal.Duration.prototype.round).
+/// Returns a new Duration rounded to the given smallest/largest unit and/or balanced.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/round
 pub fn round(self: Duration, options: RoundingOptions) !Duration {
     const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
     return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, abi.to.durRoundingOpts(options), rel));
@@ -235,7 +273,8 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
     return wrapDuration(abi.c.temporal_rs_Duration_round_with_provider(self._inner, options.toCApi(), relative_to, provider));
 }
 
-/// Compare two durations (Temporal.Duration.compare).
+/// Compares two durations, returning -1, 0, or 1 if this duration is shorter, equal, or longer than the other.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/compare
 pub fn compare(self: Duration, other: Duration, options: CompareOptions) !i8 {
     const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
     const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, rel);
@@ -248,7 +287,8 @@ fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo,
     return try abi.extractResult(res);
 }
 
-/// Get the total value of the duration in the specified unit (Temporal.Duration.prototype.total).
+/// Returns the total value of the duration in the specified unit.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/total
 pub fn total(self: Duration, options: TotalOptions) !f64 {
     const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
     const res = abi.c.temporal_rs_Duration_total(self._inner, abi.to.unit(options.unit).?, rel);
@@ -262,7 +302,8 @@ fn totalWithProvider(self: Duration, options: TotalOptions, provider: *const abi
     return try abi.extractResult(res);
 }
 
-/// Convert to string (Temporal.Duration.prototype.toString); caller owns returned slice.
+/// Returns a string representing this duration in the ISO 8601 format.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/toString
 pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringRoundingOptions) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -273,10 +314,14 @@ pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringR
     return try write.toOwnedSlice();
 }
 
+/// Returns a string representing this duration in the ISO 8601 format (same as toString). Intended for JSON serialization.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/toJSON
 pub fn toJSON(self: Duration, allocator: std.mem.Allocator) ![]u8 {
     return self.toString(allocator, .{});
 }
 
+/// Returns a string with a language-sensitive representation of this duration. Not implemented.
+/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/toLocaleString
 pub fn toLocaleString(self: Duration, allocator: std.mem.Allocator) ![]u8 {
     _ = self;
     _ = allocator;
@@ -289,6 +334,7 @@ fn clone(self: Duration) Duration {
     return .{ ._inner = ptr };
 }
 
+/// Deinitialize the Duration, freeing underlying resources.
 pub fn deinit(self: Duration) void {
     abi.c.temporal_rs_Duration_destroy(self._inner);
 }

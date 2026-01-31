@@ -4,6 +4,11 @@ const t = @import("temporal.zig");
 
 const PlainDate = @import("PlainDate.zig");
 
+/// # Temporal.PlainMonthDay
+///
+/// The `Temporal.PlainMonthDay` object represents a month and day in a calendar, with no year or time.
+///
+/// - [MDN Temporal.PlainMonthDay](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay)
 const PlainMonthDay = @This();
 
 _inner: *abi.c.PlainMonthDay,
@@ -32,7 +37,9 @@ fn wrapPlainMonthDay(result: anytype) !PlainMonthDay {
     return .{ ._inner = ptr };
 }
 
-// Constructor
+/// Creates a new PlainMonthDay from the given month, day, and optional calendar.
+/// Equivalent to the Temporal.PlainMonthDay constructor.
+/// See [MDN Temporal.PlainMonthDay() constructor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/PlainMonthDay)
 pub fn init(month_val: u8, day_val: u8, calendar: ?[]const u8) !PlainMonthDay {
     const cal_kind = if (calendar) |cal| blk: {
         const cal_view = abi.toDiplomatStringView(cal);
@@ -52,7 +59,8 @@ pub fn init(month_val: u8, day_val: u8, calendar: ?[]const u8) !PlainMonthDay {
     ));
 }
 
-// Parse from string
+/// Parses a PlainMonthDay from a string.
+/// See [MDN Temporal.PlainMonthDay.from()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/from)
 pub fn from(s: []const u8) !PlainMonthDay {
     return fromUtf8(s);
 }
@@ -68,21 +76,29 @@ fn fromUtf16(utf16: []const u16) !PlainMonthDay {
 }
 
 // Comparison
+/// Returns true if this PlainMonthDay is equal to another (same date and calendar).
+/// See [MDN Temporal.PlainMonthDay.prototype.equals()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/equals)
 pub fn equals(self: PlainMonthDay, other: PlainMonthDay) bool {
     return abi.c.temporal_rs_PlainMonthDay_equals(self._inner, other._inner);
 }
 
 // Property accessors
+/// Returns the calendar identifier used to interpret the internal ISO 8601 date.
+/// See [MDN Temporal.PlainMonthDay.prototype.calendarId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/calendarId)
 pub fn calendarId(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
     const calendar_ptr = abi.c.temporal_rs_PlainMonthDay_calendar(self._inner) orelse return error.TemporalError;
     const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
     return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
+/// Returns the 1-based day index in the month of this date.
+/// See [MDN Temporal.PlainMonthDay.prototype.day](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/day)
 pub fn day(self: PlainMonthDay) u8 {
     return abi.c.temporal_rs_PlainMonthDay_day(self._inner);
 }
 
+/// Returns the calendar-specific string representing the month of this date.
+/// See [MDN Temporal.PlainMonthDay.prototype.monthCode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/monthCode)
 pub fn monthCode(self: PlainMonthDay, allocator: std.mem.Allocator) ![]const u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -92,6 +108,8 @@ pub fn monthCode(self: PlainMonthDay, allocator: std.mem.Allocator) ![]const u8 
 }
 
 // Modification
+/// Returns a new PlainMonthDay with some fields replaced by new values.
+/// See [MDN Temporal.PlainMonthDay.prototype.with()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/with)
 pub fn with(self: PlainMonthDay, options: WithOptions) !PlainMonthDay {
     // Build month_code view
     const month_code_view = if (options.month_code) |mc|
@@ -123,6 +141,8 @@ pub fn with(self: PlainMonthDay, options: WithOptions) !PlainMonthDay {
 }
 
 // Conversion
+/// Returns a PlainDate representing this month-day and a supplied year in the same calendar system.
+/// See [MDN Temporal.PlainMonthDay.prototype.toPlainDate()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/toPlainDate)
 pub fn toPlainDate(self: PlainMonthDay, year: i32) !PlainDate {
     const partial_date = abi.c.PartialDate_option{
         .is_ok = true,
@@ -146,6 +166,8 @@ pub fn toPlainDate(self: PlainMonthDay, year: i32) !PlainDate {
 }
 
 // String conversions
+/// Returns a string representing this month-day in RFC 9557 format.
+/// See [MDN Temporal.PlainMonthDay.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/toString)
 pub fn toString(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
     return toStringWithOptions(self, allocator, .{});
 }
@@ -161,14 +183,20 @@ fn toStringWithOptions(self: PlainMonthDay, allocator: std.mem.Allocator, option
     return try write.toOwnedSlice();
 }
 
+/// Returns a string representing this month-day in RFC 9557 format (ISO 8601).
+/// See [MDN Temporal.PlainMonthDay.prototype.toJSON()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/toJSON)
 pub fn toJSON(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
     return toString(self, allocator);
 }
 
+/// Returns a language-sensitive string representation of this month-day.
+/// See [MDN Temporal.PlainMonthDay.prototype.toLocaleString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/toLocaleString)
 pub fn toLocaleString(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
     return toString(self, allocator);
 }
 
+/// Throws an error; valueOf() is not supported for PlainMonthDay.
+/// See [MDN Temporal.PlainMonthDay.prototype.valueOf()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/valueOf)
 pub fn valueOf(self: PlainMonthDay) !void {
     _ = self;
     return error.ValueError;

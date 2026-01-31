@@ -5,18 +5,47 @@ const PlainDateTime = @import("PlainDateTime.zig");
 const PlainTime = @import("PlainTime.zig");
 const ZonedDateTime = @import("ZonedDateTime.zig");
 
+/// # Temporal.Now
+///
+/// The `Temporal.Now` namespace object contains static methods for getting the current time in various formats.
+///
+/// - [MDN Temporal.Now](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now)
+///
+/// ## Description
+///
+/// Unlike most global objects, `Temporal.Now` is not a constructor. All properties and methods are static.
+///
+/// ## Example
+///
+/// ```js
+/// Temporal.Now.instant();
+/// Temporal.Now.plainDateISO();
+/// Temporal.Now.plainDateTimeISO();
+/// Temporal.Now.plainTimeISO();
+/// Temporal.Now.timeZoneId();
+/// Temporal.Now.zonedDateTimeISO();
+/// ```
 const Now = @This();
 
+/// Returns the current time as a [`Temporal.Instant`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant) object.
+///
+/// See: [MDN Temporal.Now.instant](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/instant)
 pub fn instant() !Instant {
     const ns: i128 = std.time.nanoTimestamp();
     return Instant.fromEpochNanoseconds(ns);
 }
 
+/// Returns the current date as a [`Temporal.PlainDate`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate) object, in the ISO 8601 calendar and the specified time zone.
+///
+/// See: [MDN Temporal.Now.plainDateISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/plainDateISO)
 pub fn plainDateISO() !PlainDate {
     const now = currentParts();
     return PlainDate.init(now.year, now.month, now.day);
 }
 
+/// Returns the current date and time as a [`Temporal.PlainDateTime`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime) object, in the ISO 8601 calendar and the specified time zone.
+///
+/// See: [MDN Temporal.Now.plainDateTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/plainDateTimeISO)
 pub fn plainDateTimeISO() !PlainDateTime {
     const now = currentParts();
     return PlainDateTime.init(
@@ -32,6 +61,9 @@ pub fn plainDateTimeISO() !PlainDateTime {
     );
 }
 
+/// Returns the current time as a [`Temporal.PlainTime`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime) object, in the specified time zone.
+///
+/// See: [MDN Temporal.Now.plainTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/plainTimeISO)
 pub fn plainTimeISO() !PlainTime {
     const now = currentParts();
     return PlainTime.init(
@@ -44,10 +76,16 @@ pub fn plainTimeISO() !PlainTime {
     );
 }
 
+/// Returns a time zone identifier representing the system's current time zone.
+///
+/// See: [MDN Temporal.Now.timeZoneId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/timeZoneId)
 pub fn timeZoneId() []const u8 {
     return "UTC";
 }
 
+/// Returns the current date and time as a [`Temporal.ZonedDateTime`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime) object, in the ISO 8601 calendar and the specified time zone.
+///
+/// See: [MDN Temporal.Now.zonedDateTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/zonedDateTimeISO)
 pub fn zonedDateTimeISO() !ZonedDateTime {
     return error.TemporalNotImplemented;
 }
