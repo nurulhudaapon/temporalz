@@ -5,6 +5,11 @@ const t = @import("temporal.zig");
 const PlainDate = @import("PlainDate.zig");
 const Duration = @import("Duration.zig");
 
+/// # Temporal.PlainYearMonth
+///
+/// The `Temporal.PlainYearMonth` object represents a particular month in a specific year, with no day or time.
+///
+/// - [MDN Temporal.PlainYearMonth](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth)
 const PlainYearMonth = @This();
 
 _inner: *abi.c.PlainYearMonth,
@@ -40,7 +45,9 @@ fn wrapPlainYearMonth(result: anytype) !PlainYearMonth {
     return .{ ._inner = ptr };
 }
 
-// Constructor
+/// Creates a new PlainYearMonth from the given year, month, and optional calendar.
+/// Equivalent to the Temporal.PlainYearMonth constructor.
+/// See [MDN Temporal.PlainYearMonth() constructor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/PlainYearMonth)
 pub fn init(year_val: i32, month_val: u8, calendar: ?[]const u8) !PlainYearMonth {
     const cal_kind = if (calendar) |cal| blk: {
         const cal_view = abi.toDiplomatStringView(cal);
@@ -60,7 +67,8 @@ pub fn init(year_val: i32, month_val: u8, calendar: ?[]const u8) !PlainYearMonth
     ));
 }
 
-// Parse from string
+/// Parses a PlainYearMonth from a string.
+/// See [MDN Temporal.PlainYearMonth.from()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/from)
 pub fn from(s: []const u8) !PlainYearMonth {
     return fromUtf8(s);
 }
@@ -76,25 +84,36 @@ fn fromUtf16(utf16: []const u16) !PlainYearMonth {
 }
 
 // Comparison
+/// Compares two PlainYearMonth instances by their ISO date values.
+/// Returns -1, 0, or 1 if the first is before, equal, or after the second.
+/// See [MDN Temporal.PlainYearMonth.compare()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/compare)
 pub fn compare(a: PlainYearMonth, b: PlainYearMonth) i8 {
     return abi.c.temporal_rs_PlainYearMonth_compare(a._inner, b._inner);
 }
 
+/// Returns true if this PlainYearMonth is equal to another (same ISO date and calendar).
+/// See [MDN Temporal.PlainYearMonth.prototype.equals()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/equals)
 pub fn equals(self: PlainYearMonth, other: PlainYearMonth) bool {
     return abi.c.temporal_rs_PlainYearMonth_equals(self._inner, other._inner);
 }
 
 // Arithmetic
+/// Returns a new PlainYearMonth moved forward by the given duration.
+/// See [MDN Temporal.PlainYearMonth.prototype.add()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/add)
 pub fn add(self: PlainYearMonth, duration: Duration) !PlainYearMonth {
     const overflow = abi.c.ArithmeticOverflow_Constrain;
     return wrapPlainYearMonth(abi.c.temporal_rs_PlainYearMonth_add(self._inner, duration._inner, overflow));
 }
 
+/// Returns a new PlainYearMonth moved backward by the given duration.
+/// See [MDN Temporal.PlainYearMonth.prototype.subtract()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/subtract)
 pub fn subtract(self: PlainYearMonth, duration: Duration) !PlainYearMonth {
     const overflow = abi.c.ArithmeticOverflow_Constrain;
     return wrapPlainYearMonth(abi.c.temporal_rs_PlainYearMonth_subtract(self._inner, duration._inner, overflow));
 }
 
+/// Returns the duration from this PlainYearMonth to another.
+/// See [MDN Temporal.PlainYearMonth.prototype.until()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/until)
 pub fn until(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSettings) !Duration {
     const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainYearMonth_until(self._inner, other._inner, settings);
@@ -102,6 +121,8 @@ pub fn until(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSet
     return .{ ._inner = ptr };
 }
 
+/// Returns the duration from another PlainYearMonth to this one.
+/// See [MDN Temporal.PlainYearMonth.prototype.since()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/since)
 pub fn since(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSettings) !Duration {
     const settings = abi.to.diffsettings(options);
     const result = abi.c.temporal_rs_PlainYearMonth_since(self._inner, other._inner, settings);
@@ -110,20 +131,28 @@ pub fn since(self: PlainYearMonth, other: PlainYearMonth, options: DifferenceSet
 }
 
 // Property accessors
+/// Returns the calendar identifier used to interpret the internal ISO 8601 date.
+/// See [MDN Temporal.PlainYearMonth.prototype.calendarId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/calendarId)
 pub fn calendarId(self: PlainYearMonth, allocator: std.mem.Allocator) ![]u8 {
     const calendar_ptr = abi.c.temporal_rs_PlainYearMonth_calendar(self._inner) orelse return error.TemporalError;
     const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
     return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
+/// Returns the year of this year-month relative to the calendar's epoch.
+/// See [MDN Temporal.PlainYearMonth.prototype.year](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/year)
 pub fn year(self: PlainYearMonth) i32 {
     return abi.c.temporal_rs_PlainYearMonth_year(self._inner);
 }
 
+/// Returns the 1-based month index in the year of this year-month.
+/// See [MDN Temporal.PlainYearMonth.prototype.month](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/month)
 pub fn month(self: PlainYearMonth) u8 {
     return abi.c.temporal_rs_PlainYearMonth_month(self._inner);
 }
 
+/// Returns the calendar-specific string representing the month of this year-month.
+/// See [MDN Temporal.PlainYearMonth.prototype.monthCode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/monthCode)
 pub fn monthCode(self: PlainYearMonth, allocator: std.mem.Allocator) ![]const u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -132,22 +161,32 @@ pub fn monthCode(self: PlainYearMonth, allocator: std.mem.Allocator) ![]const u8
     return try write.toOwnedSlice();
 }
 
+/// Returns the number of days in the month of this year-month.
+/// See [MDN Temporal.PlainYearMonth.prototype.daysInMonth](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/daysInMonth)
 pub fn daysInMonth(self: PlainYearMonth) u16 {
     return abi.c.temporal_rs_PlainYearMonth_days_in_month(self._inner);
 }
 
+/// Returns the number of days in the year of this year-month.
+/// See [MDN Temporal.PlainYearMonth.prototype.daysInYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/daysInYear)
 pub fn daysInYear(self: PlainYearMonth) u16 {
     return abi.c.temporal_rs_PlainYearMonth_days_in_year(self._inner);
 }
 
+/// Returns the number of months in the year of this year-month.
+/// See [MDN Temporal.PlainYearMonth.prototype.monthsInYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/monthsInYear)
 pub fn monthsInYear(self: PlainYearMonth) u16 {
     return abi.c.temporal_rs_PlainYearMonth_months_in_year(self._inner);
 }
 
+/// Returns true if this year-month is in a leap year.
+/// See [MDN Temporal.PlainYearMonth.prototype.inLeapYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/inLeapYear)
 pub fn inLeapYear(self: PlainYearMonth) bool {
     return abi.c.temporal_rs_PlainYearMonth_in_leap_year(self._inner);
 }
 
+/// Returns the calendar-specific era of this year-month, or null if not applicable.
+/// See [MDN Temporal.PlainYearMonth.prototype.era](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/era)
 pub fn era(self: PlainYearMonth, allocator: std.mem.Allocator) !?[]const u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -158,6 +197,8 @@ pub fn era(self: PlainYearMonth, allocator: std.mem.Allocator) !?[]const u8 {
     return result;
 }
 
+/// Returns the year of this year-month within the era, or null if not applicable.
+/// See [MDN Temporal.PlainYearMonth.prototype.eraYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/eraYear)
 pub fn eraYear(self: PlainYearMonth) ?i32 {
     const result = abi.c.temporal_rs_PlainYearMonth_era_year(self._inner);
     if (!result.is_ok) return null;
@@ -165,6 +206,8 @@ pub fn eraYear(self: PlainYearMonth) ?i32 {
 }
 
 // Modification
+/// Returns a new PlainYearMonth with some fields replaced by new values.
+/// See [MDN Temporal.PlainYearMonth.prototype.with()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/with)
 pub fn with(self: PlainYearMonth, options: WithOptions) !PlainYearMonth {
     // Build month_code view
     const month_code_view = if (options.month_code) |mc|
@@ -196,6 +239,8 @@ pub fn with(self: PlainYearMonth, options: WithOptions) !PlainYearMonth {
 }
 
 // Conversion
+/// Returns a PlainDate representing this year-month and a supplied day in the same calendar system.
+/// See [MDN Temporal.PlainYearMonth.prototype.toPlainDate()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/toPlainDate)
 pub fn toPlainDate(self: PlainYearMonth, day: u8) !PlainDate {
     const partial_date = abi.c.PartialDate_option{
         .is_ok = true,
@@ -219,6 +264,8 @@ pub fn toPlainDate(self: PlainYearMonth, day: u8) !PlainDate {
 }
 
 // String conversions
+/// Returns a string representing this year-month in RFC 9557 format.
+/// See [MDN Temporal.PlainYearMonth.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/toString)
 pub fn toString(self: PlainYearMonth, allocator: std.mem.Allocator) ![]u8 {
     return toStringWithOptions(self, allocator, .{});
 }
@@ -234,14 +281,20 @@ fn toStringWithOptions(self: PlainYearMonth, allocator: std.mem.Allocator, optio
     return try write.toOwnedSlice();
 }
 
+/// Returns a JSON string representing this year-month.
+/// See [MDN Temporal.PlainYearMonth.prototype.toJSON()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/toJSON)
 pub fn toJSON(self: PlainYearMonth, allocator: std.mem.Allocator) ![]u8 {
     return toString(self, allocator);
 }
 
+/// Returns a locale-sensitive string representing this year-month.
+/// See [MDN Temporal.PlainYearMonth.prototype.toLocaleString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/toLocaleString)
 pub fn toLocaleString(self: PlainYearMonth, allocator: std.mem.Allocator) ![]u8 {
     return toString(self, allocator);
 }
 
+/// Throws a TypeError, as PlainYearMonth objects cannot be converted to primitive values.
+/// See [MDN Temporal.PlainYearMonth.prototype.valueOf()](https://developer.mozilla
 pub fn valueOf(self: PlainYearMonth) !void {
     _ = self;
     return error.ValueError;
