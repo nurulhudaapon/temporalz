@@ -346,8 +346,9 @@ inline fn handleVoidResult(res: anytype) !void {
 }
 
 fn wrapDuration(res: anytype) !Duration {
-    const ptr = (try abi.extractResult(res)) orelse return abi.TemporalError.Generic;
-    return .{ ._inner = ptr };
+    const ptr = try abi.extractResult(res);
+    if (ptr == null) return abi.TemporalError.RangeError;
+    return .{ ._inner = ptr.? };
 }
 
 // --- Aliases and enums ------------------------------------------
