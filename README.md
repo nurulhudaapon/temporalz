@@ -17,7 +17,7 @@ Temporalz provides Zig bindings to the Rust-based [temporal_rs](https://github.c
 #### Add as a Dependency
 
 ```bash
-zig fetch --save https://github.com/nurulhudaapon/temporalz/archive/v0.1.2.tar.gz
+zig fetch --save https://github.com/nurulhudaapon/temporalz/archive/main.tar.gz
 ```
 
 #### Use in build.zig
