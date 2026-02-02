@@ -12,7 +12,6 @@ const ZonedDateTime = @This();
 
 _inner: *abi.c.ZonedDateTime,
 
-
 /// The unit of time used for rounding and difference calculations.
 /// See [MDN Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime) for details.
 pub const Unit = t.Unit;
@@ -33,7 +32,6 @@ pub const DifferenceSettings = t.DifferenceSettings;
 /// See [MDN Temporal.ZonedDateTime#instance_methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#instance_methods) for details.
 pub const RoundOptions = t.RoundingOptions;
 
-
 /// Represents a time zone, identified by an IANA time zone identifier or a fixed offset.
 /// See [MDN Temporal.ZonedDateTime#time-zones-and-offsets](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#time-zones-and-offsets).
 pub const TimeZone = struct {
@@ -48,7 +46,6 @@ pub const TimeZone = struct {
     }
 };
 
-
 /// Disambiguation options for resolving ambiguous local times (e.g., during DST transitions).
 /// See [MDN Temporal.ZonedDateTime#ambiguity-and-gaps-from-local-time-to-utc-time](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#ambiguity-and-gaps-from-local-time-to-utc-time).
 pub const Disambiguation = enum {
@@ -57,7 +54,6 @@ pub const Disambiguation = enum {
     later,
     reject,
 };
-
 
 /// Options for resolving offset ambiguity when parsing ZonedDateTime from a string.
 /// See [MDN Temporal.ZonedDateTime#offset-ambiguity](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#offset-ambiguity).
@@ -68,7 +64,6 @@ pub const OffsetDisambiguation = enum {
     reject,
 };
 
-
 /// Controls how the calendar is displayed in string output.
 /// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
 pub const CalendarDisplay = enum {
@@ -78,14 +73,12 @@ pub const CalendarDisplay = enum {
     critical,
 };
 
-
 /// Controls how the offset is displayed in string output.
 /// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
 pub const DisplayOffset = enum {
     auto,
     never,
 };
-
 
 /// Controls how the time zone is displayed in string output.
 /// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
@@ -94,7 +87,6 @@ pub const DisplayTimeZone = enum {
     never,
     critical,
 };
-
 
 /// Options for formatting ZonedDateTime as a string.
 /// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
@@ -187,7 +179,8 @@ pub fn round(self: ZonedDateTime, options: RoundOptions) !ZonedDateTime {
 /// See [MDN Temporal.ZonedDateTime.prototype.since()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/since)
 pub fn since(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
     const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_since(self._inner, other._inner, abi.to.diffsettings(settings)));
-    return .{ ._inner = ptr };
+    if (ptr == null) return error.TemporalError;
+    return .{ ._inner = ptr.? };
 }
 
 /// Returns a ZonedDateTime representing the start of the day in the time zone.
@@ -266,7 +259,8 @@ pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStrin
 /// See [MDN Temporal.ZonedDateTime.prototype.until()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/until)
 pub fn until(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
     const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_until(self._inner, other._inner, abi.to.diffsettings(settings)));
-    return .{ ._inner = ptr };
+    if (ptr == null) return error.TemporalError;
+    return .{ ._inner = ptr.? };
 }
 
 /// Throws an error; valueOf() is not supported for ZonedDateTime.
@@ -281,7 +275,7 @@ pub fn with(self: ZonedDateTime, allocator: std.mem.Allocator, fields: anytype) 
     _ = allocator;
     _ = fields;
     _ = self;
-    return error.Todo; // Need PartialZonedDateTime mapping
+    return error.TemporalNoteImplemented; // Need PartialZonedDateTime mapping
 }
 
 /// Returns a new ZonedDateTime interpreted in the new calendar system.
@@ -291,7 +285,8 @@ pub fn withCalendar(self: ZonedDateTime, calendar: []const u8) !ZonedDateTime {
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = try abi.extractResult(cal_result);
     const ptr = abi.c.temporal_rs_ZonedDateTime_with_calendar(self._inner, cal_kind);
-    return .{ ._inner = ptr, .calendar_id = calendar };
+    if (ptr == null) return error.TemporalError;
+    return .{ ._inner = ptr.? };
 }
 
 /// Returns a new ZonedDateTime with the time part replaced by the new time.
