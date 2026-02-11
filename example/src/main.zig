@@ -1,8 +1,9 @@
 const std = @import("std");
 const Temporal = @import("temporalz");
 
-pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.arena.allocator();
+    const io = init.io;
 
     // --- Instant --- //
     const instant = try Temporal.Instant.init(1_704_067_200_000_000_000); // 2024-01-01 00:00:00 UTC
@@ -51,12 +52,12 @@ pub fn main() !void {
     });
 
     // --- Now --- //
-    const now_instant = try Temporal.Now.instant();
+    const now_instant = try Temporal.Now.instant(io);
     defer now_instant.deinit();
-    const now_date = try Temporal.Now.plainDateISO();
+    const now_date = try Temporal.Now.plainDateISO(io);
     defer now_date.deinit();
-    const now_datetime = try Temporal.Now.plainDateTimeISO();
-    const now_time = try Temporal.Now.plainTimeISO();
+    const now_datetime = try Temporal.Now.plainDateTimeISO(io);
+    const now_time = try Temporal.Now.plainTimeISO(io);
     std.debug.print(
         \\Now
         \\ - instant: {s}
