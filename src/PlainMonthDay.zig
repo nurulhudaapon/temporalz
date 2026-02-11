@@ -284,3 +284,19 @@ test toLocaleString {
     try std.testing.expect(str.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, str, "12") != null or std.mem.indexOf(u8, str, "25") != null);
 }
+
+test calendarId {
+    if (true) return error.Todo;
+}
+
+test day {
+    if (true) return error.Todo;
+}
+
+test monthCode {
+    if (true) return error.Todo;
+}
+
+test valueOf {
+    if (true) return error.Todo;
+}

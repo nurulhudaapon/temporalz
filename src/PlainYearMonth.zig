@@ -491,3 +491,7 @@ test "props" {
         try std.testing.expect(false);
     }
 }
+
+test valueOf {
+    if (true) return error.Todo;
+}
