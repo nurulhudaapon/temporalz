@@ -30,24 +30,24 @@ const Now = @This();
 /// Returns the current time as a [`Temporal.Instant`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant) object.
 ///
 /// See: [MDN Temporal.Now.instant](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/instant)
-pub fn instant() !Instant {
-    const ns: i128 = std.time.nanoTimestamp();
+pub fn instant(io: std.Io) !Instant {
+    const ns = std.Io.Timestamp.now(io, .real).nanoseconds;
     return Instant.fromEpochNanoseconds(ns);
 }
 
 /// Returns the current date as a [`Temporal.PlainDate`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate) object, in the ISO 8601 calendar and the specified time zone.
 ///
 /// See: [MDN Temporal.Now.plainDateISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/plainDateISO)
-pub fn plainDateISO() !PlainDate {
-    const now = currentParts();
+pub fn plainDateISO(io: std.Io) !PlainDate {
+    const now = currentParts(io);
     return PlainDate.init(now.year, now.month, now.day);
 }
 
 /// Returns the current date and time as a [`Temporal.PlainDateTime`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime) object, in the ISO 8601 calendar and the specified time zone.
 ///
 /// See: [MDN Temporal.Now.plainDateTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/plainDateTimeISO)
-pub fn plainDateTimeISO() !PlainDateTime {
-    const now = currentParts();
+pub fn plainDateTimeISO(io: std.Io) !PlainDateTime {
+    const now = currentParts(io);
     return PlainDateTime.init(
         now.year,
         now.month,
@@ -64,8 +64,8 @@ pub fn plainDateTimeISO() !PlainDateTime {
 /// Returns the current time as a [`Temporal.PlainTime`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime) object, in the specified time zone.
 ///
 /// See: [MDN Temporal.Now.plainTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/plainTimeISO)
-pub fn plainTimeISO() !PlainTime {
-    const now = currentParts();
+pub fn plainTimeISO(io: std.Io) !PlainTime {
+    const now = currentParts(io);
     return PlainTime.init(
         now.hour,
         now.minute,
@@ -102,8 +102,8 @@ const CurrentParts = struct {
     nanosecond: u16,
 };
 
-fn currentParts() CurrentParts {
-    const ns: i128 = std.time.nanoTimestamp();
+fn currentParts(io: std.Io) CurrentParts {
+    const ns = std.Io.Timestamp.now(io, .real).nanoseconds;
     const seconds: i64 = @intCast(@divTrunc(ns, 1_000_000_000));
     const subsec_nanos_u64: u64 = @intCast(@rem(ns, 1_000_000_000));
 
@@ -134,19 +134,22 @@ fn currentParts() CurrentParts {
 
 // ---------- Tests ---------------------
 test instant {
-    const inst = try instant();
+    const io = std.testing.io;
+    const inst = try instant(io);
     defer inst.deinit();
     try std.testing.expect(inst.epochNanoseconds() > 0);
 }
 
 test plainDateISO {
-    const date = try plainDateISO();
+    const io = std.testing.io;
+    const date = try plainDateISO(io);
     try std.testing.expect(date.year() >= 1970);
     try std.testing.expect(date.month() >= 1 and date.month() <= 12);
     try std.testing.expect(date.day() >= 1 and date.day() <= 31);
 }
 test plainDateTimeISO {
-    const dt = try plainDateTimeISO();
+    const io = std.testing.io;
+    const dt = try plainDateTimeISO(io);
     try std.testing.expect(dt.year() >= 1970);
     try std.testing.expect(dt.month() >= 1 and dt.month() <= 12);
     try std.testing.expect(dt.day() >= 1 and dt.day() <= 31);
@@ -154,7 +157,8 @@ test plainDateTimeISO {
     try std.testing.expect(dt.minute() < 60);
 }
 test plainTimeISO {
-    const t = try plainTimeISO();
+    const io = std.testing.io;
+    const t = try plainTimeISO(io);
     try std.testing.expect(t.hour() < 24);
     try std.testing.expect(t.minute() < 60);
     try std.testing.expect(t.second() < 60);

@@ -25,16 +25,16 @@ const BORDER = "=" ** 80;
 // use in custom panic handler
 var current_test: ?[]const u8 = null;
 
-pub fn main() !void {
-    var mem: [8192]u8 = undefined;
+pub fn main(init: std.process.Init.Minimal) !void {
+    var mem: [64 * 1024]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&mem);
-
     const allocator = fba.allocator();
+    const io = std.testing.io;
 
-    const env = Env.init(allocator);
+    const env = Env.init(allocator, init.environ);
     defer env.deinit(allocator);
 
-    var slowest = SlowTracker.init(allocator, 15);
+    var slowest = SlowTracker.init(allocator, io, 15);
     defer slowest.deinit();
 
     var pass: usize = 0;
@@ -151,7 +151,7 @@ pub fn main() !void {
                     Printer.status(.fail, "\n{s}\n\"{s}\" - {s}\n{s}\n", .{ BORDER, friendly_name, @errorName(err), BORDER });
                 }
                 if (@errorReturnTrace()) |trace| {
-                    std.debug.dumpStackTrace(trace.*);
+                    std.debug.dumpStackTrace(trace);
                 }
                 if (env.fail_first) {
                     break;
@@ -222,7 +222,7 @@ pub fn main() !void {
     Printer.fmt("\n", .{});
     try slowest.display();
     Printer.fmt("\n", .{});
-    std.posix.exit(if (fail == 0) 0 else 1);
+    std.process.exit(if (fail == 0) 0 else 1);
 }
 
 const Printer = struct {
@@ -254,15 +254,16 @@ const SlowTracker = struct {
     const SlowestQueue = std.PriorityDequeue(TestInfo, void, compareTiming);
     max: usize,
     slowest: SlowestQueue,
-    timer: std.time.Timer,
+    io: std.Io,
+    start_ts: std.Io.Timestamp,
 
-    fn init(allocator: Allocator, count: u32) SlowTracker {
-        const timer = std.time.Timer.start() catch @panic("failed to start timer");
+    fn init(allocator: Allocator, io: std.Io, count: u32) SlowTracker {
         var slowest = SlowestQueue.init(allocator, {});
         slowest.ensureTotalCapacity(count) catch @panic("OOM");
         return .{
             .max = count,
-            .timer = timer,
+            .io = io,
+            .start_ts = .zero,
             .slowest = slowest,
         };
     }
@@ -278,12 +279,12 @@ const SlowTracker = struct {
     }
 
     fn startTiming(self: *SlowTracker) void {
-        self.timer.reset();
+        self.start_ts = std.Io.Timestamp.now(self.io, .awake);
     }
 
     fn endTiming(self: *SlowTracker, scope_name: []const u8, test_name: []const u8) u64 {
-        var timer = self.timer;
-        const ns = timer.lap();
+        const now = std.Io.Timestamp.now(self.io, .awake);
+        const ns: u64 = @intCast(now.nanoseconds -| self.start_ts.nanoseconds);
 
         var slowest = &self.slowest;
 
@@ -335,13 +336,15 @@ const Env = struct {
     fail_first: bool,
     filter: ?[]const u8,
     flaky_retries: u32,
+    environ: std.process.Environ,
 
-    fn init(allocator: Allocator) Env {
+    fn init(allocator: Allocator, environ: std.process.Environ) Env {
         return .{
-            .verbose = readEnvBool(allocator, "TEST_VERBOSE", true),
-            .fail_first = readEnvBool(allocator, "TEST_FAIL_FIRST", false),
-            .filter = readEnv(allocator, "TEST_FILTER"),
-            .flaky_retries = readEnvInt(allocator, "TEST_FLAKY_RETRIES", 3),
+            .verbose = readEnvBool(environ, allocator, "TEST_VERBOSE", true),
+            .fail_first = readEnvBool(environ, allocator, "TEST_FAIL_FIRST", false),
+            .filter = readEnv(environ, allocator, "TEST_FILTER"),
+            .flaky_retries = readEnvInt(environ, allocator, "TEST_FLAKY_RETRIES", 3),
+            .environ = environ,
         };
     }
 
@@ -351,8 +354,8 @@ const Env = struct {
         }
     }
 
-    fn readEnv(allocator: Allocator, key: []const u8) ?[]const u8 {
-        const v = std.process.getEnvVarOwned(allocator, key) catch |err| {
+    fn readEnv(environ: std.process.Environ, allocator: Allocator, key: []const u8) ?[]const u8 {
+        const v = environ.getAlloc(allocator, key) catch |err| {
             if (err == error.EnvironmentVariableNotFound) {
                 return null;
             }
@@ -362,14 +365,14 @@ const Env = struct {
         return v;
     }
 
-    fn readEnvBool(allocator: Allocator, key: []const u8, deflt: bool) bool {
-        const value = readEnv(allocator, key) orelse return deflt;
+    fn readEnvBool(environ: std.process.Environ, allocator: Allocator, key: []const u8, deflt: bool) bool {
+        const value = readEnv(environ, allocator, key) orelse return deflt;
         defer allocator.free(value);
         return std.ascii.eqlIgnoreCase(value, "true");
     }
 
-    fn readEnvInt(allocator: Allocator, key: []const u8, deflt: u32) u32 {
-        const value = readEnv(allocator, key) orelse return deflt;
+    fn readEnvInt(environ: std.process.Environ, allocator: Allocator, key: []const u8, deflt: u32) u32 {
+        const value = readEnv(environ, allocator, key) orelse return deflt;
         defer allocator.free(value);
         return std.fmt.parseInt(u32, value, 10) catch deflt;
     }

@@ -43,8 +43,8 @@ pub fn build(b: *std.Build) !void {
         const use_prebuilt = blk: {
             // Use the LazyPath to check if the library exists
             const lib_full_path = prebuilt_lib_file.getPath(b);
-            const lib_check_file = std.fs.openFileAbsolute(lib_full_path, .{}) catch break :blk false;
-            lib_check_file.close();
+            const lib_check_file = std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{}) catch break :blk false;
+            lib_check_file.close(b.graph.io);
             break :blk true;
         };
 
@@ -136,7 +136,7 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
-        mod_tests.linkLibC();
+        mod_tests.root_module.link_libc = true;
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
         const exe_tests = b.addTest(.{ .root_module = exe.root_module });
         test_step.dependOn(&b.addRunArtifact(exe_tests).step);
@@ -159,7 +159,7 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
-        test262_tests.linkLibC();
+        test262_tests.root_module.link_libc = true;
         test262_step.dependOn(&b.addRunArtifact(test262_tests).step);
     }
 
