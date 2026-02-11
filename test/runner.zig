@@ -25,13 +25,11 @@ const BORDER = "=" ** 80;
 // use in custom panic handler
 var current_test: ?[]const u8 = null;
 
-pub fn main(init: std.process.Init.Minimal) !void {
-    var mem: [64 * 1024]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&mem);
-    const allocator = fba.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.arena.allocator();
     const io = std.testing.io;
 
-    const env = Env.init(allocator, init.environ);
+    const env = Env.init(allocator, init.minimal.environ);
     defer env.deinit(allocator);
 
     var slowest = SlowTracker.init(allocator, io, 15);
@@ -356,9 +354,7 @@ const Env = struct {
 
     fn readEnv(environ: std.process.Environ, allocator: Allocator, key: []const u8) ?[]const u8 {
         const v = environ.getAlloc(allocator, key) catch |err| {
-            if (err == error.EnvironmentVariableNotFound) {
-                return null;
-            }
+            if (err == error.EnvironmentVariableMissing) return null;
             std.log.warn("failed to get env var {s} due to err {}", .{ key, err });
             return null;
         };
