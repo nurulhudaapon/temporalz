@@ -4,7 +4,7 @@ const build_crab = @import("build_crab");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const is_wasm_freestanding = target.result.cpu.arch.isWasm() and target.result.os.tag == .freestanding;
+    const is_wasm_freestanding = target.result.cpu.arch.isWasm();
 
     // --- Zig Module: temporalz --- //
     const mod = b.addModule("temporalz", .{
@@ -12,9 +12,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    if (is_wasm_freestanding) {
-        mod.addIncludePath(b.path("src/stubs/c_headers"));
-    }
+    mod.addIncludePath(b.path("src/stubs/c_headers"));
 
     // --- Rust C ABI: temporal_capi --- //
     const temporal_rs = b.dependency("temporal_rs", .{
