@@ -604,3 +604,55 @@ test total {
         try std.testing.expectError(error.RangeError, dur.total(.{ .unit = .day }));
     }
 }
+
+test years {
+    if (true) return error.Todo;
+}
+
+test months {
+    if (true) return error.Todo;
+}
+
+test weeks {
+    if (true) return error.Todo;
+}
+
+test days {
+    if (true) return error.Todo;
+}
+
+test hours {
+    if (true) return error.Todo;
+}
+
+test minutes {
+    if (true) return error.Todo;
+}
+
+test seconds {
+    if (true) return error.Todo;
+}
+
+test milliseconds {
+    if (true) return error.Todo;
+}
+
+test microseconds {
+    if (true) return error.Todo;
+}
+
+test nanoseconds {
+    if (true) return error.Todo;
+}
+
+test sign {
+    if (true) return error.Todo;
+}
+
+test toJSON {
+    if (true) return error.Todo;
+}
+
+test toLocaleString {
+    if (true) return error.Todo;
+}

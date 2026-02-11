@@ -534,3 +534,75 @@ test withCalendar {
 
     try std.testing.expectEqual(@as(i32, 2024), result.year());
 }
+
+test calInit {
+    if (true) return error.Todo;
+}
+
+test valueOf {
+    if (true) return error.Todo;
+}
+
+test day {
+    if (true) return error.Todo;
+}
+
+test dayOfWeek {
+    if (true) return error.Todo;
+}
+
+test dayOfYear {
+    if (true) return error.Todo;
+}
+
+test daysInMonth {
+    if (true) return error.Todo;
+}
+
+test daysInWeek {
+    if (true) return error.Todo;
+}
+
+test daysInYear {
+    if (true) return error.Todo;
+}
+
+test monthCode {
+    if (true) return error.Todo;
+}
+
+test month {
+    if (true) return error.Todo;
+}
+
+test monthsInYear {
+    if (true) return error.Todo;
+}
+
+test year {
+    if (true) return error.Todo;
+}
+
+test inLeapYear {
+    if (true) return error.Todo;
+}
+
+test calendarId {
+    if (true) return error.Todo;
+}
+
+test era {
+    if (true) return error.Todo;
+}
+
+test eraYear {
+    if (true) return error.Todo;
+}
+
+test weekOfYear {
+    if (true) return error.Todo;
+}
+
+test yearOfWeek {
+    if (true) return error.Todo;
+}

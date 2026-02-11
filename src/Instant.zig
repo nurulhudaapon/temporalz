@@ -487,3 +487,27 @@ test toLocaleString {
     // Auto precision should include fractional seconds
     try std.testing.expect(std.mem.containsAtLeast(u8, locale_str2, 1, "2024-01-01T00:00:00"));
 }
+
+test fromEpochMilliseconds {
+    if (true) return error.Todo;
+}
+
+test add {
+    if (true) return error.Todo;
+}
+
+test toJSON {
+    if (true) return error.Todo;
+}
+
+test toZonedDateTimeISO {
+    if (true) return error.Todo;
+}
+
+test epochMilliseconds {
+    if (true) return error.Todo;
+}
+
+test epochNanoseconds {
+    if (true) return error.Todo;
+}

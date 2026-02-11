@@ -401,3 +401,35 @@ test until {
     try std.testing.expectEqual(@as(i64, 1), dur.hours());
     try std.testing.expectEqual(@as(i64, 30), dur.minutes());
 }
+
+test hour {
+    if (true) return error.Todo;
+}
+
+test minute {
+    if (true) return error.Todo;
+}
+
+test second {
+    if (true) return error.Todo;
+}
+
+test millisecond {
+    if (true) return error.Todo;
+}
+
+test microsecond {
+    if (true) return error.Todo;
+}
+
+test nanosecond {
+    if (true) return error.Todo;
+}
+
+test toLocaleString {
+    if (true) return error.Todo;
+}
+
+test valueOf {
+    if (true) return error.Todo;
+}

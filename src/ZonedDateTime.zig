@@ -636,3 +636,147 @@ test "props" {
     defer std.testing.allocator.free(tzo);
     try std.testing.expectEqualStrings("UTC", tzo);
 }
+
+test fromEpochNanoseconds {
+    if (true) return error.Todo;
+}
+
+test add {
+    if (true) return error.Todo;
+}
+
+test getTimeZoneTransition {
+    if (true) return error.Todo;
+}
+
+test round {
+    if (true) return error.Todo;
+}
+
+test since {
+    if (true) return error.Todo;
+}
+
+test startOfDay {
+    if (true) return error.Todo;
+}
+
+test subtract {
+    if (true) return error.Todo;
+}
+
+test toJSON {
+    if (true) return error.Todo;
+}
+
+test toLocaleString {
+    if (true) return error.Todo;
+}
+
+test until {
+    if (true) return error.Todo;
+}
+
+test valueOf {
+    if (true) return error.Todo;
+}
+
+test with {
+    if (true) return error.Todo;
+}
+
+test withCalendar {
+    if (true) return error.Todo;
+}
+
+test withPlainTime {
+    if (true) return error.Todo;
+}
+
+test withTimeZone {
+    if (true) return error.Todo;
+}
+
+test calendarId {
+    if (true) return error.Todo;
+}
+
+test dayOfWeek {
+    if (true) return error.Todo;
+}
+
+test dayOfYear {
+    if (true) return error.Todo;
+}
+
+test daysInMonth {
+    if (true) return error.Todo;
+}
+
+test daysInWeek {
+    if (true) return error.Todo;
+}
+
+test daysInYear {
+    if (true) return error.Todo;
+}
+
+test epochMilliseconds {
+    if (true) return error.Todo;
+}
+
+test epochNanoseconds {
+    if (true) return error.Todo;
+}
+
+test era {
+    if (true) return error.Todo;
+}
+
+test eraYear {
+    if (true) return error.Todo;
+}
+
+test hoursInDay {
+    if (true) return error.Todo;
+}
+
+test inLeapYear {
+    if (true) return error.Todo;
+}
+
+test microsecond {
+    if (true) return error.Todo;
+}
+
+test monthCode {
+    if (true) return error.Todo;
+}
+
+test monthsInYear {
+    if (true) return error.Todo;
+}
+
+test nanosecond {
+    if (true) return error.Todo;
+}
+
+test offset {
+    if (true) return error.Todo;
+}
+
+test offsetNanoseconds {
+    if (true) return error.Todo;
+}
+
+test weekOfYear {
+    if (true) return error.Todo;
+}
+
+test yearOfWeek {
+    if (true) return error.Todo;
+}
+
+test clone {
+    if (true) return error.Todo;
+}
