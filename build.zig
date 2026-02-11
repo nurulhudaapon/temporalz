@@ -4,7 +4,7 @@ const build_crab = @import("build_crab");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const is_wasm_freestanding = target.result.cpu.arch.isWasm();
+    const is_wasm_freestanding = target.result.cpu.arch.isWasm() and target.result.os.tag == .freestanding;
 
     // --- Zig Module: temporalz --- //
     const mod = b.addModule("temporalz", .{
@@ -108,20 +108,31 @@ pub fn build(b: *std.Build) !void {
             },
         }),
     });
+    exe.root_module.link_libc = !is_wasm_freestanding;
+    exe.rdynamic = is_wasm_freestanding;
     b.installArtifact(exe);
 
     // --- Steps: Run --- //
     {
         const run_step = b.step("run", "Run the app");
-        if (is_wasm_freestanding) {
-            const run_cmd = b.addSystemCommand(&.{ "node", "example/src/main.mjs" });
-            run_cmd.step.dependOn(b.getInstallStep());
-            run_step.dependOn(&run_cmd.step);
-        } else {
-            const run_cmd = b.addRunArtifact(exe);
-            run_cmd.step.dependOn(b.getInstallStep());
-            if (b.args) |args| run_cmd.addArgs(args);
-            run_step.dependOn(&run_cmd.step);
+        switch (target.result.os.tag) {
+            .freestanding => {
+                const run_cmd = b.addSystemCommand(&.{ "node", "example/src/main.mjs" });
+                run_cmd.step.dependOn(b.getInstallStep());
+                run_step.dependOn(&run_cmd.step);
+            },
+            .wasi => {
+                const run_cmd = b.addSystemCommand(&.{"wasmtime"});
+                run_cmd.addFileArg(exe.getEmittedBin());
+                run_cmd.step.dependOn(b.getInstallStep());
+                run_step.dependOn(&run_cmd.step);
+            },
+            else => {
+                const run_cmd = b.addRunArtifact(exe);
+                run_cmd.step.dependOn(b.getInstallStep());
+                if (b.args) |args| run_cmd.addArgs(args);
+                run_step.dependOn(&run_cmd.step);
+            },
         }
     }
 
@@ -159,22 +170,10 @@ pub fn build(b: *std.Build) !void {
     // --- Steps: test-262 --- //
     {
         const test262_step = b.step("test262", "Run test-262 tests");
-        const test262_tests = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("test/test262/root.zig"),
-                .target = target,
-                .optimize = optimize,
-                .imports = &.{
-                    .{ .name = "temporalz", .module = mod },
-                },
-            }),
-            .test_runner = .{
-                .path = b.path("test/runner.zig"),
-                .mode = .simple,
-            },
-        });
-        test262_tests.root_module.link_libc = !is_wasm_freestanding;
-        test262_step.dependOn(&b.addRunArtifact(test262_tests).step);
+        const run_cmd = b.addSystemCommand(&.{ "node", "test/test262/runner.mjs" });
+        if (b.args) |args| run_cmd.addArgs(args);
+        run_cmd.step.dependOn(b.getInstallStep());
+        test262_step.dependOn(&run_cmd.step);
     }
 
     // --- Steps: Build all platforms --- //
