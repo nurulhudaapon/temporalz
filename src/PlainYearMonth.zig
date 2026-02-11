@@ -493,5 +493,6 @@ test "props" {
 }
 
 test valueOf {
-    if (true) return error.Todo;
+    const ym = try init(2024, 12, null);
+    try std.testing.expectError(error.ValueError, ym.valueOf());
 }

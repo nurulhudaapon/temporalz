@@ -286,17 +286,25 @@ test toLocaleString {
 }
 
 test calendarId {
-    if (true) return error.Todo;
+    const md = try init(12, 25, null);
+    const cal_id = try md.calendarId(std.testing.allocator);
+    defer std.testing.allocator.free(cal_id);
+    try std.testing.expectEqualStrings("iso8601", cal_id);
 }
 
 test day {
-    if (true) return error.Todo;
+    const md = try init(12, 25, null);
+    try std.testing.expectEqual(@as(u8, 25), md.day());
 }
 
 test monthCode {
-    if (true) return error.Todo;
+    const md = try init(12, 25, null);
+    const code = try md.monthCode(std.testing.allocator);
+    defer std.testing.allocator.free(code);
+    try std.testing.expectEqualStrings("M12", code);
 }
 
 test valueOf {
-    if (true) return error.Todo;
+    const md = try init(12, 25, null);
+    try std.testing.expectError(error.ValueError, md.valueOf());
 }

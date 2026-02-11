@@ -325,17 +325,19 @@ pub fn inLeapYear(self: PlainDateTime) bool {
 
 /// Returns the era for this date-time, if any.
 pub fn era(self: PlainDateTime, allocator: std.mem.Allocator) !?[]u8 {
-    const result = abi.c.temporal_rs_PlainDateTime_era(self._inner);
-    if (!result.is_ok) return null;
-
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
-    abi.c.temporal_rs_Era_to_string(result.unnamed_0.ok, &write.inner);
-    return try write.toOwnedSlice();
+    abi.c.temporal_rs_PlainDateTime_era(self._inner, &write.inner);
+    const result = try write.toOwnedSlice();
+    if (result.len == 0) {
+        allocator.free(result);
+        return null;
+    }
+    return result;
 }
 
 /// Returns the era year for this date-time, if any.
-pub fn eraYear(self: PlainDateTime) !?u32 {
+pub fn eraYear(self: PlainDateTime) !?i32 {
     const result = abi.c.temporal_rs_PlainDateTime_era_year(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
@@ -706,97 +708,143 @@ test withPlainTime {
 }
 
 test calInit {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.calInit(2024, 1, 15, 14, 30, 45, 123, 456, 789, "iso8601");
+    try std.testing.expectEqual(@as(i32, 2024), dt.year());
 }
 
 test calendarId {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const cal_id = try dt.calendarId(std.testing.allocator);
+    defer std.testing.allocator.free(cal_id);
+    try std.testing.expectEqualStrings("iso8601", cal_id);
 }
 
 test day {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 15), dt.day());
 }
 
 test dayOfWeek {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const dow = dt.dayOfWeek();
+    try std.testing.expect(dow >= 1 and dow <= 7);
 }
 
 test dayOfYear {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const doy = dt.dayOfYear();
+    try std.testing.expect(doy >= 1 and doy <= 366);
 }
 
 test daysInMonth {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 2, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 29), dt.daysInMonth());
 }
 
 test daysInWeek {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 7), dt.daysInWeek());
 }
 
 test daysInYear {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 366), dt.daysInYear());
 }
 
 test month {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 1), dt.month());
 }
 
 test monthCode {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const code = try dt.monthCode(std.testing.allocator);
+    defer std.testing.allocator.free(code);
+    try std.testing.expectEqualStrings("M01", code);
 }
 
 test monthsInYear {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 12), dt.monthsInYear());
 }
 
 test year {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(i32, 2024), dt.year());
 }
 
 test inLeapYear {
-    if (true) return error.Todo;
+    const leap = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expect(leap.inLeapYear());
+
+    const non_leap = try PlainDateTime.init(2023, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expect(!non_leap.inLeapYear());
 }
 
 test era {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const e = try dt.era(std.testing.allocator);
+    if (e) |era_val| {
+        defer std.testing.allocator.free(era_val);
+        try std.testing.expect(era_val.len > 0);
+    }
 }
 
 test eraYear {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const ey = try dt.eraYear();
+    if (ey) |y| {
+        try std.testing.expect(y > 0);
+    }
 }
 
 test weekOfYear {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const woy = try dt.weekOfYear();
+    if (woy) |week| {
+        try std.testing.expect(week >= 1 and week <= 53);
+    }
 }
 
 test yearOfWeek {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    const yow = try dt.yearOfWeek();
+    if (yow) |y| {
+        try std.testing.expect(y >= 2020);
+    }
 }
 
 test hour {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 14), dt.hour());
 }
 
 test minute {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 30), dt.minute());
 }
 
 test second {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 45), dt.second());
 }
 
 test millisecond {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 123), dt.millisecond());
 }
 
 test microsecond {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 456), dt.microsecond());
 }
 
 test nanosecond {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 789), dt.nanosecond());
 }
 
 test valueOf {
-    if (true) return error.Todo;
+    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+    try std.testing.expectError(error.ComparisonNotSupported, dt.valueOf());
 }

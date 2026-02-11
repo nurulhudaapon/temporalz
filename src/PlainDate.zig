@@ -290,13 +290,17 @@ pub fn era(self: PlainDate, allocator: std.mem.Allocator) !?[]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const has_era = abi.c.temporal_rs_PlainDate_era(self._inner, &write.inner);
-    if (!has_era) return null;
-    return try write.toOwnedSlice();
+    abi.c.temporal_rs_PlainDate_era(self._inner, &write.inner);
+    const result = try write.toOwnedSlice();
+    if (result.len == 0) {
+        allocator.free(result);
+        return null;
+    }
+    return result;
 }
 
 /// Returns the era year for this date, if any.
-pub fn eraYear(self: PlainDate) ?u32 {
+pub fn eraYear(self: PlainDate) ?i32 {
     const result = abi.c.temporal_rs_PlainDate_era_year(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
@@ -536,73 +540,132 @@ test withCalendar {
 }
 
 test calInit {
-    if (true) return error.Todo;
+    const date = try PlainDate.calInit(2024, 3, 15, "iso8601");
+    defer date.deinit();
+    try std.testing.expectEqual(@as(i32, 2024), date.year());
 }
 
 test valueOf {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    try std.testing.expectError(error.TemporalValueOfNotSupported, date.valueOf());
 }
 
 test day {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    try std.testing.expectEqual(@as(u8, 15), date.day());
 }
 
 test dayOfWeek {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const dow = date.dayOfWeek();
+    try std.testing.expect(dow >= 1 and dow <= 7);
 }
 
 test dayOfYear {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const doy = date.dayOfYear();
+    try std.testing.expect(doy >= 1 and doy <= 366);
 }
 
 test daysInMonth {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 2, 15);
+    defer date.deinit();
+    try std.testing.expectEqual(@as(u16, 29), date.daysInMonth());
 }
 
 test daysInWeek {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    try std.testing.expectEqual(@as(u16, 7), date.daysInWeek());
 }
 
 test daysInYear {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    try std.testing.expectEqual(@as(u16, 366), date.daysInYear());
 }
 
 test monthCode {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const code = try date.monthCode(std.testing.allocator);
+    defer std.testing.allocator.free(code);
+    try std.testing.expectEqualStrings("M03", code);
 }
 
 test month {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    try std.testing.expectEqual(@as(u8, 3), date.month());
 }
 
 test monthsInYear {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    try std.testing.expectEqual(@as(u16, 12), date.monthsInYear());
 }
 
 test year {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    try std.testing.expectEqual(@as(i32, 2024), date.year());
 }
 
 test inLeapYear {
-    if (true) return error.Todo;
+    const leap = try PlainDate.init(2024, 3, 15);
+    defer leap.deinit();
+    try std.testing.expect(leap.inLeapYear());
+
+    const non_leap = try PlainDate.init(2023, 3, 15);
+    defer non_leap.deinit();
+    try std.testing.expect(!non_leap.inLeapYear());
 }
 
 test calendarId {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const cal = try date.calendarId(std.testing.allocator);
+    defer std.testing.allocator.free(cal);
+    try std.testing.expectEqualStrings("iso8601", cal);
 }
 
 test era {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const e = try date.era(std.testing.allocator);
+    if (e) |era_val| {
+        defer std.testing.allocator.free(era_val);
+        try std.testing.expect(era_val.len > 0);
+    }
 }
 
 test eraYear {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const ey = date.eraYear();
+    if (ey) |y| {
+        try std.testing.expect(y > 0);
+    }
 }
 
 test weekOfYear {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const woy = date.weekOfYear();
+    if (woy) |week| {
+        try std.testing.expect(week >= 1 and week <= 53);
+    }
 }
 
 test yearOfWeek {
-    if (true) return error.Todo;
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const yow = date.yearOfWeek();
+    if (yow) |y| {
+        try std.testing.expect(y >= 2020);
+    }
 }
