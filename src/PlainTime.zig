@@ -403,33 +403,46 @@ test until {
 }
 
 test hour {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 14), time.hour());
 }
 
 test minute {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 30), time.minute());
 }
 
 test second {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u8, 45), time.second());
 }
 
 test millisecond {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 123), time.millisecond());
 }
 
 test microsecond {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+    try std.testing.expectEqual(@as(u16, 456), time.microsecond());
 }
 
 test nanosecond {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+
+    try std.testing.expectEqual(@as(u16, 789), time.nanosecond());
 }
 
 test toLocaleString {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+    // defer time.deinit();
+    const str = try time.toLocaleString(std.testing.allocator);
+    defer std.testing.allocator.free(str);
+    try std.testing.expect(str.len > 0);
 }
 
 test valueOf {
-    if (true) return error.Todo;
+    const time = try init(14, 30, 45, 123, 456, 789);
+    // defer time.deinit();
+    try std.testing.expectError(error.ValueError, time.valueOf());
 }

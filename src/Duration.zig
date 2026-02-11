@@ -606,53 +606,95 @@ test total {
 }
 
 test years {
-    if (true) return error.Todo;
+    const dur = try Duration.from("P5Y");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 5), dur.years());
 }
 
 test months {
-    if (true) return error.Todo;
+    const dur = try Duration.from("P2M");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 2), dur.months());
 }
 
 test weeks {
-    if (true) return error.Todo;
+    const dur = try Duration.from("P3W");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 3), dur.weeks());
 }
 
 test days {
-    if (true) return error.Todo;
+    const dur = try Duration.from("P7D");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 7), dur.days());
 }
 
 test hours {
-    if (true) return error.Todo;
+    const dur = try Duration.from("PT5H");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 5), dur.hours());
 }
 
 test minutes {
-    if (true) return error.Todo;
+    const dur = try Duration.from("PT30M");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 30), dur.minutes());
 }
 
 test seconds {
-    if (true) return error.Todo;
+    const dur = try Duration.from("PT45S");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 45), dur.seconds());
 }
 
 test milliseconds {
-    if (true) return error.Todo;
+    const dur = try Duration.from("PT0.500S");
+    defer dur.deinit();
+    try std.testing.expectEqual(@as(i64, 500), dur.milliseconds());
 }
 
 test microseconds {
-    if (true) return error.Todo;
+    const dur = try Duration.from("PT0.000500S");
+    defer dur.deinit();
+    const us = dur.microseconds();
+    try std.testing.expect(us > 499 and us < 501);
 }
 
 test nanoseconds {
-    if (true) return error.Todo;
+    const dur = try Duration.from("PT0.000000500S");
+    defer dur.deinit();
+    const ns = dur.nanoseconds();
+    try std.testing.expect(ns > 499 and ns < 501);
 }
 
 test sign {
-    if (true) return error.Todo;
+    const pos = try Duration.from("P1Y");
+    defer pos.deinit();
+    try std.testing.expectEqual(Sign.positive, pos.sign());
+
+    const neg = try Duration.from("-P1Y");
+    defer neg.deinit();
+    try std.testing.expectEqual(Sign.negative, neg.sign());
+
+    const zero = try Duration.init(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    defer zero.deinit();
+    try std.testing.expectEqual(Sign.zero, zero.sign());
 }
 
 test toJSON {
-    if (true) return error.Todo;
+    const dur = try Duration.from("P1Y2M3DT4H5M6.789S");
+    defer dur.deinit();
+
+    const json_str = try dur.toJSON(std.testing.allocator);
+    defer std.testing.allocator.free(json_str);
+
+    try std.testing.expect(json_str.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "P") != null);
 }
 
 test toLocaleString {
-    if (true) return error.Todo;
+    const dur = try Duration.from("P1Y2M3DT4H5M6S");
+    defer dur.deinit();
+
+    try std.testing.expectError(error.TemporalNotImplemented, dur.toLocaleString(std.testing.allocator));
 }
