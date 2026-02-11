@@ -9,8 +9,8 @@
             .hash = "N-V-__8AANlkNAB77Z946lqp-lgp2qSsOBDADValZC86PhB-",
         },
         .build_crab = .{
-            .url = "git+https://github.com/linusg/build.crab?ref=zig-dev#a4c247befef7c1642e7fdfdaf47d3a74dd96d46c",
-            .hash = "build_crab-0.2.1-U0id_yXEAADD2lzWEocoHFMzBXzSABdi0Z7lZPVxN-Ve",
+            .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#658db72f1695987612e9356c023575ff8dc753a2",
+            .hash = "build_crab-0.2.1-U0id__PFAACr0518VaPmWuEJDMJezJhmAsFRY6d49v6e",
         },
     },
     .paths = .{
