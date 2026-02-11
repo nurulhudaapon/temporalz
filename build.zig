@@ -4,6 +4,7 @@ const build_crab = @import("build_crab");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const is_wasm_freestanding = target.result.cpu.arch.isWasm() and target.result.os.tag == .freestanding;
 
     // --- Zig Module: temporalz --- //
     const mod = b.addModule("temporalz", .{
@@ -11,6 +12,9 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    if (is_wasm_freestanding) {
+        mod.addIncludePath(b.path("src/stubs/c_headers"));
+    }
 
     // --- Rust C ABI: temporal_capi --- //
     const temporal_rs = b.dependency("temporal_rs", .{
@@ -82,7 +86,7 @@ pub fn build(b: *std.Build) !void {
             .linkage = .static,
             .name = "unwind_stubs",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/unwind_stubs.zig"),
+                .root_source_file = b.path("src/stubs/unwind.zig"),
                 .target = target,
                 .optimize = optimize,
             }),
@@ -91,10 +95,14 @@ pub fn build(b: *std.Build) !void {
     }
 
     // --- Zig Executable: temporalz --- //
+    const exe_root = if (is_wasm_freestanding)
+        b.path("example/src/wasm.zig")
+    else
+        b.path("example/src/main.zig");
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("example/src/main.zig"),
+            .root_source_file = exe_root,
             .target = target,
             .optimize = optimize,
             .imports = &.{
@@ -106,11 +114,17 @@ pub fn build(b: *std.Build) !void {
 
     // --- Steps: Run --- //
     {
-        const run_cmd = b.addRunArtifact(exe);
-        run_cmd.step.dependOn(b.getInstallStep());
-        if (b.args) |args| run_cmd.addArgs(args);
         const run_step = b.step("run", "Run the app");
-        run_step.dependOn(&run_cmd.step);
+        if (is_wasm_freestanding) {
+            const run_cmd = b.addSystemCommand(&.{ "node", "example/src/main.mjs" });
+            run_cmd.step.dependOn(b.getInstallStep());
+            run_step.dependOn(&run_cmd.step);
+        } else {
+            const run_cmd = b.addRunArtifact(exe);
+            run_cmd.step.dependOn(b.getInstallStep());
+            if (b.args) |args| run_cmd.addArgs(args);
+            run_step.dependOn(&run_cmd.step);
+        }
     }
 
     // --- Steps: Docs --- //
@@ -136,10 +150,12 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
-        mod_tests.root_module.link_libc = true;
+        mod_tests.root_module.link_libc = !is_wasm_freestanding;
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
-        const exe_tests = b.addTest(.{ .root_module = exe.root_module });
-        test_step.dependOn(&b.addRunArtifact(exe_tests).step);
+        if (!is_wasm_freestanding) {
+            const exe_tests = b.addTest(.{ .root_module = exe.root_module });
+            test_step.dependOn(&b.addRunArtifact(exe_tests).step);
+        }
     }
 
     // --- Steps: test-262 --- //
@@ -159,7 +175,7 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
-        test262_tests.root_module.link_libc = true;
+        test262_tests.root_module.link_libc = !is_wasm_freestanding;
         test262_step.dependOn(&b.addRunArtifact(test262_tests).step);
     }
 
@@ -200,4 +216,5 @@ const platforms = [_][]const u8{
     "x86_64-linux-gnu",
     "x86_64-windows-gnu",
     "aarch64-windows-gnu",
+    "wasm32-freestanding",
 };
