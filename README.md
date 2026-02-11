@@ -38,14 +38,16 @@ exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
 
 ## Checklist ([Test262](https://github.com/tc39/test262/tree/main/test/built-ins/Temporal))
 
-- [x] Instant
-- [x] Duration
-- [x] PlainDate
-- [x] PlainTime
-- [x] PlainDateTime
-- [x] PlainYearMonth
-- [x] PlainMonthDay
-- [x] ZonedDateTime
+| Namespace | Test262 (todo) |
+| --- | --- |
+| Instant | 0/0 |
+| Duration | 0/0 |
+| PlainDate | 0/0 |
+| PlainTime | 0/0 |
+| PlainDateTime | 0/0 |
+| PlainYearMonth | 0/0 |
+| PlainMonthDay | 0/0 |
+| ZonedDateTime | 0/0 |
 
 ## Prebuilt
 
@@ -57,6 +59,7 @@ Prebuilt libraries are included for the following platforms:
 - `x86_64-linux-gnu`
 - `x86_64-windows-gnu`
 - `aarch64-windows-gnu`
+- `wasm32-freestanding`
 
 For other platforms, the library will build from source; you need the Rust toolchain installed.
 
