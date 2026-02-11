@@ -8,3 +8,5 @@ lib
 !lib/*/temporal_capi.lib
 
 tmp
+
+test/test262/polyfill-injected.js
