@@ -57,16 +57,14 @@ test "Temporal.Duration compare time-only" {
     const td2_neg = try Temporal.Duration.init(0, 0, 0, 0, -5, -4, -5, -5, -5, -5);
     defer td2_neg.deinit();
 
-    const rel: Temporal.Duration.RelativeTo = .{};
-
-    try std.testing.expectEqual(@as(i8, 0), try td1.compare(td1, rel));
-    try std.testing.expectEqual(@as(i8, -1), try td2.compare(td1, rel));
-    try std.testing.expectEqual(@as(i8, 1), try td1.compare(td2, rel));
-    try std.testing.expectEqual(@as(i8, 0), try td1_neg.compare(td1_neg, rel));
-    try std.testing.expectEqual(@as(i8, 1), try td2_neg.compare(td1_neg, rel));
-    try std.testing.expectEqual(@as(i8, -1), try td1_neg.compare(td2_neg, rel));
-    try std.testing.expectEqual(@as(i8, -1), try td1_neg.compare(td2, rel));
-    try std.testing.expectEqual(@as(i8, 1), try td1.compare(td2_neg, rel));
+    try std.testing.expectEqual(@as(i8, 0), try td1.compare(td1, .{}));
+    try std.testing.expectEqual(@as(i8, -1), try td2.compare(td1, .{}));
+    try std.testing.expectEqual(@as(i8, 1), try td1.compare(td2, .{}));
+    try std.testing.expectEqual(@as(i8, 0), try td1_neg.compare(td1_neg, .{}));
+    try std.testing.expectEqual(@as(i8, 1), try td2_neg.compare(td1_neg, .{}));
+    try std.testing.expectEqual(@as(i8, -1), try td1_neg.compare(td2_neg, .{}));
+    try std.testing.expectEqual(@as(i8, -1), try td1_neg.compare(td2, .{}));
+    try std.testing.expectEqual(@as(i8, 1), try td1.compare(td2_neg, .{}));
 }
 
 // Mirrors test262 test/built-ins/Temporal/Duration/from/argument-string.js
@@ -706,8 +704,7 @@ test "Temporal.Duration compare blank durations" {
     const blank2 = try Temporal.Duration.init(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     defer blank2.deinit();
 
-    const rel: Temporal.Duration.RelativeTo = .{};
-    const result = try blank1.compare(blank2, rel);
+    const result = try blank1.compare(blank2, .{});
     try std.testing.expectEqual(@as(i8, 0), result);
 }
 
