@@ -21,22 +21,24 @@ pub fn build(b: *std.Build) !void {
     const prebuilt_lib_path = b.fmt("{s}/{s}", .{ target_triple, lib_name });
 
     // --- Pre-built resolution --- //
-    const libtemporal_dep = b.lazyDependency("libtemporal", .{});
     var prebuilt_lib_file: ?std.Build.LazyPath = null;
+    var selected_lib_file: std.Build.LazyPath = undefined;
 
-    if (libtemporal_dep) |dep| {
-        const lib_file_candidate = dep.path(prebuilt_lib_path);
-        const lib_full_path = lib_file_candidate.getPath(b);
-        if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {
-            lib_check_file.close(b.graph.io);
-            prebuilt_lib_file = lib_file_candidate;
-        } else |_| {}
+    if (!force_build_rust) {
+        const libtemporal_dep = b.lazyDependency("libtemporal", .{});
+        if (libtemporal_dep) |dep| {
+            const lib_file_candidate = dep.path(prebuilt_lib_path);
+            const lib_full_path = lib_file_candidate.getPath(b);
+            if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {
+                lib_check_file.close(b.graph.io);
+                prebuilt_lib_file = lib_file_candidate;
+            } else |_| {}
+        }
     }
 
-    var selected_lib_file: std.Build.LazyPath = undefined;
-    if (prebuilt_lib_file != null and !force_build_rust) {
+    if (prebuilt_lib_file) |plf| {
         // std.debug.print("Using pre-built temporal_capi library from downloaded artifact at: {s}\n", .{prebuilt_lib_path});
-        selected_lib_file = prebuilt_lib_file.?;
+        selected_lib_file = plf;
     } else {
         // std.debug.print("building from source: {s}\n", .{prebuilt_lib_path});
         const build_crab = @import("build_crab");

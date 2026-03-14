@@ -11,6 +11,7 @@
         .libtemporal = .{
             .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.0/libtemporal.tar.gz",
             .hash = "N-V-__8AAHgP2AWLC4ZLTr_3hWf6xtgtBI5moBrWDWg5kzSD",
+            .lazy = true,
         },
         .build_crab = .{
             .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#1aabc836472d318e9756a43b17853aadc4599800",
