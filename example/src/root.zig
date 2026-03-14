@@ -400,8 +400,10 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     });
 
     // PlainYearMonth: add, subtract, with, equals, since, until, withCalendar
-    const ym_added = try ym.add(dur);
-    const ym_sub = try ym.subtract(dur);
+    const dur_ym = try Temporal.Duration.from("P1M");
+    defer dur_ym.deinit();
+    const ym_added = try ym.add(dur_ym);
+    const ym_sub = try ym.subtract(dur_ym);
     const ym_with = try ym.with(.{ .year = 2025 });
     const ym_eq = ym.equals(ym);
     const ym_since = try ym.since(ym, Temporal.PlainYearMonth.DifferenceSettings{});
