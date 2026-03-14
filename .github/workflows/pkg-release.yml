@@ -47,6 +47,18 @@ jobs:
           - target: aarch64-linux-musl
             os: ubuntu-latest
             rust-target: aarch64-unknown-linux-musl
+          - target: x86_64-windows-msvc
+            os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+          - target: aarch64-windows-msvc
+            os: windows-latest
+            rust-target: aarch64-pc-windows-msvc
+          - target: aarch64-linux-android
+            os: ubuntu-latest
+            rust-target: aarch64-linux-android
+          - target: aarch64-apple-ios
+            os: macos-latest
+            rust-target: aarch64-apple-ios
     steps:
       - uses: actions/checkout@v4
       
