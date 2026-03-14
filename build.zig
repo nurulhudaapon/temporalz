@@ -1,5 +1,4 @@
 const std = @import("std");
-const build_crab = @import("build_crab");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -15,23 +14,22 @@ pub fn build(b: *std.Build) !void {
     mod.addIncludePath(b.path("src/stubs/c_headers"));
 
     // --- Rust C ABI: temporal_capi --- //
-    const temporal_rs = b.dependency("temporal_rs", .{
+    const temporal_rs_git = b.dependency("temporal_rs", .{
         .target = target,
         .optimize = optimize,
     });
-    mod.addIncludePath(temporal_rs.path("temporal_capi/bindings/c"));
+    mod.addIncludePath(temporal_rs_git.path("temporal_capi/bindings/c"));
 
-    // --- Rust Crate: temporal_rs --- //
+    // --- Rust C ABI: Library --- //
     {
         // Determine target triple string for pre-built library lookup
         const arch_str = @tagName(target.result.cpu.arch);
         const os_str = @tagName(target.result.os.tag);
         const abi = target.result.abi;
-        const abi_str = @tagName(abi);
         const target_triple = if (abi == .none)
             b.fmt("{s}-{s}", .{ arch_str, os_str })
         else
-            b.fmt("{s}-{s}-{s}", .{ arch_str, os_str, abi_str });
+            b.fmt("{s}-{s}-{s}", .{ arch_str, os_str, @tagName(abi) });
         const lib_name = if (target.result.os.tag == .windows and abi == .msvc)
             "temporal_capi.lib"
         else
@@ -43,7 +41,6 @@ pub fn build(b: *std.Build) !void {
 
         // Try to use pre-built library if it exists by checking the path object
         const use_prebuilt = blk: {
-            // Use the LazyPath to check if the library exists
             const lib_full_path = prebuilt_lib_file.getPath(b);
             const lib_check_file = std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{}) catch break :blk false;
             lib_check_file.close(b.graph.io);
@@ -52,43 +49,23 @@ pub fn build(b: *std.Build) !void {
 
         if (use_prebuilt) {
             // Use pre-built library (no Rust compiler needed)
-            // std.debug.print("Using pre-built temporal_capi library: {s}\n", .{prebuilt_lib_path});
             mod.addObjectFile(prebuilt_lib_file);
         } else {
-            // Build from source using Cargo
-            const build_dir = build_crab.addCargoBuild(
-                b,
-                .{
-                    .manifest_path = b.path("Cargo.toml"),
-                    .cargo_args = if (optimize == .Debug) &.{} else &.{"--release"},
-                },
-                .{
-                    .target = target,
-                    .optimize = .ReleaseSafe,
-                },
-            );
-
-            // Install .a/.lib to lib/<target>/libtemporal_capi.a/temporal_capi.lib
-            const install_lib = b.addInstallDirectory(.{
-                .source_dir = build_dir,
-                .install_dir = .{ .custom = "../lib" },
-                .install_subdir = target_triple,
+            // Build from source using the local temporal-rs package
+            const temporal_rs_local = b.dependency("temporal_rs_local", .{
+                .target = target,
+                .optimize = optimize,
             });
-            b.getInstallStep().dependOn(&install_lib.step);
-            mod.addObjectFile(build_dir.path(b, lib_name));
+            mod.linkLibrary(temporal_rs_local.artifact("temporal_rs_lib"));
         }
 
         // --- Rust Misc Deps --- //
         if (target.result.os.tag == .windows) mod.linkSystemLibrary("userenv", .{});
-        const unwind_stubs = b.addLibrary(.{
-            .linkage = .static,
-            .name = "unwind_stubs",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/stubs/unwind.zig"),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
+        const unwind_stubs = b.addLibrary(.{ .linkage = .static, .name = "unwind_stubs", .root_module = b.createModule(.{
+            .root_source_file = b.path("src/stubs/unwind.zig"),
+            .target = target,
+            .optimize = optimize,
+        }) });
         mod.linkLibrary(unwind_stubs);
     }
 
@@ -175,43 +152,4 @@ pub fn build(b: *std.Build) !void {
         run_cmd.step.dependOn(b.getInstallStep());
         test262_step.dependOn(&run_cmd.step);
     }
-
-    // --- Steps: Build all platforms --- //
-    {
-        const build_lib_step = b.step("lib", "Build libraries for all common platforms");
-
-        inline for (platforms) |p| {
-            const query = try std.Build.parseTargetQuery(.{ .arch_os_abi = p });
-            const platform_target = b.resolveTargetQuery(query);
-
-            const build_dir = build_crab.addCargoBuild(
-                b,
-                .{
-                    .manifest_path = b.path("Cargo.toml"),
-                    .cargo_args = &.{"--release"},
-                },
-                .{
-                    .target = platform_target,
-                    .optimize = .ReleaseSafe,
-                },
-            );
-
-            const install_lib = b.addInstallDirectory(.{
-                .source_dir = build_dir,
-                .install_dir = .{ .custom = "../lib" },
-                .install_subdir = p,
-            });
-            build_lib_step.dependOn(&install_lib.step);
-        }
-    }
 }
-
-const platforms = [_][]const u8{
-    "aarch64-macos",
-    "x86_64-macos",
-    "aarch64-linux-gnu",
-    "x86_64-linux-gnu",
-    "x86_64-windows-gnu",
-    "aarch64-windows-gnu",
-    "wasm32-freestanding",
-};
