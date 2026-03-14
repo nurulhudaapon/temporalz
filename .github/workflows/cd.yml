@@ -81,14 +81,14 @@ jobs:
 
       - name: Build Package
         run: |
-          cd pkg/temporal-rs
+          cd pkg/temporal
           zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
           
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lib-${{ matrix.target }}
-          path: pkg/temporal-rs/zig-out/lib/
+          path: pkg/temporal/zig-out/lib/
           retention-days: 1
 
   release:
@@ -112,15 +112,15 @@ jobs:
           mkdir -p release/lib
           cp -r all-libs/* release/lib/
           cd release
-          tar -czf ../temporal-rs-libs.tar.gz lib/
-          zip -r ../temporal-rs-libs.zip lib/
+          tar -czf ../libtemporal.tar.gz lib/
+          zip -r ../libtemporal.zip lib/
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            temporal-rs-libs.tar.gz
-            temporal-rs-libs.zip
+            libtemporal.tar.gz
+            libtemporal.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
