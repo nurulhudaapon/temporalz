@@ -6,20 +6,18 @@ pub fn build(b: *std.Build) !void {
     const is_wasm_freestanding = target.result.cpu.arch.isWasm() and target.result.os.tag == .freestanding;
 
     // --- Rust C ABI & Pre-built via temporal-rs subpackage --- //
-    const libtemporal_src = b.dependency("libtemporal_src", .{
+    const temporal = b.dependency("temporal", .{
         .target = target,
         .optimize = optimize,
     });
-    
+
     // --- Zig Module: temporalz --- //
     const mod = b.addModule("temporalz", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    
-    // Use the comprehensive mod from the package
-    mod.addImport("temporal_rs", libtemporal_src.module("temporal_rs"));
+    mod.addImport("temporal_rs", temporal.module("temporal_rs"));
 
     // --- Zig Executable: temporalz --- //
     const exe_root = if (is_wasm_freestanding)

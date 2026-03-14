@@ -4,8 +4,8 @@
     .fingerprint = 0xd8d79d59acc4faae,
     .minimum_zig_version = "0.16.0-dev.2860+9c5460316",
     .dependencies = .{
-        .libtemporal_src = .{
-            .path = "pkg/temporal-rs",
+        .temporal = .{
+            .path = "pkg/temporal",
         },
     },
     .paths = .{
