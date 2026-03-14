@@ -4,9 +4,6 @@ zig-pkg
 target
 
 lib
-!lib/*/libtemporal_capi.a
-!lib/*/temporal_capi.lib
-
 tmp
 
 test/test262/polyfill-injected.js
