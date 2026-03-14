@@ -56,7 +56,7 @@ jobs:
           - target: aarch64-linux-android
             os: ubuntu-latest
             rust-target: aarch64-linux-android
-          - target: aarch64-apple-ios
+          - target: aarch64-ios
             os: macos-latest
             rust-target: aarch64-apple-ios
     steps:
