@@ -20,14 +20,13 @@ pub fn build(b: *std.Build) !void {
     mod.addImport("temporal_rs", temporal.module("temporal_rs"));
 
     // --- Zig Executable: temporalz --- //
-    const exe_root = if (is_wasm_freestanding)
-        b.path("example/src/wasm.zig")
-    else
-        b.path("example/src/main.zig");
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
-            .root_source_file = exe_root,
+            .root_source_file = if (is_wasm_freestanding)
+                b.path("example/src/wasm.zig")
+            else
+                b.path("example/src/main.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{
