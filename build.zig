@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) !void {
                 .target = target,
                 .optimize = optimize,
             });
-            mod.linkLibrary(temporal_rs_local.artifact("temporal_rs_lib"));
+            mod.addImport("temporal_rs", temporal_rs_local.module("temporal_rs"));
         }
 
         // --- Rust Misc Deps --- //

@@ -19,9 +19,9 @@
     .paths = .{
         "build.zig",
         "build.zig.zon",
-        "Cargo.toml",
-        "Cargo.lock",
+        "README.md",
+        "LICENCE",
         "src",
-        "lib",
+        "pkg",
     },
 }

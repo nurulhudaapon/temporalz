@@ -45,17 +45,6 @@ pub fn build(b: *std.Build) !void {
     });
     mod.addObjectFile(lib_file);
 
-    // --- Library Artifact (for explicit linking) --- //
-    const lib_artifact = b.addLibrary(.{
-        .name = "temporal_rs_lib",
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    lib_artifact.root_module.addObjectFile(lib_file);
-    b.installArtifact(lib_artifact);
-
     // --- Steps: Build all platforms --- //
     {
         const build_lib_step = b.step("lib", "Build libraries for all common platforms");
