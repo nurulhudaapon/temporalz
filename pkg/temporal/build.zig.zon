@@ -14,8 +14,8 @@
             .lazy = true,
         },
         .build_crab = .{
-            .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#1aabc836472d318e9756a43b17853aadc4599800",
-            .hash = "build_crab-0.2.1-U0id_2LFAABPaq1t9eBZ3p0aA87c-HkKZPYCrCVcgvt6",
+            .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#b1387865ef8e6e6f3a51308045a1207063ca80c1",
+            .hash = "build_crab-0.2.1-U0id_-rFAABknon1DAteE0v1UZS2-rJ9eUDm2ByY80v3",
         },
     },
     .paths = .{
