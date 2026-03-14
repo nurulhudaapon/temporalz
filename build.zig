@@ -20,6 +20,9 @@ pub fn build(b: *std.Build) !void {
     });
     mod.addIncludePath(temporal_rs_git.path("temporal_capi/bindings/c"));
 
+    // -- Pre-built library support for temporal_capi --- //
+    const libtemporal = b.lazyDependency("libtemporal", .{});
+
     // --- Rust C ABI: Library --- //
     {
         // Determine target triple string for pre-built library lookup
@@ -35,22 +38,26 @@ pub fn build(b: *std.Build) !void {
         else
             "libtemporal_capi.a";
 
-        // Check if pre-built library exists in lib/<target>/
-        const prebuilt_lib_path = b.fmt("lib/{s}/{s}", .{ target_triple, lib_name });
-        const prebuilt_lib_file = b.path(prebuilt_lib_path);
+        // Check if pre-built library exists in downloaded artifact
+        const prebuilt_lib_path = b.fmt("{s}/{s}", .{ target_triple, lib_name });
 
-        // Try to use pre-built library if it exists by checking the path object
-        const use_prebuilt = blk: {
-            const lib_full_path = prebuilt_lib_file.getPath(b);
-            const lib_check_file = std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{}) catch break :blk false;
-            lib_check_file.close(b.graph.io);
-            break :blk true;
-        };
+        var prebuilt_lib_file: ?std.Build.LazyPath = null;
+        if (libtemporal) |dep| {
+            const lib_file_candidate = dep.path(prebuilt_lib_path);
+            const lib_full_path = lib_file_candidate.getPath(b);
+            if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {
+                lib_check_file.close(b.graph.io);
+                prebuilt_lib_file = lib_file_candidate;
+            } else |_| {}
+        }
 
-        if (use_prebuilt) {
+        if (prebuilt_lib_file) |lib_file| {
             // Use pre-built library (no Rust compiler needed)
-            mod.addObjectFile(prebuilt_lib_file);
+            std.debug.print("Using pre-built temporal_capi library from downloaded artifact at: {s}\n", .{prebuilt_lib_path});
+            mod.addObjectFile(lib_file);
         } else {
+            std.debug.print("building from source: {s}\n", .{prebuilt_lib_path});
+
             // Build from source using the local temporal-rs package
             const temporal_rs_local = b.dependency("temporal_rs_local", .{
                 .target = target,

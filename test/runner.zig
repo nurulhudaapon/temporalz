@@ -33,7 +33,7 @@ pub fn main(init: std.process.Init) !void {
     defer env.deinit(allocator);
 
     var slowest = SlowTracker.init(allocator, io, 15);
-    defer slowest.deinit();
+    defer slowest.deinit(allocator);
 
     var pass: usize = 0;
     var fail: usize = 0;
@@ -103,7 +103,7 @@ pub fn main(init: std.process.Init) !void {
             final_result = t.func();
             current_test = null;
 
-            final_ns_taken = slowest.endTiming(scope_name, friendly_name);
+            final_ns_taken = slowest.endTiming(allocator, scope_name, friendly_name);
 
             if (std.testing.allocator_instance.deinit() == .leak) {
                 leak += 1;
@@ -256,8 +256,8 @@ const SlowTracker = struct {
     start_ts: std.Io.Timestamp,
 
     fn init(allocator: Allocator, io: std.Io, count: u32) SlowTracker {
-        var slowest = SlowestQueue.init(allocator, {});
-        slowest.ensureTotalCapacity(count) catch @panic("OOM");
+        var slowest = SlowestQueue.empty;
+        slowest.ensureTotalCapacity(allocator, count) catch @panic("OOM");
         return .{
             .max = count,
             .io = io,
@@ -272,15 +272,15 @@ const SlowTracker = struct {
         name: []const u8,
     };
 
-    fn deinit(self: SlowTracker) void {
-        self.slowest.deinit();
+    fn deinit(self: SlowTracker, allocator: Allocator) void {
+        self.slowest.deinit(allocator);
     }
 
     fn startTiming(self: *SlowTracker) void {
         self.start_ts = std.Io.Timestamp.now(self.io, .awake);
     }
 
-    fn endTiming(self: *SlowTracker, scope_name: []const u8, test_name: []const u8) u64 {
+    fn endTiming(self: *SlowTracker, allocator: Allocator, scope_name: []const u8, test_name: []const u8) u64 {
         const now = std.Io.Timestamp.now(self.io, .awake);
         const ns: u64 = @intCast(now.nanoseconds -| self.start_ts.nanoseconds);
 
@@ -289,7 +289,7 @@ const SlowTracker = struct {
         if (slowest.count() < self.max) {
             // Capacity is fixed to the # of slow tests we want to track
             // If we've tracked fewer tests than this capacity, than always add
-            slowest.add(TestInfo{ .ns = ns, .scope = scope_name, .name = test_name }) catch @panic("failed to track test timing");
+            slowest.push(allocator, TestInfo{ .ns = ns, .scope = scope_name, .name = test_name }) catch @panic("failed to track test timing");
             return ns;
         }
 
@@ -304,8 +304,8 @@ const SlowTracker = struct {
         }
 
         // the previous fastest of our slow tests, has been pushed off.
-        _ = slowest.removeMin();
-        slowest.add(TestInfo{ .ns = ns, .scope = scope_name, .name = test_name }) catch @panic("failed to track test timing");
+        _ = slowest.popMin();
+        slowest.push(allocator, TestInfo{ .ns = ns, .scope = scope_name, .name = test_name }) catch @panic("failed to track test timing");
         return ns;
     }
 
@@ -313,7 +313,7 @@ const SlowTracker = struct {
         var slowest = self.slowest;
         const count = slowest.count();
         Printer.fmt("\x1b[1mSlowest\x1b[0m \x1b[90m({d})\x1b[0m:\n", .{count});
-        while (slowest.removeMaxOrNull()) |info| {
+        while (slowest.popMax()) |info| {
             const ms = @as(f64, @floatFromInt(info.ns)) / 1_000_000.0;
             if (info.scope.len > 0) {
                 Printer.fmt("  {d:.2}ms\t\x1b[90m{s} > {s}\x1b[0m\n", .{ ms, info.scope, info.name });

@@ -11,6 +11,10 @@
         .temporal_rs_local = .{
             .path = "pkg/temporal-rs",
         },
+        .libtemporal = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.0.1/temporal-rs-libs.tar.gz",
+            .hash = "N-V-__8AAPJZzwPipYB8PoJ0LhTO9ipHbtbXbTfRuSYbJFtD",
+        },
     },
     .paths = .{
         "build.zig",
