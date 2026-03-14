@@ -3,7 +3,7 @@ const program = @import("root.zig");
 const Temporal = @import("temporalz");
 
 export fn _start() void {
-    const allocator = std.heap.wasm_allocator;
+    const allocator = std.heap.page_allocator;
     program.run(allocator, null) catch {};
 }
 

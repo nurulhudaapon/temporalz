@@ -1,0 +1,110 @@
+name: Release Package Artifacts
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-macos
+            os: macos-latest
+            rust-target: x86_64-apple-darwin
+          - target: aarch64-macos
+            os: macos-latest
+            rust-target: aarch64-apple-darwin
+          - target: x86_64-linux-gnu
+            os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-gnu
+          - target: aarch64-linux-gnu
+            os: ubuntu-latest
+            rust-target: aarch64-unknown-linux-gnu
+          - target: x86_64-windows-gnu
+            os: ubuntu-latest
+            rust-target: x86_64-pc-windows-gnu
+          - target: aarch64-windows-gnu
+            os: ubuntu-latest
+            rust-target: aarch64-pc-windows-gnu
+          - target: wasm32-freestanding
+            os: ubuntu-latest
+            rust-target: wasm32-unknown-unknown
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0-dev.2535+b5bd49460
+          
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Install cross-compilers (Linux-aarch64)
+        if: matrix.target == 'aarch64-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          
+      - name: Install cross-compilers (Windows-mingw)
+        if: contains(matrix.target, 'windows-gnu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+
+      - name: Build Package
+        run: |
+          cd pkg/temporal-rs
+          zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-${{ matrix.target }}
+          path: pkg/temporal-rs/zig-out/lib/
+          retention-days: 1
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-libs
+          pattern: lib-*
+          merge-multiple: true
+
+      - name: Prepare Release Artifact
+        run: |
+          mkdir -p release/lib
+          cp -r all-libs/* release/lib/
+          cd release
+          tar -czf ../temporal-rs-libs.tar.gz lib/
+          zip -r ../temporal-rs-libs.zip lib/
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            temporal-rs-libs.tar.gz
+            temporal-rs-libs.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
