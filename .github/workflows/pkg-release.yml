@@ -32,12 +32,21 @@ jobs:
           - target: x86_64-windows-gnu
             os: ubuntu-latest
             rust-target: x86_64-pc-windows-gnu
-          # - target: aarch64-windows-gnu
-          #   os: ubuntu-latest
-          #   rust-target: aarch64-pc-windows-gnu
+          - target: aarch64-windows-gnu
+            os: ubuntu-latest
+            rust-target: aarch64-pc-windows-gnullvm
           - target: wasm32-freestanding
             os: ubuntu-latest
             rust-target: wasm32-unknown-unknown
+          - target: wasm32-wasi
+            os: ubuntu-latest
+            rust-target: wasm32-wasi
+          - target: x86_64-linux-musl
+            os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-musl
+          - target: aarch64-linux-musl
+            os: ubuntu-latest
+            rust-target: aarch64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v4
       
@@ -52,7 +61,7 @@ jobs:
           targets: ${{ matrix.rust-target }}
 
       - name: Install cross-compilers (Linux-aarch64)
-        if: matrix.target == 'aarch64-linux-gnu'
+        if: contains(matrix.target, 'aarch64-linux')
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
