@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) !void {
     mod.addIncludePath(temporal_rs_git.path("temporal_capi/bindings/c"));
 
     // -- Pre-built library support for temporal_capi --- //
-    const libtemporal = b.lazyDependency("libtemporal", .{});
+    const libtemporal_prebuilt = b.lazyDependency("libtemporal_prebuilt", .{});
 
     // --- Rust C ABI: Library --- //
     {
@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) !void {
         const prebuilt_lib_path = b.fmt("{s}/{s}", .{ target_triple, lib_name });
 
         var prebuilt_lib_file: ?std.Build.LazyPath = null;
-        if (libtemporal) |dep| {
+        if (libtemporal_prebuilt) |dep| {
             const lib_file_candidate = dep.path(prebuilt_lib_path);
             const lib_full_path = lib_file_candidate.getPath(b);
             if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {
@@ -53,17 +53,14 @@ pub fn build(b: *std.Build) !void {
 
         if (prebuilt_lib_file) |lib_file| {
             // Use pre-built library (no Rust compiler needed)
-            std.debug.print("Using pre-built temporal_capi library from downloaded artifact at: {s}\n", .{prebuilt_lib_path});
             mod.addObjectFile(lib_file);
         } else {
-            std.debug.print("building from source: {s}\n", .{prebuilt_lib_path});
-
             // Build from source using the local temporal-rs package
-            const temporal_rs_local = b.dependency("temporal_rs_local", .{
+            const libtemporal_src = b.dependency("libtemporal_src", .{
                 .target = target,
                 .optimize = optimize,
             });
-            mod.addImport("temporal_rs", temporal_rs_local.module("temporal_rs"));
+            mod.addImport("temporal_rs", libtemporal_src.module("temporal_rs"));
         }
 
         // --- Rust Misc Deps --- //

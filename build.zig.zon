@@ -8,12 +8,12 @@
             .url = "git+https://github.com/boa-dev/temporal#v0.1.2",
             .hash = "N-V-__8AANlkNAB77Z946lqp-lgp2qSsOBDADValZC86PhB-",
         },
-        .temporal_rs_local = .{
+        .libtemporal_src = .{
             .path = "pkg/temporal-rs",
         },
-        .libtemporal = .{
-            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.0.1/temporal-rs-libs.tar.gz",
-            .hash = "N-V-__8AAPJZzwPipYB8PoJ0LhTO9ipHbtbXbTfRuSYbJFtD",
+        .libtemporal_prebuilt = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.1.2/temporal-rs-libs.tar.gz",
+            .hash = "N-V-__8AALzG2AXNSf7E7iuZWx7SrTN0PICWYwnu2kIDlf-w",
         },
     },
     .paths = .{
