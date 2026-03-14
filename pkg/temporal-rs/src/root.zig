@@ -1,1 +1,20 @@
-// Empty root file for zig module
+pub const c = @cImport({
+    @cInclude("AnyCalendarKind.h");
+    @cInclude("Calendar.h");
+    @cInclude("Duration.h");
+    @cInclude("ErrorKind.h");
+    @cInclude("I128Nanoseconds.h");
+    @cInclude("Instant.h");
+    @cInclude("OwnedRelativeTo.h");
+    @cInclude("ParsedDate.h");
+    @cInclude("ParsedDateTime.h");
+    @cInclude("ParsedZonedDateTime.h");
+    @cInclude("PlainDate.h");
+    @cInclude("PlainDateTime.h");
+    @cInclude("PlainMonthDay.h");
+    @cInclude("PlainTime.h");
+    @cInclude("PlainYearMonth.h");
+    @cInclude("RelativeTo.h");
+    @cInclude("TimeZone.h");
+    @cInclude("ZonedDateTime.h");
+});

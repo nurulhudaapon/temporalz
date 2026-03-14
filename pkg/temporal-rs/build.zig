@@ -1,31 +1,9 @@
 const std = @import("std");
-const build_crab = @import("build_crab");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // --- Rust Crate Build --- //
-    const build_dir = build_crab.addCargoBuild(
-        b,
-        .{
-            .manifest_path = b.path("Cargo.toml"),
-            .cargo_args = if (optimize == .Debug) &.{} else &.{"--release"},
-        },
-        .{
-            .target = target,
-            .optimize = .ReleaseSafe,
-        },
-    );
-
-    const lib_name = if (target.result.os.tag == .windows and target.result.abi == .msvc)
-        "temporal_capi.lib"
-    else
-        "libtemporal_capi.a";
-
-    const lib_file = build_dir.path(b, lib_name);
-
-    // --- Install Step (for publishing) --- //
     const arch_str = @tagName(target.result.cpu.arch);
     const os_str = @tagName(target.result.os.tag);
     const abi = target.result.abi;
@@ -34,8 +12,50 @@ pub fn build(b: *std.Build) !void {
     else
         b.fmt("{s}-{s}-{s}", .{ arch_str, os_str, @tagName(abi) });
 
-    const install_lib = b.addInstallFile(lib_file, b.fmt("lib/{s}/{s}", .{ target_triple, lib_name }));
-    b.getInstallStep().dependOn(&install_lib.step);
+    const lib_name = if (target.result.os.tag == .windows and abi == .msvc)
+        "temporal_capi.lib"
+    else
+        "libtemporal_capi.a";
+
+    const prebuilt_lib_path = b.fmt("{s}/{s}", .{ target_triple, lib_name });
+
+    // --- Pre-built resolution --- //
+    const libtemporal_prebuilt = b.lazyDependency("libtemporal_prebuilt", .{});
+    var prebuilt_lib_file: ?std.Build.LazyPath = null;
+
+    if (libtemporal_prebuilt) |dep| {
+        const lib_file_candidate = dep.path(prebuilt_lib_path);
+        const lib_full_path = lib_file_candidate.getPath(b);
+        if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {
+            lib_check_file.close(b.graph.io);
+            prebuilt_lib_file = lib_file_candidate;
+        } else |_| {}
+    }
+
+    var selected_lib_file: std.Build.LazyPath = undefined;
+    if (prebuilt_lib_file) |lib_file| {
+        // std.debug.print("Using pre-built temporal_capi library from downloaded artifact at: {s}\n", .{prebuilt_lib_path});
+        selected_lib_file = lib_file;
+    } else {
+        // std.debug.print("building from source: {s}\n", .{prebuilt_lib_path});
+        const build_crab = @import("build_crab");
+        const build_dir = build_crab.addCargoBuild(
+            b,
+            .{
+                .manifest_path = b.path("Cargo.toml"),
+                .cargo_args = if (optimize == .Debug) &.{} else &.{"--release"},
+            },
+            .{
+                .target = target,
+                .optimize = .ReleaseSafe,
+            },
+        );
+        selected_lib_file = build_dir.path(b, lib_name);
+
+        // --- Install Step (for publishing) --- //
+        const install_lib = b.addInstallFile(selected_lib_file, b.fmt("lib/{s}/{s}", .{ target_triple, lib_name }));
+        b.getInstallStep().dependOn(&install_lib.step);
+    }
 
     // --- Zig Module --- //
     const mod = b.addModule("temporal_rs", .{
@@ -43,48 +63,24 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    mod.addObjectFile(lib_file);
 
-    // --- Steps: Build all platforms --- //
-    {
-        const build_lib_step = b.step("lib", "Build libraries for all common platforms");
+    // Add Headers
+    const temporal_rs_git = b.dependency("temporal_rs", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    mod.addIncludePath(temporal_rs_git.path("temporal_capi/bindings/c"));
+    mod.addIncludePath(b.path("src/stubs/c_headers"));
 
-        inline for (platforms) |p| {
-            const query = try std.Build.parseTargetQuery(.{ .arch_os_abi = p });
-            const platform_target = b.resolveTargetQuery(query);
+    // Add Object/Library
+    mod.addObjectFile(selected_lib_file);
 
-            const platform_build_dir = build_crab.addCargoBuild(
-                b,
-                .{
-                    .manifest_path = b.path("Cargo.toml"),
-                    .cargo_args = &.{"--release"},
-                },
-                .{
-                    .target = platform_target,
-                    .optimize = .ReleaseSafe,
-                },
-            );
-
-            const platform_lib_name = if (platform_target.result.os.tag == .windows and platform_target.result.abi == .msvc)
-                "temporal_capi.lib"
-            else
-                "libtemporal_capi.a";
-
-            const install_platform_lib = b.addInstallFile(
-                platform_build_dir.path(b, platform_lib_name),
-                b.fmt("lib/{s}/{s}", .{ p, platform_lib_name }),
-            );
-            build_lib_step.dependOn(&install_platform_lib.step);
-        }
-    }
+    // --- Rust Misc Deps --- //
+    if (target.result.os.tag == .windows) mod.linkSystemLibrary("userenv", .{});
+    const unwind_stubs = b.addLibrary(.{ .linkage = .static, .name = "unwind_stubs", .root_module = b.createModule(.{
+        .root_source_file = b.path("src/stubs/unwind.zig"),
+        .target = target,
+        .optimize = optimize,
+    }) });
+    mod.linkLibrary(unwind_stubs);
 }
-
-const platforms = [_][]const u8{
-    "aarch64-macos",
-    "x86_64-macos",
-    "aarch64-linux-gnu",
-    "x86_64-linux-gnu",
-    "x86_64-windows-gnu",
-    "aarch64-windows-gnu",
-    "wasm32-freestanding",
-};

@@ -1,25 +1,6 @@
 const std = @import("std");
 
-pub const c = @cImport({
-    @cInclude("AnyCalendarKind.h");
-    @cInclude("Calendar.h");
-    @cInclude("Duration.h");
-    @cInclude("ErrorKind.h");
-    @cInclude("I128Nanoseconds.h");
-    @cInclude("Instant.h");
-    @cInclude("OwnedRelativeTo.h");
-    @cInclude("ParsedDate.h");
-    @cInclude("ParsedDateTime.h");
-    @cInclude("ParsedZonedDateTime.h");
-    @cInclude("PlainDate.h");
-    @cInclude("PlainDateTime.h");
-    @cInclude("PlainMonthDay.h");
-    @cInclude("PlainTime.h");
-    @cInclude("PlainYearMonth.h");
-    @cInclude("RelativeTo.h");
-    @cInclude("TimeZone.h");
-    @cInclude("ZonedDateTime.h");
-});
+pub const c = @import("temporal_rs").c;
 
 pub const to_string_rounding_options_auto: c.ToStringRoundingOptions = .{
     .precision = .{ .is_minute = false, .precision = toOption(c.OptionU8, null) },

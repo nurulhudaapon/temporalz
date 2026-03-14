@@ -4,16 +4,8 @@
     .fingerprint = 0xd8d79d59acc4faae,
     .minimum_zig_version = "0.16.0-dev.2860+9c5460316",
     .dependencies = .{
-        .temporal_rs = .{
-            .url = "git+https://github.com/boa-dev/temporal#v0.1.2",
-            .hash = "N-V-__8AANlkNAB77Z946lqp-lgp2qSsOBDADValZC86PhB-",
-        },
         .libtemporal_src = .{
             .path = "pkg/temporal-rs",
-        },
-        .libtemporal_prebuilt = .{
-            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.1.2/temporal-rs-libs.tar.gz",
-            .hash = "N-V-__8AALzG2AXNSf7E7iuZWx7SrTN0PICWYwnu2kIDlf-w",
         },
     },
     .paths = .{
