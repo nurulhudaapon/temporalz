@@ -21,10 +21,10 @@ pub fn build(b: *std.Build) !void {
     const prebuilt_lib_path = b.fmt("{s}/{s}", .{ target_triple, lib_name });
 
     // --- Pre-built resolution --- //
-    const libtemporal_prebuilt = b.lazyDependency("libtemporal_prebuilt", .{});
+    const libtemporal_dep = b.lazyDependency("libtemporal", .{});
     var prebuilt_lib_file: ?std.Build.LazyPath = null;
 
-    if (libtemporal_prebuilt) |dep| {
+    if (libtemporal_dep) |dep| {
         const lib_file_candidate = dep.path(prebuilt_lib_path);
         const lib_full_path = lib_file_candidate.getPath(b);
         if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {

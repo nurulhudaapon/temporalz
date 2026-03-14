@@ -1,16 +1,16 @@
 .{
-    .name = .temporal_rs,
-    .version = "0.0.0",
-    .fingerprint = 0x4e9d7c35d5fc40c0,
+    .name = .temporal,
+    .version = "0.2.0",
+    .fingerprint = 0xd5dcf3f41df6b117,
     .minimum_zig_version = "0.16.0-dev.2565+684032671",
     .dependencies = .{
         .temporal_rs = .{
-            .url = "git+https://github.com/boa-dev/temporal#v0.1.2",
-            .hash = "N-V-__8AANlkNAB77Z946lqp-lgp2qSsOBDADValZC86PhB-",
+            .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.0#ad01ef6f6147345f35a6614bf942a83af14098dd",
+            .hash = "N-V-__8AAN1tOQBrOGLjyyZop7RoeAqcozA7dKIZKD30hcom",
         },
-        .libtemporal_prebuilt = .{
-            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.1.2/temporal-rs-libs.tar.gz",
-            .hash = "N-V-__8AALzG2AXNSf7E7iuZWx7SrTN0PICWYwnu2kIDlf-w",
+        .libtemporal = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.0/libtemporal.tar.gz",
+            .hash = "N-V-__8AAHgP2AWLC4ZLTr_3hWf6xtgtBI5moBrWDWg5kzSD",
         },
         .build_crab = .{
             .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#1aabc836472d318e9756a43b17853aadc4599800",
