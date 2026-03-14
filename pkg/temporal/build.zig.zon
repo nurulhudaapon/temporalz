@@ -10,7 +10,7 @@
         },
         .libtemporal = .{
             .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.0/libtemporal.tar.gz",
-            .hash = "N-V-__8AAHgP2AWLC4ZLTr_3hWf6xtgtBI5moBrWDWg5kzSD",
+            .hash = "N-V-__8AAHgP2AW1SUmeXextxkNko1_r2LkNlBxm_kLpBVYa",
             .lazy = true,
         },
         .build_crab = .{
