@@ -82,7 +82,7 @@ jobs:
       - name: Build Package
         run: |
           cd pkg/temporal
-          zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+          zig build -Dbuild-rust -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
           
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

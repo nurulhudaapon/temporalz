@@ -3,6 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse false;
 
     const arch_str = @tagName(target.result.cpu.arch);
     const os_str = @tagName(target.result.os.tag);
@@ -33,9 +34,9 @@ pub fn build(b: *std.Build) !void {
     }
 
     var selected_lib_file: std.Build.LazyPath = undefined;
-    if (prebuilt_lib_file) |lib_file| {
+    if (prebuilt_lib_file != null and !force_build_rust) {
         // std.debug.print("Using pre-built temporal_capi library from downloaded artifact at: {s}\n", .{prebuilt_lib_path});
-        selected_lib_file = lib_file;
+        selected_lib_file = prebuilt_lib_file.?;
     } else {
         // std.debug.print("building from source: {s}\n", .{prebuilt_lib_path});
         const build_crab = @import("build_crab");
@@ -51,11 +52,11 @@ pub fn build(b: *std.Build) !void {
             },
         );
         selected_lib_file = build_dir.path(b, lib_name);
-
-        // --- Install Step (for publishing) --- //
-        const install_lib = b.addInstallFile(selected_lib_file, b.fmt("lib/{s}/{s}", .{ target_triple, lib_name }));
-        b.getInstallStep().dependOn(&install_lib.step);
     }
+
+    // --- Install Step (for publishing) --- //
+    const install_lib = b.addInstallFile(selected_lib_file, b.fmt("lib/{s}/{s}", .{ target_triple, lib_name }));
+    b.getInstallStep().dependOn(&install_lib.step);
 
     // --- Zig Module --- //
     const mod = b.addModule("temporal_rs", .{
