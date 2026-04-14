@@ -60,7 +60,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0-dev.2860+9c5460316
+          version: 0.16.0-dev.3153+d6f43caad
           
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

@@ -272,8 +272,9 @@ const SlowTracker = struct {
         name: []const u8,
     };
 
-    fn deinit(self: SlowTracker, allocator: Allocator) void {
-        self.slowest.deinit(allocator);
+    fn deinit(self: *SlowTracker, allocator: Allocator) void {
+        var slowest = &self.slowest;
+        slowest.deinit(allocator);
     }
 
     fn startTiming(self: *SlowTracker) void {
