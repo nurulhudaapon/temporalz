@@ -9,8 +9,8 @@
             .hash = "N-V-__8AAPLKOQDfJ5TYhiiy_6a_dZqUmo9K4e8Xhjfup3fd",
         },
         .libtemporal = .{
-            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.0/libtemporal.tar.gz",
-            .hash = "N-V-__8AAHgP2AW1SUmeXextxkNko1_r2LkNlBxm_kLpBVYa",
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.3/libtemporal.tar.gz",
+            .hash = "N-V-__8AAIwh2AUYrkLbf6RU87sNN1tKAQ4qt1kqOwZXNld8",
             .lazy = true,
         },
         .build_crab = .{

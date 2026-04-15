@@ -1,15 +1,15 @@
 [package]
 name = "temporal_capi"
-version = "0.2.0"
+version = "0.2.3"
 edition = "2024"
 
 [dependencies.temporal_capi]
-version = "0.2.0"
+version = "0.2.3"
 default-features = false
 features = ["compiled_data"]
 
 [dependencies.temporal_rs]
-version = "0.2.0"
+version = "0.2.3"
 default-features = false
 features = ["float64_representable_durations"]
 

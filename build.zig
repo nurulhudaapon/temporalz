@@ -4,11 +4,13 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const is_wasm_freestanding = target.result.cpu.arch.isWasm() and target.result.os.tag == .freestanding;
+    const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse false;
 
     // --- Rust C ABI & Pre-built via temporal-rs subpackage --- //
     const temporal = b.dependency("temporal", .{
         .target = target,
         .optimize = optimize,
+        .@"build-rust" = force_build_rust,
     });
 
     // --- Zig Module: temporalz --- //
