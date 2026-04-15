@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .temporal_rs = .{
-            .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.0#ad01ef6f6147345f35a6614bf942a83af14098dd",
-            .hash = "N-V-__8AAN1tOQBrOGLjyyZop7RoeAqcozA7dKIZKD30hcom",
+            .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.3#c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
+            .hash = "N-V-__8AAPLKOQDfJ5TYhiiy_6a_dZqUmo9K4e8Xhjfup3fd",
         },
         .libtemporal = .{
             .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.0/libtemporal.tar.gz",
