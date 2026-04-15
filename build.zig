@@ -43,25 +43,11 @@ pub fn build(b: *std.Build) !void {
     // --- Steps: Run --- //
     {
         const run_step = b.step("run", "Run the app");
-        switch (target.result.os.tag) {
-            .freestanding => {
-                const run_cmd = b.addSystemCommand(&.{ "node", "example/src/main.mjs" });
-                run_cmd.step.dependOn(b.getInstallStep());
-                run_step.dependOn(&run_cmd.step);
-            },
-            .wasi => {
-                const run_cmd = b.addSystemCommand(&.{"wasmtime"});
-                run_cmd.addFileArg(exe.getEmittedBin());
-                run_cmd.step.dependOn(b.getInstallStep());
-                run_step.dependOn(&run_cmd.step);
-            },
-            else => {
-                const run_cmd = b.addRunArtifact(exe);
-                run_cmd.step.dependOn(b.getInstallStep());
-                if (b.args) |args| run_cmd.addArgs(args);
-                run_step.dependOn(&run_cmd.step);
-            },
-        }
+        const run_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "build", "run" });
+        run_cmd.setCwd(b.path("example"));
+
+        if (b.args) |args| run_cmd.addArgs(args);
+        run_step.dependOn(&run_cmd.step);
     }
 
     // --- Steps: Docs --- //
