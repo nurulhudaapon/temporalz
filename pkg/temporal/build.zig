@@ -67,15 +67,20 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    // Add Headers
-    const temporal_rs_git = b.dependency("temporal_rs", .{
+    const temporal_rs = b.dependency("temporal_rs", .{
         .target = target,
         .optimize = optimize,
     });
-    mod.addIncludePath(temporal_rs_git.path("temporal_capi/bindings/c"));
-    mod.addIncludePath(b.path("src/stubs/c_headers"));
 
-    // Add Object/Library
+    const translated = b.addTranslateC(.{
+        .root_source_file = b.path("src/lib.h"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = false,
+    });
+    translated.addIncludePath(temporal_rs.path("temporal_capi/bindings/c"));
+    translated.addIncludePath(b.path("src/stubs/c_headers"));
+    mod.addImport("lib", translated.createModule());
     mod.addObjectFile(selected_lib_file);
 
     // --- Rust Misc Deps --- //
