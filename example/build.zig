@@ -3,7 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const is_wasm_freestanding = target.result.cpu.arch.isWasm() and target.result.os.tag == .freestanding;
+    const is_freestanding = target.result.os.tag == .freestanding;
 
     const temporalz = b.dependency("temporalz", .{
         .target = target,
@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
-            .root_source_file = b.path(if (is_wasm_freestanding) "src/wasm.zig" else "src/main.zig"),
+            .root_source_file = b.path(if (is_freestanding) "src/wasm.zig" else "src/main.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{},

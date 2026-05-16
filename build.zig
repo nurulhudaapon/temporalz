@@ -3,7 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const is_wasm_freestanding = target.result.cpu.arch.isWasm() and target.result.os.tag == .freestanding;
+    const is_freestanding = target.result.os.tag == .freestanding;
     const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse false;
 
     // --- Rust C ABI & Pre-built via temporal-rs subpackage --- //
@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) !void {
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
-            .root_source_file = if (is_wasm_freestanding)
+            .root_source_file = if (is_freestanding)
                 b.path("example/src/wasm.zig")
             else
                 b.path("example/src/main.zig"),
@@ -36,16 +36,20 @@ pub fn build(b: *std.Build) !void {
             },
         }),
     });
-    exe.root_module.link_libc = !is_wasm_freestanding;
-    exe.rdynamic = is_wasm_freestanding;
+    exe.root_module.link_libc = !is_freestanding;
+    exe.rdynamic = is_freestanding;
     b.installArtifact(exe);
 
     // --- Steps: Run --- //
     {
-        const run_step = b.step("run", "Run the app");
-        const run_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "build", "run" });
+        const run_step = b.step("run", "Run the example project");
+        const run_cmd = b.addSystemCommand(&.{
+            b.graph.zig_exe,
+            "build",
+            "run",
+            b.fmt("-Dtarget={s}", .{try target.result.zigTriple(b.allocator)}),
+        });
         run_cmd.setCwd(b.path("example"));
-
         if (b.args) |args| run_cmd.addArgs(args);
         run_step.dependOn(&run_cmd.step);
     }
@@ -73,9 +77,9 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
-        mod_tests.root_module.link_libc = !is_wasm_freestanding;
+        mod_tests.root_module.link_libc = !is_freestanding;
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
-        if (!is_wasm_freestanding) {
+        if (!is_freestanding) {
             const exe_tests = b.addTest(.{ .root_module = exe.root_module });
             test_step.dependOn(&b.addRunArtifact(exe_tests).step);
         }
