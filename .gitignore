@@ -5,5 +5,6 @@ target
 
 lib
 tmp
+.DS_Store
 
 test/test262/polyfill-injected.js
