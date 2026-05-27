@@ -662,7 +662,11 @@ test add {
 }
 
 test getTimeZoneTransition {
-    if (true) return error.SkipZigTest; // getTimeZoneTransition() not properly implemented in underlying library
+    const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+
+    try std.testing.expectEqual(@as(?ZonedDateTime, null), try zdt.getTimeZoneTransition(.next));
+    try std.testing.expectEqual(@as(?ZonedDateTime, null), try zdt.getTimeZoneTransition(.previous));
 }
 
 test round {
@@ -914,7 +918,12 @@ test nanosecond {
 }
 
 test offset {
-    if (true) return error.SkipZigTest; // offset() throws RangeError with UTC timezone
+    const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+
+    const off = try zdt.offset(std.testing.allocator);
+    defer std.testing.allocator.free(off);
+    try std.testing.expectEqualStrings("+00:00", off);
 }
 
 test offsetNanoseconds {

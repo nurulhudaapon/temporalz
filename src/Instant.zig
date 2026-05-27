@@ -510,7 +510,17 @@ test toJSON {
 }
 
 test toZonedDateTimeISO {
-    if (true) return error.SkipZigTest;
+    const inst = try Instant.fromEpochMilliseconds(1704067200000);
+    defer inst.deinit();
+
+    const zdt = try inst.toZonedDateTimeISO(try TimeZone.init("UTC"));
+    defer zdt.deinit();
+
+    try std.testing.expectEqual(@as(i32, 2024), zdt.year());
+    try std.testing.expectEqual(@as(u8, 1), zdt.month());
+    try std.testing.expectEqual(@as(u8, 1), zdt.day());
+    try std.testing.expectEqual(@as(u8, 0), zdt.hour());
+    try std.testing.expectEqual(@as(i128, 1_704_067_200_000_000_000), zdt.epochNanoseconds());
 }
 
 test epochMilliseconds {
