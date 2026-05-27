@@ -522,18 +522,20 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         try instant_zdt.toString(allocator, .{}),
     });
 
-    const now_zdt = try Temporal.Now.zonedDateTimeISO();
-    defer now_zdt.deinit();
-    std.log.info(
-        \\Now Coverage
-        \\ - timeZoneId(): {s}
-        \\ - zonedDateTimeISO(): {s}
-        \\
-        \\
-    , .{
-        Temporal.Now.timeZoneId(),
-        try now_zdt.toString(allocator, .{}),
-    });
+    if (io_optional) |io| {
+        const now_zdt = try Temporal.Now.zonedDateTimeISO(io);
+        defer now_zdt.deinit();
+        std.log.info(
+            \\Now Coverage
+            \\ - timeZoneId(): {s}
+            \\ - zonedDateTimeISO(): {s}
+            \\
+            \\
+        , .{
+            Temporal.Now.timeZoneId(),
+            try now_zdt.toString(allocator, .{}),
+        });
+    }
 
     const date_cal = try Temporal.PlainDate.calInit(2024, 2, 2, "iso8601");
     const date_from = try Temporal.PlainDate.from("2024-02-02");
