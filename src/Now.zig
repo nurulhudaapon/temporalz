@@ -1,3 +1,4 @@
+const builtin = @import("builtin");
 const std = @import("std");
 const Instant = @import("Instant.zig");
 const PlainDate = @import("PlainDate.zig");
@@ -134,15 +135,23 @@ fn currentParts(io: std.Io) CurrentParts {
 }
 
 fn currentEpochNanoseconds() i128 {
-    var timespec: std.posix.timespec = undefined;
-    switch (std.posix.errno(std.posix.system.clock_gettime(.REALTIME, &timespec))) {
-        .SUCCESS => {},
-        else => return 0,
-    }
+    return switch (builtin.os.tag) {
+        .windows => blk: {
+            const epoch_ns = std.time.epoch.windows * std.time.ns_per_s;
+            break :blk @as(i128, @intCast(std.os.windows.ntdll.RtlGetSystemTimePrecise())) * 100 + epoch_ns;
+        },
+        else => blk: {
+            var timespec: std.posix.timespec = undefined;
+            switch (std.posix.errno(std.posix.system.clock_gettime(.REALTIME, &timespec))) {
+                .SUCCESS => {},
+                else => return 0,
+            }
 
-    const seconds: i128 = @intCast(timespec.sec);
-    const nanos: i128 = @intCast(timespec.nsec);
-    return seconds * std.time.ns_per_s + nanos;
+            const seconds: i128 = @intCast(timespec.sec);
+            const nanos: i128 = @intCast(timespec.nsec);
+            break :blk seconds * std.time.ns_per_s + nanos;
+        },
+    };
 }
 
 // ---------- Tests ---------------------
