@@ -805,6 +805,12 @@ test calendarId {
     try std.testing.expect(cal_id.len > 0);
 }
 
+test day {
+    const zdt = try from("2021-01-02T12:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+    try std.testing.expectEqual(@as(u8, 2), zdt.day());
+}
+
 test dayOfWeek {
     const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
     defer zdt.deinit();
@@ -872,6 +878,12 @@ test eraYear {
     }
 }
 
+test hour {
+    const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+    try std.testing.expectEqual(@as(u8, 12), zdt.hour());
+}
+
 test hoursInDay {
     const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
     defer zdt.deinit();
@@ -894,6 +906,24 @@ test microsecond {
     defer zdt.deinit();
     const us = zdt.microsecond();
     try std.testing.expect(us >= 0 and us < 1000);
+}
+
+test millisecond {
+    const zdt = try from("2021-01-01T12:00:00.123456789+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+    try std.testing.expectEqual(@as(u16, 123), zdt.millisecond());
+}
+
+test minute {
+    const zdt = try from("2021-01-01T12:34:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+    try std.testing.expectEqual(@as(u8, 34), zdt.minute());
+}
+
+test month {
+    const zdt = try from("2021-07-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+    try std.testing.expectEqual(@as(u8, 7), zdt.month());
 }
 
 test monthCode {
@@ -933,6 +963,21 @@ test offsetNanoseconds {
     try std.testing.expectEqual(@as(i64, 0), off_ns);
 }
 
+test second {
+    const zdt = try from("2021-01-01T12:34:56+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+    try std.testing.expectEqual(@as(u8, 56), zdt.second());
+}
+
+test timeZoneId {
+    const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+
+    const id = try zdt.timeZoneId(std.testing.allocator);
+    defer std.testing.allocator.free(id);
+    try std.testing.expectEqualStrings("UTC", id);
+}
+
 test weekOfYear {
     const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
     defer zdt.deinit();
@@ -940,6 +985,12 @@ test weekOfYear {
     if (woy) |week| {
         try std.testing.expect(week >= 1 and week <= 53);
     }
+}
+
+test year {
+    const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
+    defer zdt.deinit();
+    try std.testing.expectEqual(@as(i32, 2021), zdt.year());
 }
 
 test yearOfWeek {

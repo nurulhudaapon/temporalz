@@ -430,6 +430,43 @@ test until {
     try std.testing.expectEqual(@as(i64, 6), dur.months());
 }
 
+test calendarId {
+    const ym = try from("2021-07-01[u-ca=gregory]");
+    const cal_id = try ym.calendarId(std.testing.allocator);
+    defer std.testing.allocator.free(cal_id);
+    try std.testing.expectEqualStrings("gregory", cal_id);
+}
+
+test year {
+    const ym = try from("2021-07");
+    try std.testing.expectEqual(@as(i32, 2021), ym.year());
+}
+
+test month {
+    const ym = try from("2021-07");
+    try std.testing.expectEqual(@as(u8, 7), ym.month());
+}
+
+test monthCode {
+    const ym = try from("2021-07");
+    const month_code = try ym.monthCode(std.testing.allocator);
+    defer std.testing.allocator.free(month_code);
+    try std.testing.expectEqualStrings("M07", month_code);
+}
+
+test era {
+    const ym = try from("2021-07-01[u-ca=gregory]");
+    const maybe_era = try ym.era(std.testing.allocator);
+    const era_value = maybe_era orelse return error.TestUnexpectedResult;
+    defer std.testing.allocator.free(era_value);
+    try std.testing.expectEqualStrings("ce", era_value);
+}
+
+test eraYear {
+    const ym = try from("2021-07-01[u-ca=gregory]");
+    try std.testing.expectEqual(@as(?i32, 2021), ym.eraYear());
+}
+
 test with {
     // Test modifying year
     const ym1 = try init(2024, 6, null);
