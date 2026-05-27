@@ -31,6 +31,7 @@ pub fn main(init: std.process.Init) !void {
 
     const env = Env.init(allocator, init.minimal.environ);
     defer env.deinit(allocator);
+    std.testing.environ = env.environ;
 
     var slowest = SlowTracker.init(allocator, io, 15);
     defer slowest.deinit(allocator);
