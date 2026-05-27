@@ -227,6 +227,7 @@ test PlainDate {
         "ToStringOptions",
         "CalendarDisplay",
         "ToZonedDateTimeOptions",
+        "WithOptions",
         "Unit",
         "RoundingMode",
         "Sign",

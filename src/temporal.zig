@@ -90,9 +90,11 @@ pub const TimeZone = struct {
     _inner: abi.c.TimeZone,
 
     /// Initialize a TimeZone from an identifier string.
-    pub fn init(id: []const u8) TimeZone {
+    pub fn init(id: []const u8) !TimeZone {
         const view = abi.toDiplomatStringView(id);
-        return .{ ._inner = .{ .id = view } };
+        const result = abi.c.temporal_rs_TimeZone_try_from_str(view);
+        const time_zone = try abi.extractResult(result);
+        return .{ ._inner = time_zone };
     }
 };
 

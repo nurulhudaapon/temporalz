@@ -307,7 +307,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     // PlainDate: add, subtract, with, equals, since, until, withCalendar
     const date_added = try date.add(dur);
     const date_sub = try date.subtract(dur);
-    // const date_with = try date.with(.{ .year = 2025 });
+    const date_with = try date.with(.{ .year = 2025 });
     const date_eq = date.equals(date);
     const date_since = try date.since(date, Temporal.PlainDate.DifferenceSettings{});
     const date_until = try date.until(date, Temporal.PlainDate.DifferenceSettings{});
@@ -320,7 +320,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         \\ - since self: {s}
         \\ - until self: {s}
         \\ - withCalendar: {s}
-        \\ - with year=2025: {{s}}
+        \\ - with year=2025: {s}
         \\
         \\
     ,
@@ -331,7 +331,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
             try date_since.toString(allocator, .{}),
             try date_until.toString(allocator, .{}),
             try date_with_cal.toString(allocator, .{}),
-            // try date_with.toString(allocator, .{}),
+            try date_with.toString(allocator, .{}),
         },
     );
 
@@ -399,7 +399,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         try tm_until.toString(allocator, .{}),
     });
 
-    // PlainYearMonth: add, subtract, with, equals, since, until, withCalendar
+    // PlainYearMonth: add, subtract, with, equals, since, until
     const dur_ym = try Temporal.Duration.from("P1M");
     defer dur_ym.deinit();
     const ym_added = try ym.add(dur_ym);
@@ -427,11 +427,10 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         try ym_until.toString(allocator, .{}),
     });
 
-    // ZonedDateTime: add, subtract, round, with, equals, since, until, withCalendar, withPlainTime, withTimeZone
+    // ZonedDateTime: add, subtract, round, equals, since, until, withCalendar, withPlainTime, withTimeZone
     const zdt_added = try zdt.add(dur);
     const zdt_sub = try zdt.subtract(dur);
     const zdt_rounded = try zdt.round(.{ .smallest_unit = Temporal.ZonedDateTime.Unit.hour });
-    // const zdt_with = try zdt.with(allocator, .{ .year = 2025 });
     const zdt_eq = zdt.equals(zdt);
     const zdt_since = try zdt.since(zdt, Temporal.ZonedDateTime.DifferenceSettings{});
     const zdt_until = try zdt.until(zdt, Temporal.ZonedDateTime.DifferenceSettings{});
@@ -443,7 +442,6 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         \\ - add duration: {s}
         \\ - subtract duration: {s}
         \\ - round to hour: {s}
-        \\ - with year=2025: {{s}}
         \\ - equals self: {}
         \\ - since self: {s}
         \\ - until self: {s}
@@ -456,13 +454,357 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         try zdt_added.toString(allocator, .{}),
         try zdt_sub.toString(allocator, .{}),
         try zdt_rounded.toString(allocator, .{}),
-        // try zdt_with.toString(allocator, .{}),
         zdt_eq,
         try zdt_since.toString(allocator, .{}),
         try zdt_until.toString(allocator, .{}),
         try zdt_with_cal.toString(allocator, .{}),
         try zdt_with_time.toString(allocator, .{}),
         try zdt_with_tz.toString(allocator, .{}),
+    });
+
+    // ----
+    // API coverage examples for the remaining public methods
+    // ----
+
+    const dur_init = try Temporal.Duration.init(0, 1, 0, 2, 3, 4, 5, 6, 7, 8);
+    const dur_from_partial = try Temporal.Duration.from(Temporal.Duration.PartialDuration{ .minutes = 90 });
+    const dur_compare = try dur.compare(dur2, .{});
+    const dur_locale_supported = dur.toLocaleString(allocator) != error.TemporalNotImplemented;
+    std.log.info(
+        \\Duration Coverage
+        \\ - init: {s}
+        \\ - from partial: {s}
+        \\ - compare(dur, dur2): {}
+        \\ - sign: {s}
+        \\ - blank: {}
+        \\ - microseconds: {d}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString implemented: {}
+        \\
+        \\
+    , .{
+        try dur_init.toString(allocator, .{}),
+        try dur_from_partial.toString(allocator, .{}),
+        dur_compare,
+        @tagName(dur.sign()),
+        dur.blank(),
+        dur.microseconds(),
+        try dur.toJSON(allocator),
+        dur_locale_supported,
+    });
+
+    const instant_from_ms = try Temporal.Instant.fromEpochMilliseconds(1_704_067_200_000);
+    const instant_from_ns = try Temporal.Instant.fromEpochNanoseconds(1_704_067_200_000_000_000);
+    const instant_from_str = try Temporal.Instant.from("2024-01-01T00:00:00Z");
+    const instant_until = try inst1.until(inst2, Temporal.Instant.DifferenceSettings{});
+    const instant_zdt = try inst1.toZonedDateTimeISO(try Temporal.Instant.TimeZone.init("UTC"));
+    defer instant_zdt.deinit();
+    std.log.info(
+        \\Instant Coverage
+        \\ - fromEpochMilliseconds: {s}
+        \\ - fromEpochNanoseconds: {s}
+        \\ - from string: {s}
+        \\ - equals(from ms, from ns): {}
+        \\ - until inst2: {s}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString(): {s}
+        \\ - toZonedDateTimeISO(): {s}
+        \\
+        \\
+    , .{
+        try instant_from_ms.toString(allocator, .{}),
+        try instant_from_ns.toString(allocator, .{}),
+        try instant_from_str.toString(allocator, .{}),
+        Temporal.Instant.equals(instant_from_ms, instant_from_ns),
+        try instant_until.toString(allocator, .{}),
+        try inst1.toJSON(allocator),
+        try inst1.toLocaleString(allocator),
+        try instant_zdt.toString(allocator, .{}),
+    });
+
+    const now_zdt_supported = Temporal.Now.zonedDateTimeISO() != error.TemporalNotImplemented;
+    std.log.info(
+        \\Now Coverage
+        \\ - timeZoneId(): {s}
+        \\ - zonedDateTimeISO implemented: {}
+        \\
+        \\
+    , .{
+        Temporal.Now.timeZoneId(),
+        now_zdt_supported,
+    });
+
+    const date_cal = try Temporal.PlainDate.calInit(2024, 2, 2, "iso8601");
+    const date_from = try Temporal.PlainDate.from("2024-02-02");
+    const date_md = try date.toPlainMonthDay();
+    const date_ym = try date.toPlainYearMonth();
+    const date_zdt = try date.toZonedDateTime(.{ .time_zone = "UTC", .plain_time = tm });
+    const date_locale_supported = date.toLocaleString(allocator) != error.TemporalNotImplemented;
+    const date_valueof_supported = date.valueOf() != error.TemporalValueOfNotSupported;
+    const date_with_coverage = try date.with(.{ .year = 2025, .month = 3, .day = 4 });
+    std.log.info(
+        \\PlainDate Coverage
+        \\ - calInit: {s}
+        \\ - from string: {s}
+        \\ - compare(date, from): {}
+        \\ - calendarId: {s}
+        \\ - dayOfWeek/dayOfYear: {}/{}
+        \\ - daysInWeek/daysInMonth/daysInYear: {}/{}/{}
+        \\ - monthCode/monthsInYear: {s}/{}
+        \\ - inLeapYear: {}
+        \\ - era/eraYear: {any}/{?}
+        \\ - weekOfYear/yearOfWeek: {?}/{?}
+        \\ - toPlainMonthDay: {s}
+        \\ - toPlainYearMonth: {s}
+        \\ - toZonedDateTime: {s}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString implemented: {}
+        \\ - valueOf supported: {}
+        \\ - with year/month/day: {s}
+        \\
+        \\
+    , .{
+        try date_cal.toString(allocator, .{}),
+        try date_from.toString(allocator, .{}),
+        Temporal.PlainDate.compare(date, date_from),
+        try date.calendarId(allocator),
+        date.dayOfWeek(),
+        date.dayOfYear(),
+        date.daysInWeek(),
+        date.daysInMonth(),
+        date.daysInYear(),
+        try date.monthCode(allocator),
+        date.monthsInYear(),
+        date.inLeapYear(),
+        try date.era(allocator),
+        date.eraYear(),
+        date.weekOfYear(),
+        date.yearOfWeek(),
+        try date_md.toString(allocator),
+        try date_ym.toString(allocator),
+        try date_zdt.toString(allocator, .{}),
+        try date.toJSON(allocator),
+        date_locale_supported,
+        date_valueof_supported,
+        try date_with_coverage.toString(allocator, .{}),
+    });
+
+    const dt_cal = try Temporal.PlainDateTime.calInit(2024, 2, 2, 13, 45, 30, 123, 456, 789, "iso8601");
+    const dt_from = try Temporal.PlainDateTime.from("2024-02-02T13:45:30.123456789", .{});
+    const dt_plain_time = try dt.toPlainTime();
+    const dt_zdt = try dt.toZonedDateTime(.{ .timeZone = "UTC" });
+    const dt_valueof_supported = dt.valueOf() != error.ComparisonNotSupported;
+    std.log.info(
+        \\PlainDateTime Coverage
+        \\ - calInit: {s}
+        \\ - from string: {s}
+        \\ - compare(dt, from): {}
+        \\ - calendarId: {s}
+        \\ - dayOfWeek/dayOfYear: {}/{}
+        \\ - daysInWeek/daysInMonth/daysInYear: {}/{}/{}
+        \\ - monthCode/monthsInYear: {s}/{}
+        \\ - inLeapYear: {}
+        \\ - era/eraYear: {any}/{?}
+        \\ - weekOfYear/yearOfWeek: {?}/{?}
+        \\ - millisecond/microsecond/nanosecond: {}/{}/{}
+        \\ - toPlainTime: {s}
+        \\ - toZonedDateTime: {s}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString(): {s}
+        \\ - valueOf supported: {}
+        \\
+        \\
+    , .{
+        try dt_cal.toString(allocator, .{}),
+        try dt_from.toString(allocator, .{}),
+        Temporal.PlainDateTime.compare(dt, dt_from),
+        try dt.calendarId(allocator),
+        dt.dayOfWeek(),
+        dt.dayOfYear(),
+        dt.daysInWeek(),
+        dt.daysInMonth(),
+        dt.daysInYear(),
+        try dt.monthCode(allocator),
+        dt.monthsInYear(),
+        dt.inLeapYear(),
+        try dt.era(allocator),
+        try dt.eraYear(),
+        try dt.weekOfYear(),
+        try dt.yearOfWeek(),
+        dt.millisecond(),
+        dt.microsecond(),
+        dt.nanosecond(),
+        try dt_plain_time.toString(allocator),
+        try dt_zdt.toString(allocator, .{}),
+        try dt.toJSON(allocator),
+        dt.toLocaleString(allocator),
+        dt_valueof_supported,
+    });
+
+    const md_from = try Temporal.PlainMonthDay.from("02-02");
+    const md_with = try md.with(.{ .day = 3 });
+    const md_date = try md.toPlainDate(2024);
+    const md_valueof_supported = md.valueOf() != error.ValueError;
+    std.log.info(
+        \\PlainMonthDay Coverage
+        \\ - from string: {s}
+        \\ - equals(from): {}
+        \\ - calendarId: {s}
+        \\ - with day=3: {s}
+        \\ - toPlainDate(2024): {s}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString(): {s}
+        \\ - valueOf supported: {}
+        \\
+        \\
+    , .{
+        try md_from.toString(allocator),
+        md.equals(md_from),
+        try md.calendarId(allocator),
+        try md_with.toString(allocator),
+        try md_date.toString(allocator, .{}),
+        try md.toJSON(allocator),
+        try md.toLocaleString(allocator),
+        md_valueof_supported,
+    });
+
+    const tm_from = try Temporal.PlainTime.from("13:45:30.123456789");
+    const tm_valueof_supported = tm.valueOf() != error.ValueError;
+    std.log.info(
+        \\PlainTime Coverage
+        \\ - from string: {s}
+        \\ - compare(tm, from): {}
+        \\ - millisecond/microsecond/nanosecond: {}/{}/{}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString(): {s}
+        \\ - valueOf supported: {}
+        \\
+        \\
+    , .{
+        try tm_from.toString(allocator),
+        Temporal.PlainTime.compare(tm, tm_from),
+        tm.millisecond(),
+        tm.microsecond(),
+        tm.nanosecond(),
+        try tm.toJSON(allocator),
+        try tm.toLocaleString(allocator),
+        tm_valueof_supported,
+    });
+
+    const ym_from = try Temporal.PlainYearMonth.from("2024-02");
+    const ym_date = try ym.toPlainDate(2);
+    const ym_valueof_supported = ym.valueOf() != error.ValueError;
+    std.log.info(
+        \\PlainYearMonth Coverage
+        \\ - from string: {s}
+        \\ - compare(ym, from): {}
+        \\ - calendarId: {s}
+        \\ - monthCode: {s}
+        \\ - daysInMonth/daysInYear/monthsInYear: {}/{}/{}
+        \\ - inLeapYear: {}
+        \\ - era/eraYear: {any}/{?}
+        \\ - toPlainDate(2): {s}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString(): {s}
+        \\ - valueOf supported: {}
+        \\
+        \\
+    , .{
+        try ym_from.toString(allocator),
+        Temporal.PlainYearMonth.compare(ym, ym_from),
+        try ym.calendarId(allocator),
+        try ym.monthCode(allocator),
+        ym.daysInMonth(),
+        ym.daysInYear(),
+        ym.monthsInYear(),
+        ym.inLeapYear(),
+        try ym.era(allocator),
+        ym.eraYear(),
+        try ym_date.toString(allocator, .{}),
+        try ym.toJSON(allocator),
+        try ym.toLocaleString(allocator),
+        ym_valueof_supported,
+    });
+
+    const zdt_init = try Temporal.ZonedDateTime.init(zdt_epoch_ns, tz);
+    const zdt_from_ms = try Temporal.ZonedDateTime.fromEpochMilliseconds(1_706_881_530_123, tz);
+    const zdt_from = try Temporal.ZonedDateTime.from("2024-02-02T13:45:30.123456789+00:00[UTC]", null, .compatible, .reject);
+    const zdt_transition_next = try zdt.getTimeZoneTransition(.next);
+    const zdt_transition_previous = try zdt.getTimeZoneTransition(.previous);
+    const zdt_day_start = try zdt.startOfDay();
+    const zdt_plain_date = try zdt.toPlainDate();
+    const zdt_plain_datetime = try zdt.toPlainDateTime();
+    const zdt_plain_time = try zdt.toPlainTime();
+    const zdt_valueof_supported = zdt.valueOf() != error.ValueOfNotSupported;
+    const zdt_with_supported = zdt.with(allocator, .{ .year = 2025 }) != error.TemporalNoteImplemented;
+    std.log.info(
+        \\ZonedDateTime Coverage
+        \\ - init: {s}
+        \\ - fromEpochMilliseconds: {s}
+        \\ - from string: {s}
+        \\ - compare(zdt, from): {}
+        \\ - next/previous transition exists: {}/{}
+        \\ - startOfDay: {s}
+        \\ - toJSON(): {s}
+        \\ - toLocaleString(): {s}
+        \\ - toPlainDate: {s}
+        \\ - toPlainDateTime: {s}
+        \\ - toPlainTime: {s}
+        \\ - calendarId: {s}
+        \\ - dayOfWeek/dayOfYear: {}/{}
+        \\ - daysInWeek/daysInMonth/daysInYear: {}/{}/{}
+        \\ - epochMilliseconds/epochNanoseconds: {}/{}
+        \\
+    , .{
+        try zdt_init.toString(allocator, .{}),
+        try zdt_from_ms.toString(allocator, .{}),
+        try zdt_from.toString(allocator, .{}),
+        Temporal.ZonedDateTime.compare(zdt, zdt_from),
+        zdt_transition_next != null,
+        zdt_transition_previous != null,
+        try zdt_day_start.toString(allocator, .{}),
+        try zdt.toJSON(allocator),
+        try zdt.toLocaleString(allocator),
+        try zdt_plain_date.toString(allocator, .{}),
+        try zdt_plain_datetime.toString(allocator, .{}),
+        try zdt_plain_time.toString(allocator),
+        try zdt.calendarId(allocator),
+        zdt.dayOfWeek(),
+        zdt.dayOfYear(),
+        zdt.daysInWeek(),
+        zdt.daysInMonth(),
+        zdt.daysInYear(),
+        zdt.epochMilliseconds(),
+        zdt.epochNanoseconds(),
+    });
+    std.log.info(
+        \\ZonedDateTime Coverage Continued
+        \\ - era/eraYear: {any}/{?}
+        \\ - hoursInDay/inLeapYear: {d}/{}
+        \\ - millisecond/microsecond/nanosecond: {}/{}/{}
+        \\ - monthCode/monthsInYear: {s}/{}
+        \\ - offset/offsetNanoseconds: {s}/{}
+        \\ - weekOfYear/yearOfWeek: {?}/{?}
+        \\ - valueOf supported: {}
+        \\ - with implemented: {}
+        \\
+        \\
+    , .{
+        try zdt.era(allocator),
+        zdt.eraYear(),
+        try zdt.hoursInDay(),
+        zdt.inLeapYear(),
+        zdt.millisecond(),
+        zdt.microsecond(),
+        zdt.nanosecond(),
+        try zdt.monthCode(allocator),
+        zdt.monthsInYear(),
+        try zdt.offset(allocator),
+        zdt.offsetNanoseconds(),
+        zdt.weekOfYear(),
+        zdt.yearOfWeek(),
+        zdt_valueof_supported,
+        zdt_with_supported,
     });
 }
 

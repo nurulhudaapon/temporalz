@@ -3,6 +3,7 @@ const abi = @import("abi.zig");
 const t = @import("temporal.zig");
 
 const Duration = @import("Duration.zig");
+const ZonedDateTime = @import("ZonedDateTime.zig");
 
 /// The `Temporal.Instant` object represents a unique point in time, with nanosecond precision.
 /// It is fundamentally represented as the number of nanoseconds since the Unix epoch (midnight at the beginning of January 1, 1970, UTC), without any time zone or calendar system.
@@ -259,16 +260,6 @@ fn optsToRounding(opts: ToStringOptions) abi.c.ToStringRoundingOptions {
         .rounding_mode = abi.toRoundingModeOption(rounding_mode),
     };
 }
-
-// --- Forward declarations -----------------------------------------------------
-
-const ZonedDateTime = struct {
-    _inner: *abi.c.ZonedDateTime,
-
-    pub fn deinit(self: ZonedDateTime) void {
-        abi.c.temporal_rs_ZonedDateTime_destroy(self._inner);
-    }
-};
 
 // --- Tests -------------------------------------------------------------------
 

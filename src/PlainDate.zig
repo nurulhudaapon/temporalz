@@ -55,6 +55,22 @@ pub const ToZonedDateTimeOptions = struct {
     plain_time: ?PlainTime = null,
 };
 
+/// Options for `with()` method.
+pub const WithOptions = struct {
+    /// Year value to override.
+    year: ?i32 = null,
+    /// Month value to override.
+    month: ?u8 = null,
+    /// Calendar-specific month code to override.
+    month_code: ?[]const u8 = null,
+    /// Day value to override.
+    day: ?u8 = null,
+    /// Era value to override.
+    era: ?[]const u8 = null,
+    /// Era year value to override.
+    era_year: ?i32 = null,
+};
+
 /// Creates a new PlainDate from the given ISO year, month, and day.
 pub fn init(year_val: i32, month_val: u8, day_val: u8) !PlainDate {
     return calInit(year_val, month_val, day_val, "iso8601");
@@ -137,11 +153,28 @@ pub fn since(self: PlainDate, other: PlainDate, settings: DifferenceSettings) !D
     return .{ ._inner = ptr };
 }
 
-/// Returns a new PlainDate with some fields replaced (not implemented).
-pub fn with(self: PlainDate, fields: anytype) !PlainDate {
-    _ = self;
-    _ = fields;
-    return error.TemporalNotImplemented;
+/// Returns a new PlainDate with some fields replaced.
+pub fn with(self: PlainDate, fields: WithOptions) !PlainDate {
+    const partial_date = abi.c.PartialDate{
+        .year = if (fields.year) |y| abi.toOption(abi.c.OptionI32, y) else .{ .is_ok = false },
+        .month = if (fields.month) |m| abi.toOption(abi.c.OptionU8, m) else .{ .is_ok = false },
+        .day = if (fields.day) |d| abi.toOption(abi.c.OptionU8, d) else .{ .is_ok = false },
+        .month_code = if (fields.month_code) |mc| abi.toDiplomatStringView(mc) else .{ .data = null, .len = 0 },
+        .era = if (fields.era) |e| abi.toDiplomatStringView(e) else .{ .data = null, .len = 0 },
+        .era_year = if (fields.era_year) |ey| abi.toOption(abi.c.OptionI32, ey) else .{ .is_ok = false },
+        .calendar = abi.c.AnyCalendarKind_Iso,
+    };
+
+    const overflow = abi.c.ArithmeticOverflow_option{
+        .is_ok = true,
+        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
+    };
+
+    return wrapPlainDate(abi.c.temporal_rs_PlainDate_with(
+        self._inner,
+        partial_date,
+        overflow,
+    ));
 }
 
 /// Returns a new PlainDate with a different calendar.
@@ -526,7 +559,13 @@ test with {
     const date = try PlainDate.init(2024, 3, 15);
     defer date.deinit();
 
-    try std.testing.expectError(error.TemporalNotImplemented, date.with(.{}));
+    try std.testing.expectError(error.TypeError, date.with(.{}));
+
+    const changed = try date.with(.{ .year = 2025, .month = 4, .day = 16 });
+    defer changed.deinit();
+    try std.testing.expectEqual(@as(i32, 2025), changed.year());
+    try std.testing.expectEqual(@as(u8, 4), changed.month());
+    try std.testing.expectEqual(@as(u8, 16), changed.day());
 }
 
 test withCalendar {
