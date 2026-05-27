@@ -90,6 +90,85 @@ pub fn toTimeZoneOption(maybe_value: ?c.TimeZone) c.TimeZone_option {
     return toOption(c.TimeZone_option, maybe_value);
 }
 
+pub fn toPartialZonedDateTime(fields: anytype) c.PartialZonedDateTime {
+    return .{
+        .date = .{
+            .year = toI32OptionField(fields, "year"),
+            .month = toU8OptionField(fields, "month"),
+            .month_code = toStringViewField(fields, "month_code"),
+            .day = toU8OptionField(fields, "day"),
+            .era = toStringViewField(fields, "era"),
+            .era_year = toI32OptionField(fields, "era_year"),
+            .calendar = c.AnyCalendarKind_Iso,
+        },
+        .time = .{
+            .hour = toU8OptionField(fields, "hour"),
+            .minute = toU8OptionField(fields, "minute"),
+            .second = toU8OptionField(fields, "second"),
+            .millisecond = toU16OptionField(fields, "millisecond"),
+            .microsecond = toU16OptionField(fields, "microsecond"),
+            .nanosecond = toU16OptionField(fields, "nanosecond"),
+        },
+        .offset = toOptionStringViewField(fields, "offset"),
+        .timezone = toTimeZoneOptionField(fields, "time_zone"),
+    };
+}
+
+fn toI32OptionField(fields: anytype, comptime name: []const u8) c.OptionI32 {
+    return toOption(c.OptionI32, intField(i32, fields, name));
+}
+
+fn toU8OptionField(fields: anytype, comptime name: []const u8) c.OptionU8 {
+    return toOption(c.OptionU8, intField(u8, fields, name));
+}
+
+fn toU16OptionField(fields: anytype, comptime name: []const u8) c.OptionU16 {
+    return toOption(c.OptionU16, intField(u16, fields, name));
+}
+
+fn intField(comptime Int: type, fields: anytype, comptime name: []const u8) ?Int {
+    if (!@hasField(@TypeOf(fields), name)) return null;
+
+    const value = @field(fields, name);
+    return switch (@typeInfo(@TypeOf(value))) {
+        .optional => if (value) |payload| @as(Int, @intCast(payload)) else null,
+        else => @as(Int, @intCast(value)),
+    };
+}
+
+fn toStringViewField(fields: anytype, comptime name: []const u8) c.DiplomatStringView {
+    if (stringField(fields, name)) |value| return toDiplomatStringView(value);
+    return .{ .data = null, .len = 0 };
+}
+
+fn toOptionStringViewField(fields: anytype, comptime name: []const u8) c.OptionStringView {
+    if (stringField(fields, name)) |value| {
+        return .{ .is_ok = true, .unnamed_0 = .{ .ok = toDiplomatStringView(value) } };
+    }
+    return .{ .is_ok = false };
+}
+
+fn stringField(fields: anytype, comptime name: []const u8) ?[]const u8 {
+    if (!@hasField(@TypeOf(fields), name)) return null;
+
+    const value = @field(fields, name);
+    return switch (@typeInfo(@TypeOf(value))) {
+        .optional => value,
+        else => value,
+    };
+}
+
+fn toTimeZoneOptionField(fields: anytype, comptime name: []const u8) c.TimeZone_option {
+    if (!@hasField(@TypeOf(fields), name)) return .{ .is_ok = false };
+
+    const value = @field(fields, name);
+    const maybe_time_zone = switch (@typeInfo(@TypeOf(value))) {
+        .optional => if (value) |payload| payload._inner else null,
+        else => value._inner,
+    };
+    return toOption(c.TimeZone_option, maybe_time_zone);
+}
+
 /// Convert a Zig `?Unit` to a Rust `Option<Unit>`.
 pub fn toUnitOption(maybe_value: ?c.Unit) c.Unit_option {
     return toOption(c.Unit_option, maybe_value);

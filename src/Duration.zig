@@ -320,7 +320,8 @@ pub fn toJSON(self: Duration, allocator: std.mem.Allocator) ![]u8 {
     return self.toString(allocator, .{});
 }
 
-/// Returns a string with a language-sensitive representation of this duration. Not implemented.
+/// Returns a string with a language-sensitive representation of this duration.
+/// Not implemented.
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/toLocaleString
 pub fn toLocaleString(self: Duration, allocator: std.mem.Allocator) ![]u8 {
     _ = self;

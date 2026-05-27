@@ -87,7 +87,8 @@ pub fn timeZoneId() []const u8 {
 ///
 /// See: [MDN Temporal.Now.zonedDateTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/zonedDateTimeISO)
 pub fn zonedDateTimeISO() !ZonedDateTime {
-    return error.TemporalNotImplemented;
+    const time_zone = try ZonedDateTime.TimeZone.init(timeZoneId());
+    return ZonedDateTime.fromEpochNanoseconds(currentEpochNanoseconds(), time_zone);
 }
 
 const CurrentParts = struct {
@@ -132,6 +133,18 @@ fn currentParts(io: std.Io) CurrentParts {
     };
 }
 
+fn currentEpochNanoseconds() i128 {
+    var timespec: std.posix.timespec = undefined;
+    switch (std.posix.errno(std.posix.system.clock_gettime(.REALTIME, &timespec))) {
+        .SUCCESS => {},
+        else => return 0,
+    }
+
+    const seconds: i128 = @intCast(timespec.sec);
+    const nanos: i128 = @intCast(timespec.nsec);
+    return seconds * std.time.ns_per_s + nanos;
+}
+
 // ---------- Tests ---------------------
 test instant {
     const io = std.testing.io;
@@ -168,5 +181,11 @@ test timeZoneId {
     try std.testing.expectEqualStrings("UTC", tz);
 }
 test zonedDateTimeISO {
-    try std.testing.expectError(error.TemporalNotImplemented, zonedDateTimeISO());
+    const zdt = try zonedDateTimeISO();
+    defer zdt.deinit();
+
+    try std.testing.expect(zdt.epochNanoseconds() > 0);
+    const tz = try zdt.timeZoneId(std.testing.allocator);
+    defer std.testing.allocator.free(tz);
+    try std.testing.expectEqualStrings("UTC", tz);
 }

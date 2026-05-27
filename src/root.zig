@@ -502,6 +502,7 @@ test ZonedDateTime {
         "DisplayOffset",
         "DisplayTimeZone",
         "ToStringOptions",
+        "WithOptions",
     };
 
     try assertDecls(ZonedDateTime, checks);

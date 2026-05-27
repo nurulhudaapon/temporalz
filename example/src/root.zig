@@ -479,7 +479,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         \\ - blank: {}
         \\ - microseconds: {d}
         \\ - toJSON(): {s}
-        \\ - toLocaleString implemented: {}
+        \\ - toLocaleString supported: {}
         \\
         \\
     , .{
@@ -522,16 +522,17 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         try instant_zdt.toString(allocator, .{}),
     });
 
-    const now_zdt_supported = Temporal.Now.zonedDateTimeISO() != error.TemporalNotImplemented;
+    const now_zdt = try Temporal.Now.zonedDateTimeISO();
+    defer now_zdt.deinit();
     std.log.info(
         \\Now Coverage
         \\ - timeZoneId(): {s}
-        \\ - zonedDateTimeISO implemented: {}
+        \\ - zonedDateTimeISO(): {s}
         \\
         \\
     , .{
         Temporal.Now.timeZoneId(),
-        now_zdt_supported,
+        try now_zdt.toString(allocator, .{}),
     });
 
     const date_cal = try Temporal.PlainDate.calInit(2024, 2, 2, "iso8601");
@@ -558,7 +559,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         \\ - toPlainYearMonth: {s}
         \\ - toZonedDateTime: {s}
         \\ - toJSON(): {s}
-        \\ - toLocaleString implemented: {}
+        \\ - toLocaleString supported: {}
         \\ - valueOf supported: {}
         \\ - with year/month/day: {s}
         \\
@@ -736,7 +737,8 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     const zdt_plain_datetime = try zdt.toPlainDateTime();
     const zdt_plain_time = try zdt.toPlainTime();
     const zdt_valueof_supported = zdt.valueOf() != error.ValueOfNotSupported;
-    const zdt_with_supported = zdt.with(allocator, .{ .year = 2025 }) != error.TemporalNoteImplemented;
+    const zdt_with_coverage = try zdt.with(allocator, .{ .year = 2025 });
+    defer zdt_with_coverage.deinit();
     std.log.info(
         \\ZonedDateTime Coverage
         \\ - init: {s}
@@ -786,7 +788,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         \\ - offset/offsetNanoseconds: {s}/{}
         \\ - weekOfYear/yearOfWeek: {?}/{?}
         \\ - valueOf supported: {}
-        \\ - with implemented: {}
+        \\ - with year=2025: {s}
         \\
         \\
     , .{
@@ -804,7 +806,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         zdt.weekOfYear(),
         zdt.yearOfWeek(),
         zdt_valueof_supported,
-        zdt_with_supported,
+        try zdt_with_coverage.toString(allocator, .{}),
     });
 }
 

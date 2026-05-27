@@ -99,6 +99,24 @@ pub const ToStringOptions = struct {
     time_zone_name: DisplayTimeZone = .auto,
 };
 
+/// Options for `with()` method.
+pub const WithOptions = struct {
+    year: ?i32 = null,
+    month: ?u8 = null,
+    month_code: ?[]const u8 = null,
+    day: ?u8 = null,
+    era: ?[]const u8 = null,
+    era_year: ?i32 = null,
+    hour: ?u8 = null,
+    minute: ?u8 = null,
+    second: ?u8 = null,
+    millisecond: ?u16 = null,
+    microsecond: ?u16 = null,
+    nanosecond: ?u16 = null,
+    offset: ?[]const u8 = null,
+    time_zone: ?TimeZone = null,
+};
+
 /// Helper function to wrap a C API result into a ZonedDateTime
 fn wrapZonedDateTime(result: anytype) !ZonedDateTime {
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
@@ -273,9 +291,21 @@ pub fn valueOf(_: ZonedDateTime) !void {
 /// See [MDN Temporal.ZonedDateTime.prototype.with()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/with)
 pub fn with(self: ZonedDateTime, allocator: std.mem.Allocator, fields: anytype) !ZonedDateTime {
     _ = allocator;
-    _ = fields;
-    _ = self;
-    return error.TemporalNoteImplemented; // Need PartialZonedDateTime mapping
+    const partial = abi.toPartialZonedDateTime(fields);
+    const disambiguation = abi.toOption(abi.c.Disambiguation_option, abi.to.toDisambiguation(Disambiguation.compatible));
+    const offset_option = abi.toOption(abi.c.OffsetDisambiguation_option, abi.to.toOffsetDisambiguation(OffsetDisambiguation.prefer_offset));
+    const overflow = abi.c.ArithmeticOverflow_option{
+        .is_ok = true,
+        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
+    };
+
+    return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with(
+        self._inner,
+        partial,
+        disambiguation,
+        offset_option,
+        overflow,
+    ));
 }
 
 /// Returns a new ZonedDateTime interpreted in the new calendar system.
@@ -760,7 +790,14 @@ test valueOf {
 test with {
     const zdt = try from("2021-01-01T12:00:00+00:00[UTC]", null, .compatible, .reject);
     defer zdt.deinit();
-    try std.testing.expectError(error.TemporalNoteImplemented, zdt.with(std.testing.allocator, .{}));
+
+    const result = try zdt.with(std.testing.allocator, .{ .year = 2022, .month = 2, .day = 3, .hour = 4 });
+    defer result.deinit();
+
+    try std.testing.expectEqual(@as(i32, 2022), result.year());
+    try std.testing.expectEqual(@as(u8, 2), result.month());
+    try std.testing.expectEqual(@as(u8, 3), result.day());
+    try std.testing.expectEqual(@as(u8, 4), result.hour());
 }
 
 test withCalendar {
