@@ -16,8 +16,11 @@ var instants: std.ArrayList(?Temporal.Instant) = .empty;
 var durations: std.ArrayList(?Temporal.Duration) = .empty;
 var plain_dates_init = false;
 var plain_dates: std.ArrayList(?Temporal.PlainDate) = .empty;
+var zdts_init = false;
+var zdts: std.ArrayList(?Temporal.ZonedDateTime) = .empty;
 
 var last_error: ?[]u8 = null;
+var last_error_kind: u8 = 0; // 0=unknown,1=Generic,2=Type,3=Range,4=Syntax
 
 fn ensureInstants() void {
     if (!instants_init) {
@@ -100,25 +103,97 @@ fn removePlainDate(handle: u32) void {
     }
 }
 
+fn ensureZdts() void {
+    if (!zdts_init) {
+        zdts = .empty;
+        zdts_init = true;
+    }
+}
+
+fn addZonedDateTime(zdt: Temporal.ZonedDateTime) u32 {
+    ensureZdts();
+    zdts.append(wasm_allocator, zdt) catch return 0;
+    return @intCast(zdts.items.len);
+}
+
+fn getZonedDateTime(handle: u32) !Temporal.ZonedDateTime {
+    ensureZdts();
+    if (handle == 0 or handle > zdts.items.len) return PolyfillError.InvalidHandle;
+    return zdts.items[handle - 1] orelse PolyfillError.InvalidHandle;
+}
+
+fn removeZonedDateTime(handle: u32) void {
+    if (!zdts_init or handle == 0 or handle > zdts.items.len) return;
+    if (zdts.items[handle - 1]) |zdt| {
+        zdt.deinit();
+        zdts.items[handle - 1] = null;
+    }
+}
+
+export fn temporalz_zoned_date_time_destroy(handle: u32) void {
+    removeZonedDateTime(handle);
+}
+
+export fn temporalz_zoned_date_time_epoch_nanoseconds_hi(handle: u32) i64 {
+    clearLastError();
+    const z = getZonedDateTime(handle) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    return unpackI128Hi(z.epochNanoseconds());
+}
+
+export fn temporalz_zoned_date_time_epoch_nanoseconds_lo(handle: u32) u64 {
+    clearLastError();
+    const z = getZonedDateTime(handle) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    return unpackI128Lo(z.epochNanoseconds());
+}
+
 fn clearLastError() void {
     if (last_error) |msg| {
         wasm_allocator.free(msg);
         last_error = null;
     }
+    last_error_kind = 0;
+}
+
+fn errorKind(err: anyerror) u8 {
+    return switch (err) {
+        error.TypeError => 2,
+        error.RangeError => 3,
+        error.SyntaxError => 4,
+        error.InvalidHandle => 2,
+        else => 1,
+    };
 }
 
 fn setLastError(err: anyerror) void {
     clearLastError();
     const msg = std.fmt.allocPrint(wasm_allocator, "{s}", .{@errorName(err)}) catch return;
     last_error = msg;
+    last_error_kind = errorKind(err);
 }
 
-fn setLastErrorMessage(msg: []const u8) void {
+fn setLastErrorRange(msg: []const u8) void {
     clearLastError();
     const owned = wasm_allocator.alloc(u8, msg.len) catch return;
     std.mem.copyForwards(u8, owned, msg);
     last_error = owned;
+    last_error_kind = 3;
 }
+
+fn setLastErrorType(msg: []const u8) void {
+    clearLastError();
+    const owned = wasm_allocator.alloc(u8, msg.len) catch return;
+    std.mem.copyForwards(u8, owned, msg);
+    last_error = owned;
+    last_error_kind = 2;
+}
+
+const setLastErrorMessage = setLastErrorRange;
 
 fn packPtrLen(ptr: [*]u8, len: usize) u64 {
     const ptr_u32: u32 = @intCast(@intFromPtr(ptr));
@@ -185,6 +260,10 @@ export fn temporalz_last_error_len() usize {
 
 export fn temporalz_last_error_clear() void {
     clearLastError();
+}
+
+export fn temporalz_last_error_kind() u8 {
+    return last_error_kind;
 }
 
 export fn temporalz_alloc(len: usize) usize {
@@ -369,6 +448,145 @@ export fn temporalz_instant_round(
         return 0;
     };
     return addInstant(res);
+}
+
+export fn temporalz_instant_until(
+    handle_a: u32,
+    handle_b: u32,
+    largest_unit: u8,
+    smallest_unit: u8,
+    rounding_mode: u8,
+    rounding_increment: u32,
+) u32 {
+    clearLastError();
+    const a = getInstant(handle_a) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    const b = getInstant(handle_b) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    const settings = parseDifferenceSettings(largest_unit, smallest_unit, rounding_mode, rounding_increment) catch return 0;
+    const res = a.until(b, settings) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    return addDuration(res);
+}
+
+export fn temporalz_instant_since(
+    handle_a: u32,
+    handle_b: u32,
+    largest_unit: u8,
+    smallest_unit: u8,
+    rounding_mode: u8,
+    rounding_increment: u32,
+) u32 {
+    clearLastError();
+    const a = getInstant(handle_a) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    const b = getInstant(handle_b) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    const settings = parseDifferenceSettings(largest_unit, smallest_unit, rounding_mode, rounding_increment) catch return 0;
+    const res = a.since(b, settings) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    return addDuration(res);
+}
+
+fn parseDifferenceSettings(
+    largest_unit: u8,
+    smallest_unit: u8,
+    rounding_mode: u8,
+    rounding_increment: u32,
+) !Temporal.Instant.DifferenceSettings {
+    var settings = Temporal.Instant.DifferenceSettings{};
+    if (largest_unit != 255) {
+        settings.largest_unit = unitFromCode(largest_unit) orelse {
+            setLastErrorRange("Invalid largestUnit");
+            return error.RangeError;
+        };
+    }
+    if (smallest_unit != 255) {
+        settings.smallest_unit = unitFromCode(smallest_unit) orelse {
+            setLastErrorRange("Invalid smallestUnit");
+            return error.RangeError;
+        };
+    }
+    if (rounding_mode != 255) {
+        settings.rounding_mode = roundingModeFromCode(rounding_mode) orelse {
+            setLastErrorRange("Invalid roundingMode");
+            return error.RangeError;
+        };
+    }
+    if (rounding_increment != 0) settings.rounding_increment = rounding_increment;
+    return settings;
+}
+
+export fn temporalz_instant_to_zoned_date_time_iso(handle: u32, tz_ptr: [*]const u8, tz_len: usize) u32 {
+    clearLastError();
+    const inst = getInstant(handle) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    const tz_id = tz_ptr[0..tz_len];
+    const tz = Temporal.Instant.TimeZone.init(tz_id) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    const zdt = inst.toZonedDateTimeISO(tz) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    return addZonedDateTime(zdt);
+}
+
+export fn temporalz_instant_to_string_with(
+    handle: u32,
+    smallest_unit: u8,
+    rounding_mode: u8,
+    fractional_digits: i16,
+    tz_ptr: [*]const u8,
+    tz_len: usize,
+) u64 {
+    clearLastError();
+    const inst = getInstant(handle) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    var opts = Temporal.Instant.ToStringOptions{};
+    if (smallest_unit != 255) {
+        opts.smallest_unit = unitFromCode(smallest_unit) orelse {
+            setLastErrorRange("Invalid smallestUnit");
+            return 0;
+        };
+    }
+    if (rounding_mode != 255) {
+        opts.rounding_mode = roundingModeFromCode(rounding_mode) orelse {
+            setLastErrorRange("Invalid roundingMode");
+            return 0;
+        };
+    }
+    if (fractional_digits >= 0) opts.fractional_second_digits = @intCast(fractional_digits);
+    if (tz_len > 0) {
+        const tz_id = tz_ptr[0..tz_len];
+        const tz = Temporal.Instant.TimeZone.init(tz_id) catch |err| {
+            setLastError(err);
+            return 0;
+        };
+        opts.time_zone = tz;
+    }
+    const text = inst.toString(wasm_allocator, opts) catch |err| {
+        setLastError(err);
+        return 0;
+    };
+    return packPtrLen(text.ptr, text.len);
 }
 
 export fn temporalz_instant_destroy(handle: u32) void {

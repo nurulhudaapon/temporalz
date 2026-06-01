@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) !void {
         const libtemporal_dep = b.lazyDependency("libtemporal", .{});
         if (libtemporal_dep) |dep| {
             const lib_file_candidate = dep.path(prebuilt_lib_path);
-            const lib_full_path = lib_file_candidate.getPath(b);
+            const lib_full_path = b.fmt("{f}", .{lib_file_candidate});
             if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {
                 lib_check_file.close(b.graph.io);
                 prebuilt_lib_file = lib_file_candidate;

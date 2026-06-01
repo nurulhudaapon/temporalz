@@ -2,7 +2,7 @@
     .name = .temporal,
     .version = "0.2.0",
     .fingerprint = 0xd5dcf3f41df6b117,
-    .minimum_zig_version = "0.17.0-dev.387+31f157d80",
+    .minimum_zig_version = "0.17.0-dev.639+284ab0ad8",
     .dependencies = .{
         .temporal_rs = .{
             .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.3#c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
@@ -14,8 +14,8 @@
             .lazy = true,
         },
         .build_crab = .{
-            .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#48706bf535be39c87df6aeafcc14b946d174bb50",
-            .hash = "build_crab-0.2.1-U0id_ybJAABQczZZ4_zdQnkJuZF9WLQoHkkrY5TTq4bR",
+            .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#fd666880b60cd9b209459a6966689113978aaf03",
+            .hash = "build_crab-0.2.1-U0id_xnKAACLofQELmEzeT_mjjbHeCs9SfEoSg6nBBGC",
         },
     },
     .paths = .{

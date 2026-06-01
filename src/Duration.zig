@@ -667,7 +667,6 @@ test nanoseconds {
     const ns = dur.nanoseconds();
     try std.testing.expect(ns > 499 and ns < 501);
 }
-
 test sign {
     const pos = try Duration.from("P1Y");
     defer pos.deinit();

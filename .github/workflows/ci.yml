@@ -22,7 +22,7 @@ jobs:
     - name: Setup Zig
       uses: mlugg/setup-zig@v2
       with:
-        version: 0.17.0-dev.387+31f157d80
+        version: 0.17.0-dev.639+284ab0ad8
           
     - name: Build project
       run: zig build
@@ -55,7 +55,7 @@ jobs:
     - name: Setup Zig
       uses: mlugg/setup-zig@v2
       with:
-        version: 0.17.0-dev.387+31f157d80
+        version: 0.17.0-dev.639+284ab0ad8
 
     - name: Download build artifacts
       uses: actions/download-artifact@v4

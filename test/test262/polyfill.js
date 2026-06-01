@@ -1,683 +1,713 @@
-// This polyfill is executed in a vm.Script context by test262-runner,
-// so it must be synchronous and self-contained.
-// The wasm bytes are injected as global.__TEMPORALZ_WASM_BYTES__ by the runner.
+// Thin polyfill: all real logic lives in the Zig WASM module. JS only handles
+// ECMAScript-spec coercion rules (which the host language must enforce) and
+// surface plumbing (brand checks, prototypes, descriptors, error mapping).
 (function () {
     if (!globalThis.__TEMPORALZ_WASM_BYTES__) {
         throw new Error("WASM bytes not injected into test context");
     }
 
-    const wasmBinary = globalThis.__TEMPORALZ_WASM_BYTES__;
-    const wasmModule = new WebAssembly.Module(wasmBinary);
+    const wasmModule = new WebAssembly.Module(globalThis.__TEMPORALZ_WASM_BYTES__);
     const wasmInstance = new WebAssembly.Instance(wasmModule, {
-        env: {
-            console(ptr, len) {
-                const bytes = new Uint8Array(memory.buffer, ptr, len);
-                globalThis.console.log(decoder.decode(bytes));
-            },
+        env: { console: (ptr, len) => globalThis.console.log(decodeUtf8(memory.buffer, ptr, len)) },
+    });
+
+    const x = wasmInstance.exports;
+    const memory = x.memory;
+
+    // --- utf8 codec (vm.Script context has no TextEncoder) -----------------
+    function encodeUtf8(str) {
+        const buf = [];
+        for (let i = 0; i < str.length; i++) {
+            const c = str.charCodeAt(i);
+            if (c < 0x80) buf.push(c);
+            else if (c < 0x800) buf.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
+            else if (c < 0xd800 || c >= 0xe000) buf.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+            else {
+                const c2 = str.charCodeAt(++i);
+                const cp = 0x10000 + (((c & 0x3ff) << 10) | (c2 & 0x3ff));
+                buf.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3f), 0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
+            }
+        }
+        return new Uint8Array(buf);
+    }
+    function decodeUtf8(buf, ptr, len) {
+        const bytes = new Uint8Array(buf, ptr, len);
+        let s = "";
+        for (let i = 0; i < bytes.length; i++) {
+            const b = bytes[i];
+            if (b < 0x80) s += String.fromCharCode(b);
+            else if ((b & 0xe0) === 0xc0) s += String.fromCharCode(((b & 0x1f) << 6) | (bytes[++i] & 0x3f));
+            else if ((b & 0xf0) === 0xe0) s += String.fromCharCode(((b & 0x0f) << 12) | ((bytes[++i] & 0x3f) << 6) | (bytes[++i] & 0x3f));
+            else {
+                const cp = ((b & 0x07) << 18) | ((bytes[++i] & 0x3f) << 12) | ((bytes[++i] & 0x3f) << 6) | (bytes[++i] & 0x3f);
+                const hi = ((cp - 0x10000) >> 10) + 0xd800;
+                const lo = ((cp - 0x10000) & 0x3ff) + 0xdc00;
+                s += String.fromCharCode(hi, lo);
+            }
+        }
+        return s;
+    }
+
+    // --- error mapping using Zig's reported error kind ---------------------
+    function lastError() {
+        const kind = Number(x.temporalz_last_error_kind());
+        const ptr = Number(x.temporalz_last_error_ptr());
+        const len = Number(x.temporalz_last_error_len());
+        const msg = ptr && len ? decodeUtf8(memory.buffer, ptr, len) : "temporalz error";
+        x.temporalz_last_error_clear();
+        switch (kind) {
+            case 2: return new TypeError(msg);
+            case 3: return new RangeError(msg);
+            case 4: return new SyntaxError(msg);
+            default: return new RangeError(msg);
+        }
+    }
+    function need(h) {
+        if (!h) throw lastError();
+        return Number(h);
+    }
+    function takeString(packed) {
+        if (!packed) throw lastError();
+        const v = BigInt(packed);
+        const ptr = Number(v >> 32n);
+        const len = Number(v & 0xffffffffn);
+        const text = decodeUtf8(memory.buffer, ptr, len);
+        x.temporalz_string_free(ptr, len);
+        return text;
+    }
+    function withCString(str, fn) {
+        const bytes = encodeUtf8(str);
+        const ptr = Number(x.temporalz_alloc(bytes.length));
+        if (!ptr && bytes.length) throw lastError();
+        if (bytes.length) new Uint8Array(memory.buffer, ptr, bytes.length).set(bytes);
+        try { return fn(ptr, bytes.length); }
+        finally { if (bytes.length) x.temporalz_free(ptr, bytes.length); }
+    }
+
+    // --- enums (must match wasm.zig codes) ---------------------------------
+    const UNIT_CODES = {
+        nanosecond: 1, nanoseconds: 1,
+        microsecond: 2, microseconds: 2,
+        millisecond: 3, milliseconds: 3,
+        second: 4, seconds: 4,
+        minute: 5, minutes: 5,
+        hour: 6, hours: 6,
+        day: 7, days: 7,
+        week: 8, weeks: 8,
+        month: 9, months: 9,
+        year: 10, years: 10,
+        auto: 11,
+    };
+    const ROUNDING_MODE_CODES = { ceil: 1, floor: 2, expand: 3, trunc: 4, halfCeil: 5, halfFloor: 6, halfExpand: 7, halfTrunc: 8, halfEven: 9 };
+
+    function toStringOrThrow(v, name) {
+        if (typeof v === "symbol") throw new TypeError(`Cannot convert symbol to string for ${name}`);
+        return String(v);
+    }
+    function unitCode(value) {
+        if (value === undefined) return 255;
+        const s = toStringOrThrow(value, "unit");
+        const c = UNIT_CODES[s];
+        if (c === undefined) throw new RangeError(`Invalid unit: ${s}`);
+        return c;
+    }
+    function roundingModeCode(value) {
+        if (value === undefined) return 255;
+        const s = toStringOrThrow(value, "roundingMode");
+        const c = ROUNDING_MODE_CODES[s];
+        if (c === undefined) throw new RangeError(`Invalid roundingMode: ${s}`);
+        return c;
+    }
+    function roundingIncrementValue(opts) {
+        if (!opts || opts.roundingIncrement === undefined) return 0;
+        const v = opts.roundingIncrement;
+        if (typeof v === "bigint") throw new TypeError("Cannot convert BigInt to number for roundingIncrement");
+        const n = Number(v);
+        if (!Number.isFinite(n)) throw new RangeError("Invalid roundingIncrement");
+        const i = Math.trunc(n);
+        if (i < 1 || i > 1e9) throw new RangeError("Invalid roundingIncrement");
+        return i;
+    }
+    function requireOptionsObject(o, name) {
+        if (o === undefined) return {};
+        if (o === null) throw new TypeError(`${name} options cannot be null`);
+        if (typeof o !== "object" && typeof o !== "function") {
+            throw new TypeError(`${name} options must be an object`);
+        }
+        return o;
+    }
+
+    // --- BigInt i128 split for the wasm boundary ---------------------------
+    function splitI128(value) {
+        const v = typeof value === "bigint" ? value : BigInt(value);
+        return { hi: v >> 64n, lo: v & 0xffffffffffffffffn };
+    }
+    function joinI128(hi, lo) {
+        return (BigInt(hi) << 64n) | (BigInt(lo) & 0xffffffffffffffffn);
+    }
+
+    // --- brand-check helpers -----------------------------------------------
+    const HANDLE = Symbol("temporalz.handle");
+    function brand(obj, klass, name) {
+        if (typeof obj !== "object" || obj === null || !klass.prototype.isPrototypeOf(obj)) {
+            throw new TypeError(`this is not a ${name}`);
+        }
+        const h = obj[HANDLE];
+        if (h === undefined) throw new TypeError(`this is not a ${name} (missing brand)`);
+        return h;
+    }
+
+    function defineMethods(proto, methods) {
+        for (const name of Object.keys(methods)) {
+            Object.defineProperty(proto, name, {
+                value: methods[name],
+                writable: true,
+                enumerable: false,
+                configurable: true,
+            });
+        }
+    }
+    function defineGetters(proto, getters) {
+        for (const name of Object.keys(getters)) {
+            Object.defineProperty(proto, name, {
+                get: getters[name],
+                enumerable: false,
+                configurable: true,
+            });
+        }
+    }
+
+    // =======================================================================
+    // Instant
+    // =======================================================================
+    const NS_LIMIT = 8_640_000_000_000_000_000_000n;
+    function Instant(epochNanoseconds) {
+        if (!new.target) throw new TypeError("Instant must be called with new");
+        if (typeof epochNanoseconds !== "bigint") {
+            throw new TypeError("epochNanoseconds must be a BigInt");
+        }
+        if (epochNanoseconds > NS_LIMIT || epochNanoseconds < -NS_LIMIT) {
+            throw new RangeError("epochNanoseconds out of range");
+        }
+        const { hi, lo } = splitI128(epochNanoseconds);
+        const handle = need(x.temporalz_instant_from_epoch_nanoseconds_parts(hi, lo));
+        Object.defineProperty(this, HANDLE, { value: handle });
+    }
+    function instantFromHandle(handle) {
+        const obj = Object.create(Instant.prototype);
+        Object.defineProperty(obj, HANDLE, { value: handle });
+        return obj;
+    }
+    function isInstant(v) {
+        return typeof v === "object" && v !== null && Instant.prototype.isPrototypeOf(v) && v[HANDLE] !== undefined;
+    }
+
+    // Static methods
+    Object.defineProperty(Instant, "from", {
+        value: { from(item) {
+            if (isInstant(item)) return new Instant(getInstantEpochNs(item));
+            return parseInstantString(coerceToInstantString(item));
+        } }.from,
+        writable: true, enumerable: false, configurable: true,
+    });
+    Object.defineProperty(Instant, "fromEpochMilliseconds", {
+        value: { fromEpochMilliseconds(epochMilliseconds) {
+            if (typeof epochMilliseconds === "bigint") throw new TypeError("epochMilliseconds must not be BigInt");
+            const n = Number(epochMilliseconds);
+            if (!Number.isFinite(n)) throw new RangeError("epochMilliseconds must be a finite integer");
+            if (!Number.isInteger(n)) throw new RangeError("epochMilliseconds must be an integer");
+            const MAX = 8.64e15;
+            if (n > MAX || n < -MAX) throw new RangeError("epochMilliseconds out of range");
+            return instantFromHandle(need(x.temporalz_instant_from_epoch_milliseconds(BigInt(n))));
+        } }.fromEpochMilliseconds,
+        writable: true, enumerable: false, configurable: true,
+    });
+    Object.defineProperty(Instant, "fromEpochNanoseconds", {
+        value: { fromEpochNanoseconds(epochNanoseconds) {
+            if (typeof epochNanoseconds !== "bigint") throw new TypeError("epochNanoseconds must be a BigInt");
+            const MAX = 8_640_000_000_000_000_000_000n;
+            if (epochNanoseconds > MAX || epochNanoseconds < -MAX) throw new RangeError("epochNanoseconds out of range");
+            const { hi, lo } = splitI128(epochNanoseconds);
+            return instantFromHandle(need(x.temporalz_instant_from_epoch_nanoseconds_parts(hi, lo)));
+        } }.fromEpochNanoseconds,
+        writable: true, enumerable: false, configurable: true,
+    });
+    Object.defineProperty(Instant, "compare", {
+        value: { compare(a, b) {
+            const ha = toInstantHandle(a);
+            const hb = toInstantHandle(b);
+            return Number(x.temporalz_instant_compare(ha, hb));
+        } }.compare,
+        writable: true, enumerable: false, configurable: true,
+    });
+
+    function parseInstantString(str) {
+        return withCString(str, (ptr, len) => instantFromHandle(need(x.temporalz_instant_from_utf8(ptr, len))));
+    }
+    // Spec: ToTemporalInstant. If Instant, copy. Else, ToPrimitive(string-hint) then
+    // parse as ISO string. bigint/symbol/Temporal.Instant.prototype branding fail → TypeError.
+    function coerceToInstantString(value) {
+        if (value === undefined || value === null) throw new TypeError("Instant argument is required");
+        if (typeof value === "boolean") throw new TypeError("Boolean is not a valid Instant");
+        if (typeof value === "number") throw new TypeError("Number is not a valid Instant");
+        if (typeof value === "bigint") throw new TypeError("BigInt is not a valid Instant");
+        if (typeof value === "symbol") throw new TypeError("Symbol is not a valid Instant");
+        if (typeof value === "string") return value;
+        // Object case: must not be an Instant.prototype (brand fails) — but ordinary object → ToString → "[object Object]" parsed → RangeError
+        if (value === Instant.prototype) throw new TypeError("Instant.prototype is not a valid Instant");
+        return String(value);
+    }
+    function toInstantHandle(value) {
+        if (isInstant(value)) return value[HANDLE];
+        const str = coerceToInstantString(value);
+        return withCString(str, (ptr, len) => need(x.temporalz_instant_from_utf8(ptr, len)));
+    }
+    function getInstantEpochNs(inst) {
+        const h = inst[HANDLE];
+        const hi = x.temporalz_instant_epoch_nanoseconds_hi(h);
+        const lo = x.temporalz_instant_epoch_nanoseconds_lo(h);
+        return joinI128(hi, lo);
+    }
+
+    defineGetters(Instant.prototype, {
+        epochMilliseconds() {
+            const h = brand(this, Instant, "Temporal.Instant");
+            return Number(x.temporalz_instant_epoch_milliseconds(h));
+        },
+        epochNanoseconds() {
+            const h = brand(this, Instant, "Temporal.Instant");
+            const hi = x.temporalz_instant_epoch_nanoseconds_hi(h);
+            const lo = x.temporalz_instant_epoch_nanoseconds_lo(h);
+            return joinI128(hi, lo);
         },
     });
 
-    const exports = wasmInstance.exports;
-    const memory = exports.memory;
-
-    const encoder = {
-        encode(str) {
-            const buf = [];
-            for (let i = 0; i < str.length; i++) {
-                const code = str.charCodeAt(i);
-                if (code < 0x80) {
-                    buf.push(code);
-                } else if (code < 0x800) {
-                    buf.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
-                } else if (code < 0xd800 || code >= 0xe000) {
-                    buf.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
-                } else {
-                    const code2 = str.charCodeAt(++i);
-                    const codePoint = 0x10000 + (((code & 0x3ff) << 10) | (code2 & 0x3ff));
-                    buf.push(
-                        0xf0 | (codePoint >> 18),
-                        0x80 | ((codePoint >> 12) & 0x3f),
-                        0x80 | ((codePoint >> 6) & 0x3f),
-                        0x80 | (codePoint & 0x3f)
-                    );
-                }
-            }
-            return new Uint8Array(buf);
-        },
-    };
-
-    const decoder = {
-        decode(bytes) {
-            let str = "";
-            for (let i = 0; i < bytes.length; i++) {
-                const byte = bytes[i];
-                if (byte < 0x80) {
-                    str += String.fromCharCode(byte);
-                } else if ((byte & 0xe0) === 0xc0) {
-                    str += String.fromCharCode(((byte & 0x1f) << 6) | (bytes[++i] & 0x3f));
-                } else if ((byte & 0xf0) === 0xe0) {
-                    str += String.fromCharCode(
-                        ((byte & 0x0f) << 12) | ((bytes[++i] & 0x3f) << 6) | (bytes[++i] & 0x3f)
-                    );
-                } else if ((byte & 0xf8) === 0xf0) {
-                    const codePoint =
-                        ((byte & 0x07) << 18) |
-                        ((bytes[++i] & 0x3f) << 12) |
-                        ((bytes[++i] & 0x3f) << 6) |
-                        (bytes[++i] & 0x3f);
-                    const high = ((codePoint - 0x10000) >> 10) + 0xd800;
-                    const low = ((codePoint - 0x10000) & 0x3ff) + 0xdc00;
-                    str += String.fromCharCode(high, low);
-                }
-            }
-            return str;
-        },
-    };
-
-    function readString(ptr, len) {
-        return decoder.decode(new Uint8Array(memory.buffer, ptr, len));
-    }
-
-    function lastError() {
-        const ptr = exports.temporalz_last_error_ptr();
-        const len = exports.temporalz_last_error_len();
-        if (!ptr || !len) return new Error("temporalz error");
-        const msg = readString(ptr, len);
-        exports.temporalz_last_error_clear();
-        if (msg.includes("Range")) return new RangeError(msg);
-        if (msg.includes("Type")) return new TypeError(msg);
-        return new Error(msg);
-    }
-
-    function requireHandle(handle) {
-        if (!handle) throw lastError();
-        return handle;
-    }
-
-    function allocString(text) {
-        const bytes = encoder.encode(text);
-        const ptr = exports.temporalz_alloc(bytes.length);
-        if (!ptr) throw lastError();
-        new Uint8Array(memory.buffer, ptr, bytes.length).set(bytes);
-        return { ptr, len: bytes.length };
-    }
-
-    function takeString(packed) {
-        if (!packed) throw lastError();
-        const value = BigInt(packed);
-        const ptr = Number(value >> 32n);
-        const len = Number(value & 0xffffffffn);
-        const text = readString(ptr, len);
-        exports.temporalz_string_free(ptr, len);
-        return text;
-    }
-
-    function splitI128(value) {
-        const v = typeof value === "bigint" ? value : BigInt(value);
-        const mask = (1n << 64n) - 1n;
-        return { hi: v >> 64n, lo: v & mask };
-    }
-
-    function joinI128(hi, lo) {
-        const mask = (1n << 64n) - 1n;
-        return (BigInt(hi) << 64n) | (BigInt(lo) & mask);
-    }
-
-    const unitCodes = {
-        nanosecond: 1,
-        microsecond: 2,
-        millisecond: 3,
-        second: 4,
-        minute: 5,
-        hour: 6,
-        day: 7,
-        week: 8,
-        month: 9,
-        year: 10,
-        auto: 11,
-    };
-
-    const roundingModeCodes = {
-        ceil: 1,
-        floor: 2,
-        expand: 3,
-        trunc: 4,
-        halfCeil: 5,
-        halfFloor: 6,
-        halfExpand: 7,
-        halfTrunc: 8,
-        halfEven: 9,
-    };
-
-    function toUnitCode(value, name) {
-        if (value === undefined || value === null) return 255;
-        const code = unitCodes[value];
-        if (!code) throw new RangeError(`Invalid ${name}`);
-        return code;
-    }
-
-    function toRoundingModeCode(value) {
-        if (value === undefined || value === null) return 255;
-        const code = roundingModeCodes[value];
-        if (!code) throw new RangeError("Invalid roundingMode");
-        return code;
-    }
-
-    function toIntegerBigInt(value, name) {
-        if (typeof value === "bigint") return value;
-        const number = Number(value);
-        if (!isFiniteNumber(number)) throw new RangeError(`${name} must be finite`);
-        if (!Number.isInteger(number)) throw new RangeError(`${name} must be an integer`);
-        return BigInt(number);
-    }
-
-    function toNumber(value, name) {
-        const number = Number(value);
-        if (!isFiniteNumber(number)) throw new RangeError(`${name} must be finite`);
-        return number;
-    }
-
-    function toInteger(value, name) {
-        const number = Number(value);
-        if (!isFiniteNumber(number)) throw new RangeError(`${name} must be finite`);
-        if (!Number.isInteger(number)) throw new RangeError(`${name} must be an integer`);
-        return number;
-    }
-
-    function isFiniteNumber(value) {
-        return value === value && value !== Infinity && value !== -Infinity;
-    }
-
-    function unimplemented(name) {
-        return function () {
-            throw new Error(`${name} is not implemented yet`);
-        };
-    }
-
-    class Instant {
-        constructor(handle) {
-            this._handle = handle;
-        }
-
-        static _fromHandle(handle) {
-            return new Instant(handle);
-        }
-
-        static fromEpochMilliseconds(epochMs) {
-            const number = Number(epochMs);
-            if (!isFiniteNumber(number)) throw new RangeError("epochMilliseconds must be finite");
-            const handle = exports.temporalz_instant_from_epoch_milliseconds(number);
-            return Instant._fromHandle(requireHandle(handle));
-        }
-
-        static fromEpochNanoseconds(epochNs) {
-            const parts = splitI128(epochNs);
-            const handle = exports.temporalz_instant_from_epoch_nanoseconds_parts(
-                parts.hi,
-                parts.lo
-            );
-            return Instant._fromHandle(requireHandle(handle));
-        }
-
-        static from(value) {
-            if (value instanceof Instant) return value;
-            if (typeof value === "string") {
-                const text = allocString(value);
-                const handle = exports.temporalz_instant_from_utf8(text.ptr, text.len);
-                exports.temporalz_free(text.ptr, text.len);
-                return Instant._fromHandle(requireHandle(handle));
-            }
-            if (value && typeof value === "object") {
-                if (value.epochNanoseconds !== undefined) {
-                    return Instant.fromEpochNanoseconds(value.epochNanoseconds);
-                }
-                if (value.epochMilliseconds !== undefined) {
-                    return Instant.fromEpochMilliseconds(value.epochMilliseconds);
-                }
-            }
-            throw new TypeError("Instant.from expects a string or object");
-        }
-
-        get epochMilliseconds() {
-            return exports.temporalz_instant_epoch_milliseconds(this._handle);
-        }
-
-        get epochNanoseconds() {
-            const hi = exports.temporalz_instant_epoch_nanoseconds_hi(this._handle);
-            const lo = exports.temporalz_instant_epoch_nanoseconds_lo(this._handle);
-            return joinI128(hi, lo);
-        }
-
-        toString() {
-            return takeString(exports.temporalz_instant_to_string(this._handle));
-        }
-
-        toJSON() {
-            return this.toString();
-        }
-
+    defineMethods(Instant.prototype, {
         add(durationLike) {
-            const dur = Duration.from(durationLike);
-            const handle = exports.temporalz_instant_add(this._handle, dur._handle);
-            return Instant._fromHandle(requireHandle(handle));
-        }
-
+            const h = brand(this, Instant, "Temporal.Instant");
+            const dh = toDurationHandle(durationLike);
+            return instantFromHandle(need(x.temporalz_instant_add(h, dh)));
+        },
         subtract(durationLike) {
-            const dur = Duration.from(durationLike);
-            const handle = exports.temporalz_instant_subtract(this._handle, dur._handle);
-            return Instant._fromHandle(requireHandle(handle));
-        }
-
+            const h = brand(this, Instant, "Temporal.Instant");
+            const dh = toDurationHandle(durationLike);
+            return instantFromHandle(need(x.temporalz_instant_subtract(h, dh)));
+        },
+        until(other, options) {
+            const h = brand(this, Instant, "Temporal.Instant");
+            const oh = toInstantHandle(other);
+            const o = requireOptionsObject(options, "until");
+            return durationFromHandle(need(x.temporalz_instant_until(
+                h, oh,
+                unitCode(o.largestUnit),
+                unitCode(o.smallestUnit),
+                roundingModeCode(o.roundingMode),
+                roundingIncrementValue(o),
+            )));
+        },
+        since(other, options) {
+            const h = brand(this, Instant, "Temporal.Instant");
+            const oh = toInstantHandle(other);
+            const o = requireOptionsObject(options, "since");
+            return durationFromHandle(need(x.temporalz_instant_since(
+                h, oh,
+                unitCode(o.largestUnit),
+                unitCode(o.smallestUnit),
+                roundingModeCode(o.roundingMode),
+                roundingIncrementValue(o),
+            )));
+        },
         round(options) {
-            if (!options || typeof options !== "object") {
-                throw new TypeError("round options must be an object");
-            }
-            const smallestUnit = toUnitCode(options.smallestUnit, "smallestUnit");
-            if (smallestUnit === 255) throw new RangeError("smallestUnit is required");
-            const roundingMode = toRoundingModeCode(options.roundingMode);
-
-            let roundingIncrement = 0;
-            if (options.roundingIncrement !== undefined) {
-                const inc = Number(options.roundingIncrement);
-                if (!isFiniteNumber(inc) || !Number.isInteger(inc) || inc <= 0) {
-                    throw new RangeError("Invalid roundingIncrement");
-                }
-                roundingIncrement = inc;
-            }
-
-            const handle = exports.temporalz_instant_round(
-                this._handle,
-                smallestUnit,
-                roundingMode,
-                roundingIncrement
-            );
-            return Instant._fromHandle(requireHandle(handle));
-        }
-
+            const h = brand(this, Instant, "Temporal.Instant");
+            let o;
+            if (typeof options === "string") o = { smallestUnit: options };
+            else if (options === undefined) throw new TypeError("round options required");
+            else o = requireOptionsObject(options, "round");
+            const su = unitCode(o.smallestUnit);
+            if (su === 255) throw new RangeError("smallestUnit is required");
+            return instantFromHandle(need(x.temporalz_instant_round(
+                h, su, roundingModeCode(o.roundingMode), roundingIncrementValue(o),
+            )));
+        },
         equals(other) {
-            const rhs = Instant.from(other);
-            return exports.temporalz_instant_equals(this._handle, rhs._handle) === 1;
-        }
-
-        toLocaleString() {
-            return this.toString();
-        }
-
-        valueOf() {
-            throw new TypeError("Cannot convert Temporal.Instant to a number");
-        }
-
-        static compare(a, b) {
-            const left = Instant.from(a);
-            const right = Instant.from(b);
-            return Number(exports.temporalz_instant_compare(left._handle, right._handle));
-        }
-    }
-
-    const plainDateHandleToken = Symbol("PlainDateHandle");
-
-    class PlainDate {
-        constructor(year, month, day) {
-            if (year === plainDateHandleToken) {
-                this._handle = month;
-                return;
-            }
-
-            const yearValue = toInteger(year ?? 0, "year");
-            const monthValue = toInteger(month ?? 0, "month");
-            const dayValue = toInteger(day ?? 0, "day");
-            const handle = exports.temporalz_plain_date_init(yearValue, monthValue, dayValue);
-            this._handle = requireHandle(handle);
-        }
-
-        static _fromHandle(handle) {
-            return new PlainDate(plainDateHandleToken, handle);
-        }
-
-        static from(value) {
-            if (value instanceof PlainDate) return value;
-            if (typeof value === "string") {
-                const text = allocString(value);
-                const handle = exports.temporalz_plain_date_from_utf8(text.ptr, text.len);
-                exports.temporalz_free(text.ptr, text.len);
-                return PlainDate._fromHandle(requireHandle(handle));
-            }
-            if (value === null || typeof value !== "object") {
-                throw new TypeError("PlainDate.from expects a string or object");
-            }
-
-            const year = toInteger(value.year, "year");
-            const month = toInteger(value.month, "month");
-            const day = toInteger(value.day, "day");
-            const handle = exports.temporalz_plain_date_init(year, month, day);
-            return PlainDate._fromHandle(requireHandle(handle));
-        }
-
-        toString() {
-            return takeString(exports.temporalz_plain_date_to_string(this._handle));
-        }
-    }
-
-    const durationHandleToken = Symbol("DurationHandle");
-
-    class Duration {
-        constructor(
-            years,
-            months,
-            weeks,
-            days,
-            hours,
-            minutes,
-            seconds,
-            milliseconds,
-            microseconds,
-            nanoseconds
-        ) {
-            if (years === durationHandleToken) {
-                this._handle = months;
-                return;
-            }
-
-            const yearsValue = toIntegerBigInt(years ?? 0, "years");
-            const monthsValue = toIntegerBigInt(months ?? 0, "months");
-            const weeksValue = toIntegerBigInt(weeks ?? 0, "weeks");
-            const daysValue = toIntegerBigInt(days ?? 0, "days");
-            const hoursValue = toIntegerBigInt(hours ?? 0, "hours");
-            const minutesValue = toIntegerBigInt(minutes ?? 0, "minutes");
-            const secondsValue = toIntegerBigInt(seconds ?? 0, "seconds");
-            const millisecondsValue = toIntegerBigInt(milliseconds ?? 0, "milliseconds");
-            const microsecondsValue = toNumber(microseconds ?? 0, "microseconds");
-            const nanosecondsValue = toNumber(nanoseconds ?? 0, "nanoseconds");
-
-            const created = exports.temporalz_duration_init(
-                yearsValue,
-                monthsValue,
-                weeksValue,
-                daysValue,
-                hoursValue,
-                minutesValue,
-                secondsValue,
-                millisecondsValue,
-                microsecondsValue,
-                nanosecondsValue
-            );
-            this._handle = requireHandle(created);
-        }
-
-        static _fromHandle(handle) {
-            return new Duration(durationHandleToken, handle);
-        }
-
-        static from(value) {
-            if (value instanceof Duration) return value;
-            if (typeof value === "string") {
-                const text = allocString(value);
-                const handle = exports.temporalz_duration_from_utf8(text.ptr, text.len);
-                exports.temporalz_free(text.ptr, text.len);
-                return Duration._fromHandle(requireHandle(handle));
-            }
-            if (value === null || typeof value !== "object") {
-                throw new TypeError("Duration.from expects a string or object");
-            }
-
-            const fields = [
-                "years",
-                "months",
-                "weeks",
-                "days",
-                "hours",
-                "minutes",
-                "seconds",
-                "milliseconds",
-                "microseconds",
-                "nanoseconds",
-            ];
-
-            let mask = 0;
-            const values = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0, 0];
-
-            fields.forEach((field, index) => {
-                if (value[field] !== undefined) {
-                    mask |= 1 << index;
-                    if (field === "microseconds" || field === "nanoseconds") {
-                        values[index] = toNumber(value[field], field);
-                    } else {
-                        values[index] = toIntegerBigInt(value[field], field);
-                    }
+            const h = brand(this, Instant, "Temporal.Instant");
+            const oh = toInstantHandle(other);
+            return x.temporalz_instant_equals(h, oh) === 1;
+        },
+        toString(options) {
+            const h = brand(this, Instant, "Temporal.Instant");
+            const o = requireOptionsObject(options, "toString");
+            const su = unitCode(o.smallestUnit);
+            const rm = roundingModeCode(o.roundingMode);
+            let fd = -1;
+            if (o.fractionalSecondDigits !== undefined) {
+                const v = o.fractionalSecondDigits;
+                if (typeof v === "symbol") throw new TypeError("Cannot convert Symbol to fractionalSecondDigits");
+                if (typeof v === "bigint") throw new TypeError("Cannot convert BigInt to number for fractionalSecondDigits");
+                if (typeof v === "number") {
+                    if (!Number.isFinite(v)) throw new RangeError("Invalid fractionalSecondDigits");
+                    const i = Math.floor(v);
+                    if (i < 0 || i > 9) throw new RangeError("Invalid fractionalSecondDigits");
+                    fd = i;
+                } else {
+                    // ToString path; only "auto" is acceptable
+                    const s = String(v);
+                    if (s !== "auto") throw new RangeError("Invalid fractionalSecondDigits");
+                    fd = -1;
                 }
-            });
-
-            const handle = exports.temporalz_duration_from_parts(
-                mask,
-                values[0],
-                values[1],
-                values[2],
-                values[3],
-                values[4],
-                values[5],
-                values[6],
-                values[7],
-                values[8],
-                values[9]
-            );
-            return Duration._fromHandle(requireHandle(handle));
-        }
-
-        static compare(a, b, options) {
-            const left = Duration.from(a);
-            const right = Duration.from(b);
-            return Duration.compareWithOptions(left, right, options);
-        }
-
-        static compareWithOptions(left, right, options) {
-            if (options !== undefined && (options === null || typeof options !== "object")) {
-                throw new TypeError("options must be an object");
             }
-            const relativeTo = toRelativeTo(options);
-            if (!relativeTo && (hasYearMonthWeek(left) || hasYearMonthWeek(right))) {
-                throw new RangeError("relativeTo is required for calendar units");
-            }
-            if (relativeTo) {
-                return Number(
-                    exports.temporalz_duration_compare_plain_date(
-                        left._handle,
-                        right._handle,
-                        relativeTo._handle
-                    )
-                );
-            }
-            return Number(exports.temporalz_duration_compare(left._handle, right._handle));
-        }
-
-        add(other) {
-            const rhs = Duration.from(other);
-            const handle = exports.temporalz_duration_add(this._handle, rhs._handle);
-            return Duration._fromHandle(requireHandle(handle));
-        }
-
-        subtract(other) {
-            const rhs = Duration.from(other);
-            const handle = exports.temporalz_duration_subtract(this._handle, rhs._handle);
-            return Duration._fromHandle(requireHandle(handle));
-        }
-
-        abs() {
-            const handle = exports.temporalz_duration_abs(this._handle);
-            return Duration._fromHandle(requireHandle(handle));
-        }
-
-        negated() {
-            const handle = exports.temporalz_duration_negated(this._handle);
-            return Duration._fromHandle(requireHandle(handle));
-        }
-
-        round(options = {}) {
-            if (options === undefined) options = {};
-            if (options === null || typeof options !== "object") {
-                throw new TypeError("round options must be an object");
-            }
-            const relativeTo = toRelativeTo(options);
-            if (!relativeTo && hasCalendarUnits(this)) {
-                throw new RangeError("relativeTo is required for calendar units");
-            }
-            const smallestUnit = toUnitCode(options.smallestUnit, "smallestUnit");
-            const largestUnit = toUnitCode(options.largestUnit, "largestUnit");
-            const roundingMode = toRoundingModeCode(options.roundingMode);
-
-            let roundingIncrement = 0;
-            if (options.roundingIncrement !== undefined) {
-                const inc = Number(options.roundingIncrement);
-                if (!Number.isFinite(inc) || !Number.isInteger(inc) || inc <= 0) {
-                    throw new RangeError("Invalid roundingIncrement");
+            let tzPtr = 0, tzLen = 0;
+            const tz = o.timeZone;
+            if (tz !== undefined) {
+                if (typeof tz !== "string") {
+                    // primitive bool/number/bigint convert to a string but won't be a valid time zone → RangeError
+                    // null/symbol/object → TypeError per spec
+                    if (tz === null) throw new TypeError("timeZone must be a string");
+                    if (typeof tz === "object") throw new TypeError("timeZone must be a string");
+                    if (typeof tz === "symbol") throw new TypeError("Cannot convert Symbol to string for timeZone");
+                    // boolean/number/bigint → string conversion, then range check happens via Zig parse
                 }
-                roundingIncrement = inc;
+                const tzStr = typeof tz === "string" ? tz : String(tz);
+                const bytes = encodeUtf8(tzStr);
+                tzPtr = Number(x.temporalz_alloc(bytes.length));
+                if (!tzPtr && bytes.length) throw lastError();
+                if (bytes.length) new Uint8Array(memory.buffer, tzPtr, bytes.length).set(bytes);
+                tzLen = bytes.length;
             }
-
-            const handle = relativeTo
-                ? exports.temporalz_duration_round_plain_date(
-                    this._handle,
-                    smallestUnit,
-                    largestUnit,
-                    roundingMode,
-                    roundingIncrement,
-                    relativeTo._handle
-                )
-                : exports.temporalz_duration_round(
-                    this._handle,
-                    smallestUnit,
-                    largestUnit,
-                    roundingMode,
-                    roundingIncrement
-                );
-            return Duration._fromHandle(requireHandle(handle));
-        }
-
-        total(options) {
-            if (!options || typeof options !== "object") {
-                throw new TypeError("total options must be an object");
+            try {
+                return takeString(x.temporalz_instant_to_string_with(h, su, rm, fd, tzPtr, tzLen));
+            } finally {
+                if (tzLen) x.temporalz_free(tzPtr, tzLen);
             }
-            const relativeTo = toRelativeTo(options);
-            if (!relativeTo && hasCalendarUnits(this)) {
-                throw new RangeError("relativeTo is required for calendar units");
-            }
-            const unit = toUnitCode(options.unit, "unit");
-            if (unit === 255) throw new RangeError("Invalid unit");
-            const result = relativeTo
-                ? exports.temporalz_duration_total_plain_date(
-                    this._handle,
-                    unit,
-                    relativeTo._handle
-                )
-                : exports.temporalz_duration_total(this._handle, unit);
-            if (!Number.isFinite(result)) throw lastError();
-            return result;
-        }
-
-        get sign() {
-            return Number(exports.temporalz_duration_sign(this._handle));
-        }
-
-        get blank() {
-            return exports.temporalz_duration_blank(this._handle) === 1;
-        }
-
-        toString() {
-            return takeString(exports.temporalz_duration_to_string(this._handle));
-        }
-
+        },
         toJSON() {
-            return this.toString();
-        }
-
+            const h = brand(this, Instant, "Temporal.Instant");
+            return takeString(x.temporalz_instant_to_string(h));
+        },
         toLocaleString() {
-            return this.toString();
-        }
-
+            const h = brand(this, Instant, "Temporal.Instant");
+            return takeString(x.temporalz_instant_to_string(h));
+        },
         valueOf() {
-            throw new TypeError("Cannot convert Temporal.Duration to a number");
-        }
+            throw new TypeError("Cannot convert Temporal.Instant to a primitive value");
+        },
+        toZonedDateTimeISO(timeZone) {
+            const h = brand(this, Instant, "Temporal.Instant");
+            if (typeof timeZone !== "string") throw new TypeError("timeZone must be a string");
+            return withCString(timeZone, (ptr, len) => {
+                const zh = need(x.temporalz_instant_to_zoned_date_time_iso(h, ptr, len));
+                return zonedDateTimeFromHandle(zh);
+            });
+        },
+    });
 
-        get years() {
-            return Number(exports.temporalz_duration_years(this._handle));
-        }
+    Object.defineProperty(Instant.prototype, Symbol.toStringTag, {
+        value: "Temporal.Instant", writable: false, enumerable: false, configurable: true,
+    });
+    Object.defineProperty(Instant, "prototype", { writable: false, enumerable: false, configurable: false });
 
-        get months() {
-            return Number(exports.temporalz_duration_months(this._handle));
-        }
+    // =======================================================================
+    // ZonedDateTime (minimal: only what Instant.toZonedDateTimeISO returns)
+    // =======================================================================
+    function ZonedDateTime() {
+        throw new TypeError("Use Temporal.Instant.prototype.toZonedDateTimeISO instead");
+    }
+    function zonedDateTimeFromHandle(handle) {
+        const obj = Object.create(ZonedDateTime.prototype);
+        Object.defineProperty(obj, HANDLE, { value: handle });
+        return obj;
+    }
+    defineGetters(ZonedDateTime.prototype, {
+        epochNanoseconds() {
+            const h = brand(this, ZonedDateTime, "Temporal.ZonedDateTime");
+            const hi = x.temporalz_zoned_date_time_epoch_nanoseconds_hi(h);
+            const lo = x.temporalz_zoned_date_time_epoch_nanoseconds_lo(h);
+            return joinI128(hi, lo);
+        },
+    });
+    Object.defineProperty(ZonedDateTime.prototype, Symbol.toStringTag, {
+        value: "Temporal.ZonedDateTime", writable: false, enumerable: false, configurable: true,
+    });
 
-        get weeks() {
-            return Number(exports.temporalz_duration_weeks(this._handle));
+    // =======================================================================
+    // Duration
+    // =======================================================================
+    function Duration(years, months, weeks, days, hours, minutes, seconds, ms, us, ns) {
+        if (!new.target) throw new TypeError("Duration must be called with new");
+        const Y = intArg(years, "years");
+        const Mo = intArg(months, "months");
+        const W = intArg(weeks, "weeks");
+        const D = intArg(days, "days");
+        const H = intArg(hours, "hours");
+        const Mi = intArg(minutes, "minutes");
+        const S = intArg(seconds, "seconds");
+        const MS = intArg(ms, "milliseconds");
+        const US = numArg(us, "microseconds");
+        const NS = numArg(ns, "nanoseconds");
+        const handle = need(x.temporalz_duration_init(Y, Mo, W, D, H, Mi, S, MS, US, NS));
+        Object.defineProperty(this, HANDLE, { value: handle });
+    }
+    function intArg(v, name) {
+        if (v === undefined) return 0n;
+        if (typeof v === "bigint") return v;
+        const n = Number(v);
+        if (!Number.isFinite(n)) throw new RangeError(`${name} must be finite`);
+        if (!Number.isInteger(n)) throw new RangeError(`${name} must be an integer`);
+        return BigInt(n);
+    }
+    function numArg(v, name) {
+        if (v === undefined) return 0;
+        const n = Number(v);
+        if (!Number.isFinite(n)) throw new RangeError(`${name} must be finite`);
+        if (!Number.isInteger(n)) throw new RangeError(`${name} must be an integer`);
+        return n;
+    }
+    function durationFromHandle(handle) {
+        const obj = Object.create(Duration.prototype);
+        Object.defineProperty(obj, HANDLE, { value: handle });
+        return obj;
+    }
+    function isDuration(v) {
+        return typeof v === "object" && v !== null && Duration.prototype.isPrototypeOf(v) && v[HANDLE] !== undefined;
+    }
+    function toDurationHandle(value) {
+        if (isDuration(value)) return value[HANDLE];
+        if (typeof value === "string") {
+            return withCString(value, (ptr, len) => need(x.temporalz_duration_from_utf8(ptr, len)));
         }
+        if (value === null || typeof value !== "object") {
+            throw new TypeError("expected a Duration, string, or object");
+        }
+        // Wasm-side parts order (matches mask bits): years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds
+        const wireOrder = ["years","months","weeks","days","hours","minutes","seconds","milliseconds","microseconds","nanoseconds"];
+        // Spec: properties are read in alphabetical order.
+        const readOrder = ["days","hours","microseconds","milliseconds","minutes","months","nanoseconds","seconds","weeks","years"];
+        const vals = [0n,0n,0n,0n,0n,0n,0n,0n,0,0];
+        let mask = 0;
+        let any = false;
+        for (const f of readOrder) {
+            const raw = value[f];
+            if (raw === undefined) continue;
+            any = true;
+            const i = wireOrder.indexOf(f);
+            mask |= 1 << i;
+            vals[i] = (f === "microseconds" || f === "nanoseconds") ? numArg(raw, f) : intArg(raw, f);
+        }
+        if (!any) throw new TypeError("Duration object must have at least one duration field");
+        return need(x.temporalz_duration_from_parts(mask, vals[0], vals[1], vals[2], vals[3], vals[4], vals[5], vals[6], vals[7], vals[8], vals[9]));
+    }
+    Object.defineProperty(Duration, "from", {
+        value: function from(value) {
+            if (isDuration(value)) return durationFromHandle(need(x.temporalz_duration_init(
+                x.temporalz_duration_years(value[HANDLE]),
+                x.temporalz_duration_months(value[HANDLE]),
+                x.temporalz_duration_weeks(value[HANDLE]),
+                x.temporalz_duration_days(value[HANDLE]),
+                x.temporalz_duration_hours(value[HANDLE]),
+                x.temporalz_duration_minutes(value[HANDLE]),
+                x.temporalz_duration_seconds(value[HANDLE]),
+                x.temporalz_duration_milliseconds(value[HANDLE]),
+                x.temporalz_duration_microseconds(value[HANDLE]),
+                x.temporalz_duration_nanoseconds(value[HANDLE]),
+            )));
+            return durationFromHandle(toDurationHandle(value));
+        },
+        writable: true, enumerable: false, configurable: true,
+    });
+    Object.defineProperty(Duration, "compare", {
+        value: function compare(a, b, options) {
+            const ah = toDurationHandle(a);
+            const bh = toDurationHandle(b);
+            const relativeTo = options && options.relativeTo;
+            if (relativeTo !== undefined && relativeTo !== null) {
+                const date = plainDateFromAny(relativeTo);
+                return Number(x.temporalz_duration_compare_plain_date(ah, bh, date[HANDLE]));
+            }
+            return Number(x.temporalz_duration_compare(ah, bh));
+        },
+        writable: true, enumerable: false, configurable: true,
+    });
 
-        get days() {
-            return Number(exports.temporalz_duration_days(this._handle));
-        }
+    defineGetters(Duration.prototype, {
+        years()        { return Number(x.temporalz_duration_years(brand(this, Duration, "Temporal.Duration"))); },
+        months()       { return Number(x.temporalz_duration_months(brand(this, Duration, "Temporal.Duration"))); },
+        weeks()        { return Number(x.temporalz_duration_weeks(brand(this, Duration, "Temporal.Duration"))); },
+        days()         { return Number(x.temporalz_duration_days(brand(this, Duration, "Temporal.Duration"))); },
+        hours()        { return Number(x.temporalz_duration_hours(brand(this, Duration, "Temporal.Duration"))); },
+        minutes()      { return Number(x.temporalz_duration_minutes(brand(this, Duration, "Temporal.Duration"))); },
+        seconds()      { return Number(x.temporalz_duration_seconds(brand(this, Duration, "Temporal.Duration"))); },
+        milliseconds() { return Number(x.temporalz_duration_milliseconds(brand(this, Duration, "Temporal.Duration"))); },
+        microseconds() { return Number(x.temporalz_duration_microseconds(brand(this, Duration, "Temporal.Duration"))); },
+        nanoseconds()  { return Number(x.temporalz_duration_nanoseconds(brand(this, Duration, "Temporal.Duration"))); },
+        sign()         { return Number(x.temporalz_duration_sign(brand(this, Duration, "Temporal.Duration"))); },
+        blank()        { return x.temporalz_duration_blank(brand(this, Duration, "Temporal.Duration")) === 1; },
+    });
 
-        get hours() {
-            return Number(exports.temporalz_duration_hours(this._handle));
-        }
+    defineMethods(Duration.prototype, {
+        add(other) {
+            const h = brand(this, Duration, "Temporal.Duration");
+            return durationFromHandle(need(x.temporalz_duration_add(h, toDurationHandle(other))));
+        },
+        subtract(other) {
+            const h = brand(this, Duration, "Temporal.Duration");
+            return durationFromHandle(need(x.temporalz_duration_subtract(h, toDurationHandle(other))));
+        },
+        abs() {
+            const h = brand(this, Duration, "Temporal.Duration");
+            return durationFromHandle(need(x.temporalz_duration_abs(h)));
+        },
+        negated() {
+            const h = brand(this, Duration, "Temporal.Duration");
+            return durationFromHandle(need(x.temporalz_duration_negated(h)));
+        },
+        round(options) {
+            const h = brand(this, Duration, "Temporal.Duration");
+            const o = options ?? {};
+            if (o === null || typeof o !== "object") throw new TypeError("round options must be an object");
+            const relativeTo = o.relativeTo;
+            if (relativeTo !== undefined && relativeTo !== null) {
+                const date = plainDateFromAny(relativeTo);
+                return durationFromHandle(need(x.temporalz_duration_round_plain_date(
+                    h, unitCode(o.smallestUnit), unitCode(o.largestUnit), roundingModeCode(o.roundingMode), roundingIncrementValue(o), date[HANDLE],
+                )));
+            }
+            return durationFromHandle(need(x.temporalz_duration_round(
+                h, unitCode(o.smallestUnit), unitCode(o.largestUnit), roundingModeCode(o.roundingMode), roundingIncrementValue(o),
+            )));
+        },
+        total(options) {
+            const h = brand(this, Duration, "Temporal.Duration");
+            if (!options || typeof options !== "object") throw new TypeError("total options must be an object");
+            const unit = unitCode(options.unit);
+            if (unit === 255) throw new RangeError("unit is required");
+            const relativeTo = options.relativeTo;
+            if (relativeTo !== undefined && relativeTo !== null) {
+                const date = plainDateFromAny(relativeTo);
+                return x.temporalz_duration_total_plain_date(h, unit, date[HANDLE]);
+            }
+            return x.temporalz_duration_total(h, unit);
+        },
+        toString() {
+            return takeString(x.temporalz_duration_to_string(brand(this, Duration, "Temporal.Duration")));
+        },
+        toJSON() {
+            return takeString(x.temporalz_duration_to_string(brand(this, Duration, "Temporal.Duration")));
+        },
+        toLocaleString() {
+            return takeString(x.temporalz_duration_to_string(brand(this, Duration, "Temporal.Duration")));
+        },
+        valueOf() {
+            throw new TypeError("Cannot convert Temporal.Duration to a primitive value");
+        },
+    });
 
-        get minutes() {
-            return Number(exports.temporalz_duration_minutes(this._handle));
-        }
+    Object.defineProperty(Duration.prototype, Symbol.toStringTag, {
+        value: "Temporal.Duration", writable: false, enumerable: false, configurable: true,
+    });
+    Object.defineProperty(Duration, "prototype", { writable: false, enumerable: false, configurable: false });
 
-        get seconds() {
-            return Number(exports.temporalz_duration_seconds(this._handle));
+    // =======================================================================
+    // PlainDate (minimal — used as relativeTo for Duration)
+    // =======================================================================
+    function PlainDate(year, month, day) {
+        if (!new.target) throw new TypeError("PlainDate must be called with new");
+        const Y = Number(year), M = Number(month), D = Number(day);
+        if (!Number.isInteger(Y) || !Number.isInteger(M) || !Number.isInteger(D)) {
+            throw new RangeError("PlainDate fields must be integers");
         }
+        const handle = need(x.temporalz_plain_date_init(Y, M, D));
+        Object.defineProperty(this, HANDLE, { value: handle });
+    }
+    function plainDateFromHandle(handle) {
+        const obj = Object.create(PlainDate.prototype);
+        Object.defineProperty(obj, HANDLE, { value: handle });
+        return obj;
+    }
+    function isPlainDate(v) {
+        return typeof v === "object" && v !== null && PlainDate.prototype.isPrototypeOf(v) && v[HANDLE] !== undefined;
+    }
+    function plainDateFromAny(value) {
+        if (isPlainDate(value)) return value;
+        if (typeof value === "string") {
+            return withCString(value, (ptr, len) => plainDateFromHandle(need(x.temporalz_plain_date_from_utf8(ptr, len))));
+        }
+        if (value === null || typeof value !== "object") throw new TypeError("Invalid relativeTo");
+        const Y = Number(value.year), M = Number(value.month), D = Number(value.day);
+        if (!Number.isInteger(Y) || !Number.isInteger(M) || !Number.isInteger(D)) {
+            throw new RangeError("Invalid relativeTo fields");
+        }
+        return plainDateFromHandle(need(x.temporalz_plain_date_init(Y, M, D)));
+    }
+    Object.defineProperty(PlainDate, "from", {
+        value: function from(value) { return plainDateFromAny(value); },
+        writable: true, enumerable: false, configurable: true,
+    });
+    defineMethods(PlainDate.prototype, {
+        toString() { return takeString(x.temporalz_plain_date_to_string(brand(this, PlainDate, "Temporal.PlainDate"))); },
+    });
+    Object.defineProperty(PlainDate.prototype, Symbol.toStringTag, {
+        value: "Temporal.PlainDate", writable: false, enumerable: false, configurable: true,
+    });
 
-        get milliseconds() {
-            return Number(exports.temporalz_duration_milliseconds(this._handle));
-        }
-
-        get microseconds() {
-            return Number(exports.temporalz_duration_microseconds(this._handle));
-        }
-
-        get nanoseconds() {
-            return Number(exports.temporalz_duration_nanoseconds(this._handle));
-        }
+    // =======================================================================
+    // Unimplemented stubs
+    // =======================================================================
+    function notImplemented(name) {
+        return function () { throw new Error(`${name} is not implemented`); };
     }
 
-    function hasCalendarUnits(duration) {
-        return (
-            duration.years !== 0 ||
-            duration.months !== 0 ||
-            duration.weeks !== 0 ||
-            duration.days !== 0
-        );
-    }
-
-    function hasYearMonthWeek(duration) {
-        return duration.years !== 0 || duration.months !== 0 || duration.weeks !== 0;
-    }
-
-    function toRelativeTo(options) {
-        if (!options || options.relativeTo === undefined) return null;
-        const rel = options.relativeTo;
-        if (rel instanceof PlainDate) return rel;
-        if (typeof rel === "string") return PlainDate.from(rel);
-        if (rel && typeof rel === "object") return PlainDate.from(rel);
-        throw new TypeError("Invalid relativeTo");
-    }
+    const TemporalNow = {};
+    defineMethods(TemporalNow, {
+        instant() {
+            // Delegate creation semantics to the Zig-backed Instant constructor path.
+            return Instant.fromEpochMilliseconds(Date.now());
+        },
+        plainDateISO() {
+            throw new Error("Temporal.Now.plainDateISO is not implemented");
+        },
+        plainDateTimeISO() {
+            throw new Error("Temporal.Now.plainDateTimeISO is not implemented");
+        },
+        plainTimeISO() {
+            throw new Error("Temporal.Now.plainTimeISO is not implemented");
+        },
+        timeZoneId() {
+            // Keep this deterministic for now; Zig Now.zig currently returns UTC too.
+            return "UTC";
+        },
+        zonedDateTimeISO() {
+            const tz = arguments.length === 0 || arguments[0] === undefined ? TemporalNow.timeZoneId() : arguments[0];
+            if (tz === null) throw new TypeError("timeZone must be a string");
+            if (typeof tz === "symbol") throw new TypeError("Cannot convert Symbol to string for timeZone");
+            return TemporalNow.instant().toZonedDateTimeISO(String(tz));
+        },
+    });
+    Object.defineProperty(TemporalNow, Symbol.toStringTag, {
+        value: "Temporal.Now", writable: false, enumerable: false, configurable: true,
+    });
 
     const Temporal = {
         Instant,
         Duration,
-        Now: {
-            instant: unimplemented("Temporal.Now.instant"),
-            plainDateISO: unimplemented("Temporal.Now.plainDateISO"),
-            plainDateTimeISO: unimplemented("Temporal.Now.plainDateTimeISO"),
-            plainTimeISO: unimplemented("Temporal.Now.plainTimeISO"),
-            timeZoneId: unimplemented("Temporal.Now.timeZoneId"),
-            zonedDateTimeISO: unimplemented("Temporal.Now.zonedDateTimeISO"),
-        },
         PlainDate,
-        PlainTime: unimplemented("Temporal.PlainTime"),
-        PlainDateTime: unimplemented("Temporal.PlainDateTime"),
-        PlainYearMonth: unimplemented("Temporal.PlainYearMonth"),
-        PlainMonthDay: unimplemented("Temporal.PlainMonthDay"),
-        ZonedDateTime: unimplemented("Temporal.ZonedDateTime"),
+        ZonedDateTime,
+        PlainTime: notImplemented("Temporal.PlainTime"),
+        PlainDateTime: notImplemented("Temporal.PlainDateTime"),
+        PlainYearMonth: notImplemented("Temporal.PlainYearMonth"),
+        PlainMonthDay: notImplemented("Temporal.PlainMonthDay"),
+        Now: TemporalNow,
     };
+
+    Object.defineProperty(Temporal, Symbol.toStringTag, {
+        value: "Temporal", writable: false, enumerable: false, configurable: true,
+    });
+
+    // Ensure constructors have non-enumerable descriptors expected by prop-desc tests
+    for (const [name, ctor] of Object.entries({ Instant, Duration, PlainDate, ZonedDateTime, Now: TemporalNow })) {
+        Object.defineProperty(Temporal, name, {
+            value: ctor, writable: true, enumerable: false, configurable: true,
+        });
+    }
 
     globalThis.Temporal = Temporal;
 })();

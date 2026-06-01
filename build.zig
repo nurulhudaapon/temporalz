@@ -50,7 +50,7 @@ pub fn build(b: *std.Build) !void {
             b.fmt("-Dtarget={s}", .{try target.result.zigTriple(b.allocator)}),
         });
         run_cmd.setCwd(b.path("example"));
-        if (b.args) |args| run_cmd.addArgs(args);
+        run_cmd.addPassthruArgs();
         run_step.dependOn(&run_cmd.step);
     }
 
@@ -89,7 +89,7 @@ pub fn build(b: *std.Build) !void {
     {
         const test262_step = b.step("test262", "Run test-262 tests");
         const run_cmd = b.addSystemCommand(&.{ "node", "test/test262/runner.mjs" });
-        if (b.args) |args| run_cmd.addArgs(args);
+        run_cmd.addPassthruArgs();
         run_cmd.step.dependOn(b.getInstallStep());
         test262_step.dependOn(&run_cmd.step);
     }
