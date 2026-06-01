@@ -28,9 +28,7 @@ pub fn build(b: *std.Build) !void {
         const libtemporal_dep = b.lazyDependency("libtemporal", .{});
         if (libtemporal_dep) |dep| {
             const lib_file_candidate = dep.path(prebuilt_lib_path);
-            const lib_full_path = b.fmt("{f}", .{lib_file_candidate});
-            if (std.Io.Dir.cwd().openFile(b.graph.io, lib_full_path, .{})) |lib_check_file| {
-                lib_check_file.close(b.graph.io);
+            if (dep.builder.root.access(b.graph.io, prebuilt_lib_path, .{})) {
                 prebuilt_lib_file = lib_file_candidate;
             } else |_| {}
         }
@@ -40,7 +38,7 @@ pub fn build(b: *std.Build) !void {
         // std.debug.print("Using pre-built temporal_capi library from downloaded artifact at: {s}\n", .{prebuilt_lib_path});
         selected_lib_file = plf;
     } else {
-        // std.debug.print("building from source: {s}\n", .{prebuilt_lib_path});
+        // std.debug.print("building from source: {s}\n searched for prebuild at: {s}\n", .{ prebuilt_lib_path, prebuilt_lib_path });
         const build_crab = @import("build_crab");
         const build_dir = build_crab.addCargoBuild(
             b,
