@@ -20,12 +20,18 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
     b.installArtifact(exe);
-    b.enable_wasmtime = true;
+    b.enable_wasmtime = true; // This doesn't work since Zig 0.17.0 release
 
     const run_step = b.step("run", "Run the app");
     switch (target.result.os.tag) {
         .freestanding => {
             const run_cmd = b.addSystemCommand(&.{ "node", "src/main.mjs" });
+            run_cmd.step.dependOn(b.getInstallStep());
+            run_step.dependOn(&run_cmd.step);
+        },
+        .wasi => {
+            const run_cmd = b.addSystemCommand(&.{"wasmtime"});
+            run_cmd.addFileArg(exe.getEmittedBin());
             run_cmd.step.dependOn(b.getInstallStep());
             run_step.dependOn(&run_cmd.step);
         },

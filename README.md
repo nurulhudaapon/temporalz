@@ -81,6 +81,12 @@ cd temporalz
 
 ```bash
 zig build run
+
+# Node.js
+zig build run -Dtarget=wasm32-freestanding
+
+# wasmtime
+zig build run -Dtarget=wasm32-wasi
 ```
 
 #### Run Tests
