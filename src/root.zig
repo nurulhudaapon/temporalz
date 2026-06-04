@@ -526,10 +526,10 @@ fn assertDecls(comptime T: type, checks: anytype) !void {
             var hasField = false;
             if (typeInfo == .@"struct") {
                 const struct_info = typeInfo.@"struct";
-                inline for (struct_info.fields) |field| {
+                inline for (struct_info.field_names) |field_name| {
                     // Check both camelCase and snake_case
-                    if (std.mem.eql(u8, field.name, check) or
-                        std.mem.eql(u8, field.name, camelToSnakeCase(check)))
+                    if (std.mem.eql(u8, field_name, check) or
+                        std.mem.eql(u8, field_name, camelToSnakeCase(check)))
                     {
                         hasField = true;
                         break;
@@ -548,39 +548,39 @@ fn assertDecls(comptime T: type, checks: anytype) !void {
         const struct_info = typeInfo.@"struct";
 
         // Check declarations
-        inline for (struct_info.decls) |decl| {
+        inline for (struct_info.decl_names) |decl_name| {
             // Allow deinit as extraneous
-            if (comptime std.mem.eql(u8, decl.name, "deinit")) continue;
+            if (comptime std.mem.eql(u8, decl_name, "deinit")) continue;
 
             var found = false;
             inline for (checks) |check| {
-                if (std.mem.eql(u8, decl.name, check)) {
+                if (std.mem.eql(u8, decl_name, check)) {
                     found = true;
                     break;
                 }
             }
 
             if (!found) {
-                std.log.err("Extraneous {s} decl: {s}", .{ @typeName(T), decl.name });
+                std.log.err("Extraneous {s} decl: {s}", .{ @typeName(T), decl_name });
                 try std.testing.expect(false);
             }
         }
 
         // Check fields (properties)
-        inline for (struct_info.fields) |field| {
+        inline for (struct_info.field_names) |field_name| {
             // Allow internal fields (starting with underscore)
-            if (comptime std.mem.startsWith(u8, field.name, "_")) continue;
+            if (comptime std.mem.startsWith(u8, field_name, "_")) continue;
 
             var found = false;
             inline for (checks) |check| {
-                if (std.mem.eql(u8, field.name, camelToSnakeCase(check))) {
+                if (std.mem.eql(u8, field_name, camelToSnakeCase(check))) {
                     found = true;
                     break;
                 }
             }
 
             if (!found) {
-                std.log.err("Extraneous {s} field: {s}", .{ @typeName(T), field.name });
+                std.log.err("Extraneous {s} field: {s}", .{ @typeName(T), field_name });
                 try std.testing.expect(false);
             }
         }
