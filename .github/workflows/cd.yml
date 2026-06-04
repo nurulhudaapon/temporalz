@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -56,12 +56,12 @@ jobs:
             rust-target: aarch64-apple-ios
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.17.0-dev.639+284ab0ad8
-          
+          version: 0.17.0-dev.667+0569f1f6a
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -72,7 +72,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
-          
+
       - name: Install cross-compilers (Windows-mingw)
         if: contains(matrix.target, 'windows-gnu')
         run: |
@@ -83,7 +83,7 @@ jobs:
         run: |
           cd pkg/temporal
           zig build -Dbuild-rust -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
-          
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -99,7 +99,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:

@@ -2,7 +2,7 @@
     .name = .temporalz,
     .version = "0.2.0",
     .fingerprint = 0xd8d79d59acc4faae,
-    .minimum_zig_version = "0.17.0-dev.639+284ab0ad8",
+    .minimum_zig_version = "0.17.0-dev.667+0569f1f6a",
     .dependencies = .{
         .temporal = .{
             .path = "pkg/temporal",

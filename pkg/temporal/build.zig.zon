@@ -2,7 +2,7 @@
     .name = .temporal,
     .version = "0.2.0",
     .fingerprint = 0xd5dcf3f41df6b117,
-    .minimum_zig_version = "0.17.0-dev.639+284ab0ad8",
+    .minimum_zig_version = "0.17.0-dev.667+0569f1f6a",
     .dependencies = .{
         .temporal_rs = .{
             .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.3#c003cc92325e19b26f8ee2f85e4a47d98cbcc781",

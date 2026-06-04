@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -14,30 +14,30 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         # os: [ubuntu-latest, macos-latest]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Zig
-      uses: mlugg/setup-zig@v2
-      with:
-        version: 0.17.0-dev.639+284ab0ad8
-          
-    - name: Build project
-      run: zig build
-      
-    - name: Verify executable
-      run: |
-        ./zig-out/bin/zx --help || echo "Executable built successfully"
-      shell: bash
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: temporalz-${{ matrix.os }}
-        path: zig-out/
-        retention-days: 1
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0-dev.667+0569f1f6a
+
+      - name: Build project
+        run: zig build
+
+      - name: Verify executable
+        run: |
+          ./zig-out/bin/zx --help || echo "Executable built successfully"
+        shell: bash
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporalz-${{ matrix.os }}
+          path: zig-out/
+          retention-days: 1
 
   test:
     name: Test (${{ matrix.os }})
@@ -47,25 +47,25 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         # os: [ubuntu-latest, macos-latest]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Zig
-      uses: mlugg/setup-zig@v2
-      with:
-        version: 0.17.0-dev.639+284ab0ad8
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: temporalz-${{ matrix.os }}
-        path: zig-out/
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0-dev.667+0569f1f6a
 
-    - name: Make executable (Unix)
-      if: runner.os != 'Windows'
-      run: chmod +x zig-out/bin/temporalz
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: temporalz-${{ matrix.os }}
+          path: zig-out/
 
-    - name: Run tests
-      run: zig build test
+      - name: Make executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x zig-out/bin/temporalz
+
+      - name: Run tests
+        run: zig build test
