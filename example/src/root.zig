@@ -523,8 +523,10 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     });
 
     if (io_optional) |io| {
-        const now_zdt = try Temporal.Now.zonedDateTimeISO(io);
+        const now_zdt = try Temporal.Now.zonedDateTimeISO(allocator, io);
         defer now_zdt.deinit();
+        const now_tz_id = try Temporal.Now.timeZoneId(allocator);
+        defer allocator.free(now_tz_id);
         std.log.info(
             \\Now Coverage
             \\ - timeZoneId(): {s}
@@ -532,7 +534,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
             \\
             \\
         , .{
-            Temporal.Now.timeZoneId(),
+            now_tz_id,
             try now_zdt.toString(allocator, .{}),
         });
     }

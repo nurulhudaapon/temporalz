@@ -62,6 +62,7 @@ pub fn fromEpochMilliseconds(epoch_ms: i64) !Instant {
 /// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/fromEpochNanoseconds
 pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
     const parts = abi.toI128Nanoseconds(epoch_ns);
+
     return wrapInstant(abi.c.temporal_rs_Instant_try_new(parts));
 }
 

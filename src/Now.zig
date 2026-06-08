@@ -79,17 +79,28 @@ pub fn plainTimeISO(io: std.Io) !PlainTime {
 
 /// Returns a time zone identifier representing the system's current time zone.
 ///
+/// The caller owns the returned slice and must free it with `allocator`.
+///
+/// TODO: Detect the system's actual IANA time zone instead of always returning
+/// "UTC". This requires platform-specific logic:
+///   - Linux/macOS: resolve the `/etc/localtime` symlink to `.../zoneinfo/<Area>/<City>`.
+///   - Windows: read the time zone from the registry and map the Windows zone
+///     name to an IANA identifier via the CLDR `windowsZones` table.
+///   - WASI: no host time zone is available; "UTC" is the only honest answer.
+///
 /// See: [MDN Temporal.Now.timeZoneId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/timeZoneId)
-pub fn timeZoneId() []const u8 {
-    return "UTC";
+pub fn timeZoneId(allocator: std.mem.Allocator) ![]const u8 {
+    return allocator.dupe(u8, "UTC");
 }
 
 /// Returns the current date and time as a [`Temporal.ZonedDateTime`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime) object, in the ISO 8601 calendar and the specified time zone.
 ///
 /// See: [MDN Temporal.Now.zonedDateTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/zonedDateTimeISO)
-pub fn zonedDateTimeISO(io: std.Io) !ZonedDateTime {
+pub fn zonedDateTimeISO(allocator: std.mem.Allocator, io: std.Io) !ZonedDateTime {
     const now = try instant(io);
-    const time_zone = try ZonedDateTime.TimeZone.init(timeZoneId());
+    const tz_id = try timeZoneId(allocator);
+    defer allocator.free(tz_id);
+    const time_zone = try ZonedDateTime.TimeZone.init(tz_id);
     return ZonedDateTime.fromEpochNanoseconds(now.epochNanoseconds(), time_zone);
 }
 
@@ -167,12 +178,13 @@ test plainTimeISO {
     try std.testing.expect(t.second() < 60);
 }
 test timeZoneId {
-    const tz = timeZoneId();
+    const tz = try timeZoneId(std.testing.allocator);
+    defer std.testing.allocator.free(tz);
     try std.testing.expectEqualStrings("UTC", tz);
 }
 test zonedDateTimeISO {
     const io = std.testing.io;
-    const zdt = try zonedDateTimeISO(io);
+    const zdt = try zonedDateTimeISO(std.testing.allocator, io);
     defer zdt.deinit();
 
     std.log.info("{d}", .{zdt.epochNanoseconds()});
