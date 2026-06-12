@@ -11,9 +11,7 @@ const Duration = @import("Duration.zig");
 ///
 /// The `Temporal.PlainDateTime` object represents a calendar date and wall-clock time, but no time zone or offset.
 ///
-/// - [MDN Temporal.PlainDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime)
-/// The `Temporal.PlainDateTime` object represents a calendar date and wall-clock time, but no time zone or offset.
-/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime
+/// See: [Temporal.PlainDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime)
 const PlainDateTime = @This();
 
 /// Internal pointer to the underlying C PlainDateTime object.

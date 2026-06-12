@@ -13,8 +13,7 @@ const Duration = @import("Duration.zig");
 ///
 /// The `Temporal.PlainDate` object represents a calendar date (year, month, day) with no time or time zone.
 ///
-/// The `Temporal.PlainDate` object represents a calendar date (year, month, day) with no time or time zone.
-/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate
+/// See: [Temporal.PlainDate](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate)
 const PlainDate = @This();
 
 /// Internal pointer to the underlying C PlainDate object.

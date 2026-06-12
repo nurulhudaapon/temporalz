@@ -1,11 +1,4 @@
-/// # Temporal Types and Utilities
-///
-/// This file defines core types and options used throughout the Temporal API implementation.
-///
-/// - [MDN Temporal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal)
-/// ## Unit
 /// Time unit for Temporal operations (e.g., nanosecond, second, day, year).
-/// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
 pub const Unit = enum {
     auto,
     nanosecond,
