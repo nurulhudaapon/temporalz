@@ -3,8 +3,5 @@ zig-out
 zig-pkg
 target
 
-lib
-tmp
-.DS_Store
-
+.tool-versions
 test/test262/polyfill-injected.js
