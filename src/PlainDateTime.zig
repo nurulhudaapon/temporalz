@@ -545,7 +545,6 @@ fn wrapPlainDateTime(res: anytype) !PlainDateTime {
     return .{ ._inner = ptr };
 }
 
-// ---------- Tests ---------------------
 test init {
     const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
     try std.testing.expectEqual(@as(i32, 2024), dt.year());

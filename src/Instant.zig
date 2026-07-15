@@ -242,8 +242,6 @@ pub fn deinit(self: Instant) void {
     abi.c.temporal_rs_Instant_destroy(self._inner);
 }
 
-// --- Helpers -----------------------------------------------------------------
-
 fn wrapInstant(res: anytype) !Instant {
     const ptr = (try abi.extractResult(res)) orelse return abi.TemporalError.Generic;
     return .{
@@ -280,8 +278,6 @@ fn optsToRounding(opts: ToStringOptions) abi.c.ToStringRoundingOptions {
         .rounding_mode = abi.toRoundingModeOption(rounding_mode),
     };
 }
-
-// --- Tests -------------------------------------------------------------------
 
 test init {
     const epoch_ns: i128 = 1_704_067_200_000_000_000; // 2024-01-01T00:00:00Z

@@ -13,27 +13,21 @@ const ZonedDateTime = @This();
 _inner: *abi.c.ZonedDateTime,
 
 /// The unit of time used for rounding and difference calculations.
-/// See [MDN Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime) for details.
 pub const Unit = t.Unit;
 
 /// The rounding mode used for rounding operations.
-/// See [MDN Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime) for details.
 pub const RoundingMode = t.RoundingMode;
 
 /// The sign of a duration or difference.
-/// See [MDN Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime) for details.
 pub const Sign = t.Sign;
 
 /// Options for difference calculations between ZonedDateTime instances.
-/// See [MDN Temporal.ZonedDateTime#instance_methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#instance_methods) for details.
 pub const DifferenceSettings = t.DifferenceSettings;
 
 /// Options for rounding ZonedDateTime instances.
-/// See [MDN Temporal.ZonedDateTime#instance_methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#instance_methods) for details.
 pub const RoundOptions = t.RoundingOptions;
 
 /// Represents a time zone, identified by an IANA time zone identifier or a fixed offset.
-/// See [MDN Temporal.ZonedDateTime#time-zones-and-offsets](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#time-zones-and-offsets).
 pub const TimeZone = struct {
     _inner: abi.c.TimeZone,
 
@@ -47,7 +41,6 @@ pub const TimeZone = struct {
 };
 
 /// Disambiguation options for resolving ambiguous local times (e.g., during DST transitions).
-/// See [MDN Temporal.ZonedDateTime#ambiguity-and-gaps-from-local-time-to-utc-time](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#ambiguity-and-gaps-from-local-time-to-utc-time).
 pub const Disambiguation = enum {
     compatible,
     earlier,
@@ -56,7 +49,6 @@ pub const Disambiguation = enum {
 };
 
 /// Options for resolving offset ambiguity when parsing ZonedDateTime from a string.
-/// See [MDN Temporal.ZonedDateTime#offset-ambiguity](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#offset-ambiguity).
 pub const OffsetDisambiguation = enum {
     use_offset,
     prefer_offset,
@@ -65,7 +57,6 @@ pub const OffsetDisambiguation = enum {
 };
 
 /// Controls how the calendar is displayed in string output.
-/// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
 pub const CalendarDisplay = enum {
     auto,
     always,
@@ -74,14 +65,12 @@ pub const CalendarDisplay = enum {
 };
 
 /// Controls how the offset is displayed in string output.
-/// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
 pub const DisplayOffset = enum {
     auto,
     never,
 };
 
 /// Controls how the time zone is displayed in string output.
-/// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
 pub const DisplayTimeZone = enum {
     auto,
     never,
@@ -89,7 +78,8 @@ pub const DisplayTimeZone = enum {
 };
 
 /// Options for formatting ZonedDateTime as a string.
-/// See [MDN Temporal.ZonedDateTime#rfc-9557-format](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime#rfc-9557-format).
+///
+/// See: [Temporal.ZonedDateTime.toString](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toString#parameters)
 pub const ToStringOptions = struct {
     fractional_second_digits: ?u8 = null,
     smallest_unit: ?Unit = null,
@@ -100,6 +90,8 @@ pub const ToStringOptions = struct {
 };
 
 /// Options for `with()` method.
+///
+/// See: [Temporal.ZonedDateTime.with](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/with#parameters)
 pub const WithOptions = struct {
     year: ?i32 = null,
     month: ?u8 = null,
@@ -117,35 +109,29 @@ pub const WithOptions = struct {
     time_zone: ?TimeZone = null,
 };
 
-/// Helper function to wrap a C API result into a ZonedDateTime
-fn wrapZonedDateTime(result: anytype) !ZonedDateTime {
-    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
-    return .{ ._inner = ptr };
-}
-
 /// Creates a new ZonedDateTime from the given epoch nanoseconds and time zone.
 /// Equivalent to the Temporal.ZonedDateTime constructor.
-/// See [MDN Temporal.ZonedDateTime() constructor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/ZonedDateTime)
+///
+/// See: [Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/ZonedDateTime)
 pub fn init(epoch_ns: i128, time_zone: TimeZone) !ZonedDateTime {
     const ns_parts = abi.toI128Nanoseconds(epoch_ns);
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, abi.to.toTimeZone(time_zone)));
 }
 
 /// Creates a new ZonedDateTime from the given epoch milliseconds and time zone.
-/// See [MDN Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime)
 pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: TimeZone) !ZonedDateTime {
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_milliseconds(epoch_ms, abi.to.toTimeZone(time_zone)));
 }
 
 /// Creates a new ZonedDateTime from the given epoch nanoseconds and time zone.
-/// See [MDN Temporal.ZonedDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime)
 pub fn fromEpochNanoseconds(epoch_ns: i128, time_zone: TimeZone) !ZonedDateTime {
     const ns_parts = abi.toI128Nanoseconds(epoch_ns);
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_from_epoch_nanoseconds(ns_parts, abi.to.toTimeZone(time_zone)));
 }
 
 /// Parses a ZonedDateTime from a string, with optional disambiguation and offset options.
-/// See [MDN Temporal.ZonedDateTime.from()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/from)
+///
+/// See: [Temporal.ZonedDateTime.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/from)
 pub fn from(s: []const u8, time_zone: ?TimeZone, disambiguation: Disambiguation, offset_disambiguation: OffsetDisambiguation) !ZonedDateTime {
     _ = time_zone; // The time zone is parsed from the string
     const view = abi.toDiplomatStringView(s);
@@ -154,26 +140,30 @@ pub fn from(s: []const u8, time_zone: ?TimeZone, disambiguation: Disambiguation,
 
 /// Compares two ZonedDateTime instances by their instant values.
 /// Returns -1, 0, or 1 if the first is before, equal, or after the second.
-/// See [MDN Temporal.ZonedDateTime.compare()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/compare)
+///
+/// See: [Temporal.ZonedDateTime.compare](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/compare)
 pub fn compare(a: ZonedDateTime, b: ZonedDateTime) i8 {
     return abi.c.temporal_rs_ZonedDateTime_compare_instant(a._inner, b._inner);
 }
 
 /// Returns a new ZonedDateTime moved forward by the given duration.
-/// See [MDN Temporal.ZonedDateTime.prototype.add()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/add)
+///
+/// See: [Temporal.ZonedDateTime.add](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/add)
 pub fn add(self: ZonedDateTime, duration: Duration) !ZonedDateTime {
     const overflow_opt = abi.toOption(abi.c.ArithmeticOverflow_option, null);
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_add(self._inner, duration._inner, overflow_opt));
 }
 
 /// Returns true if this ZonedDateTime is equal to another (same instant, time zone, and calendar).
-/// See [MDN Temporal.ZonedDateTime.prototype.equals()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/equals)
+///
+/// See: [Temporal.ZonedDateTime.equals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/equals)
 pub fn equals(self: ZonedDateTime, other: ZonedDateTime) bool {
     return abi.c.temporal_rs_ZonedDateTime_equals(self._inner, other._inner);
 }
 
 /// Returns the first instant after or before this instant at which the time zone's UTC offset changes, or null if none.
-/// See [MDN Temporal.ZonedDateTime.prototype.getTimeZoneTransition()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/getTimeZoneTransition)
+///
+/// See: [Temporal.ZonedDateTime.getTimeZoneTransition](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/getTimeZoneTransition)
 pub fn getTimeZoneTransition(self: ZonedDateTime, direction: enum { next, previous }) !?ZonedDateTime {
     const dir = switch (direction) {
         .next => abi.c.TransitionDirection_Next,
@@ -188,13 +178,15 @@ pub fn getTimeZoneTransition(self: ZonedDateTime, direction: enum { next, previo
 }
 
 /// Returns a new ZonedDateTime rounded to the given unit and options.
-/// See [MDN Temporal.ZonedDateTime.prototype.round()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/round)
+///
+/// See: [Temporal.ZonedDateTime.round](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/round)
 pub fn round(self: ZonedDateTime, options: RoundOptions) !ZonedDateTime {
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 /// Returns the duration from another ZonedDateTime to this one.
-/// See [MDN Temporal.ZonedDateTime.prototype.since()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/since)
+///
+/// See: [Temporal.ZonedDateTime.since](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/since)
 pub fn since(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
     const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_since(self._inner, other._inner, abi.to.diffsettings(settings)));
     if (ptr == null) return error.TemporalError;
@@ -202,60 +194,69 @@ pub fn since(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSett
 }
 
 /// Returns a ZonedDateTime representing the start of the day in the time zone.
-/// See [MDN Temporal.ZonedDateTime.prototype.startOfDay()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/startOfDay)
+///
+/// See: [Temporal.ZonedDateTime.startOfDay](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/startOfDay)
 pub fn startOfDay(self: ZonedDateTime) !ZonedDateTime {
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_start_of_day(self._inner));
 }
 
 /// Returns a new ZonedDateTime moved backward by the given duration.
-/// See [MDN Temporal.ZonedDateTime.prototype.subtract()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/subtract)
+///
+/// See: [Temporal.ZonedDateTime.subtract](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/subtract)
 pub fn subtract(self: ZonedDateTime, duration: Duration) !ZonedDateTime {
     const overflow_opt = abi.toOption(abi.c.ArithmeticOverflow_option, null);
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_subtract(self._inner, duration._inner, overflow_opt));
 }
 
 /// Returns a new Instant representing the same instant as this ZonedDateTime.
-/// See [MDN Temporal.ZonedDateTime.prototype.toInstant()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toInstant)
+///
+/// See: [Temporal.ZonedDateTime.toInstant](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toInstant)
 pub fn toInstant(self: ZonedDateTime) !Instant {
     const instant_ptr = abi.c.temporal_rs_ZonedDateTime_to_instant(self._inner) orelse return error.TemporalError;
     return .{ ._inner = instant_ptr };
 }
 
 /// Returns a string representing this ZonedDateTime in RFC 9557 format (ISO 8601 with time zone).
-/// See [MDN Temporal.ZonedDateTime.prototype.toJSON()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toJSON)
+///
+/// See: [Temporal.ZonedDateTime.toJSON](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toJSON)
 pub fn toJSON(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     return self.toString(allocator, .{});
 }
 
 /// Returns a language-sensitive string representation of this ZonedDateTime.
-/// See [MDN Temporal.ZonedDateTime.prototype.toLocaleString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toLocaleString)
+///
+/// See: [Temporal.ZonedDateTime.toLocaleString](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toLocaleString)
 pub fn toLocaleString(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     return self.toString(allocator, .{});
 }
 
 /// Returns a PlainDate representing the date portion of this ZonedDateTime.
-/// See [MDN Temporal.ZonedDateTime.prototype.toPlainDate()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toPlainDate)
+///
+/// See: [Temporal.ZonedDateTime.toPlainDate](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toPlainDate)
 pub fn toPlainDate(self: ZonedDateTime) !PlainDate {
     const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_date(self._inner) orelse return error.TemporalError;
     return .{ ._inner = ptr };
 }
 
 /// Returns a PlainDateTime representing the date and time portions of this ZonedDateTime.
-/// See [MDN Temporal.ZonedDateTime.prototype.toPlainDateTime()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toPlainDateTime)
+///
+/// See: [Temporal.ZonedDateTime.toPlainDateTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toPlainDateTime)
 pub fn toPlainDateTime(self: ZonedDateTime) !PlainDateTime {
     const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_datetime(self._inner) orelse return error.TemporalError;
     return .{ ._inner = ptr };
 }
 
 /// Returns a PlainTime representing the time portion of this ZonedDateTime.
-/// See [MDN Temporal.ZonedDateTime.prototype.toPlainTime()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toPlainTime)
+///
+/// See: [Temporal.ZonedDateTime.toPlainTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toPlainTime)
 pub fn toPlainTime(self: ZonedDateTime) !PlainTime {
     const ptr = abi.c.temporal_rs_ZonedDateTime_to_plain_time(self._inner) orelse return error.TemporalError;
     return .{ ._inner = ptr };
 }
 
 /// Returns a string representing this ZonedDateTime in RFC 9557 format, with options for formatting.
-/// See [MDN Temporal.ZonedDateTime.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toString)
+///
+/// See: [Temporal.ZonedDateTime.toString](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/toString)
 pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStringOptions) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -274,7 +275,8 @@ pub fn toString(self: ZonedDateTime, allocator: std.mem.Allocator, opts: ToStrin
 }
 
 /// Returns the duration from this ZonedDateTime to another.
-/// See [MDN Temporal.ZonedDateTime.prototype.until()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/until)
+///
+/// See: [Temporal.ZonedDateTime.until](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/until)
 pub fn until(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSettings) !Duration {
     const ptr = try abi.extractResult(abi.c.temporal_rs_ZonedDateTime_until(self._inner, other._inner, abi.to.diffsettings(settings)));
     if (ptr == null) return error.TemporalError;
@@ -282,7 +284,8 @@ pub fn until(self: ZonedDateTime, other: ZonedDateTime, settings: DifferenceSett
 }
 
 /// Throws an error; valueOf() is not supported for ZonedDateTime.
-/// See [MDN Temporal.ZonedDateTime.prototype.valueOf()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/valueOf)
+///
+/// See: [Temporal.ZonedDateTime.valueOf](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/valueOf)
 pub fn valueOf(_: ZonedDateTime) !void {
     return error.ValueOfNotSupported;
 }
@@ -309,7 +312,8 @@ pub fn with(self: ZonedDateTime, allocator: std.mem.Allocator, fields: anytype) 
 }
 
 /// Returns a new ZonedDateTime interpreted in the new calendar system.
-/// See [MDN Temporal.ZonedDateTime.prototype.withCalendar()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/withCalendar)
+///
+/// See: [Temporal.ZonedDateTime.withCalendar](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/withCalendar)
 pub fn withCalendar(self: ZonedDateTime, calendar: []const u8) !ZonedDateTime {
     const cal_view = abi.toDiplomatStringView(calendar);
     const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
@@ -320,21 +324,24 @@ pub fn withCalendar(self: ZonedDateTime, calendar: []const u8) !ZonedDateTime {
 }
 
 /// Returns a new ZonedDateTime with the time part replaced by the new time.
-/// See [MDN Temporal.ZonedDateTime.prototype.withPlainTime()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/withPlainTime)
+///
+/// See: [Temporal.ZonedDateTime.withPlainTime](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/withPlainTime)
 pub fn withPlainTime(self: ZonedDateTime, time: ?PlainTime) !ZonedDateTime {
     const time_ptr = if (time) |tt| tt._inner else null;
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with_plain_time(self._inner, time_ptr));
 }
 
 /// Returns a new ZonedDateTime representing the same instant in a new time zone.
-/// See [MDN Temporal.ZonedDateTime.prototype.withTimeZone()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/withTimeZone)
+///
+/// See: [Temporal.ZonedDateTime.withTimeZone](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/withTimeZone)
 pub fn withTimeZone(self: ZonedDateTime, time_zone: TimeZone) !ZonedDateTime {
     return wrapZonedDateTime(abi.c.temporal_rs_ZonedDateTime_with_timezone(self._inner, abi.to.toTimeZone(time_zone)));
 }
 
 // Property accessors
 /// Returns the calendar identifier used to interpret the internal ISO 8601 date.
-/// See [MDN Temporal.ZonedDateTime.prototype.calendarId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/calendarId)
+///
+/// See: [Temporal.ZonedDateTime.calendarId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/calendarId)
 pub fn calendarId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     const calendar_ptr = abi.c.temporal_rs_ZonedDateTime_calendar(self._inner) orelse return error.TemporalError;
     const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
@@ -342,56 +349,65 @@ pub fn calendarId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
 }
 
 /// Returns the 1-based day index in the month of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.day](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/day)
+///
+/// See: [Temporal.ZonedDateTime.day](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/day)
 pub fn day(self: ZonedDateTime) u8 {
     return abi.c.temporal_rs_ZonedDateTime_day(self._inner);
 }
 
 /// Returns the 1-based day index in the week of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.dayOfWeek](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/dayOfWeek)
+///
+/// See: [Temporal.ZonedDateTime.dayOfWeek](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/dayOfWeek)
 pub fn dayOfWeek(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_day_of_week(self._inner);
 }
 
 /// Returns the 1-based day index in the year of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.dayOfYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/dayOfYear)
+///
+/// See: [Temporal.ZonedDateTime.dayOfYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/dayOfYear)
 pub fn dayOfYear(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_day_of_year(self._inner);
 }
 
 /// Returns the number of days in the month of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.daysInMonth](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/daysInMonth)
+///
+/// See: [Temporal.ZonedDateTime.daysInMonth](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/daysInMonth)
 pub fn daysInMonth(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_days_in_month(self._inner);
 }
 
 /// Returns the number of days in the week of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.daysInWeek](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/daysInWeek)
+///
+/// See: [Temporal.ZonedDateTime.daysInWeek](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/daysInWeek)
 pub fn daysInWeek(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_days_in_week(self._inner);
 }
 
 /// Returns the number of days in the year of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.daysInYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/daysInYear)
+///
+/// See: [Temporal.ZonedDateTime.daysInYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/daysInYear)
 pub fn daysInYear(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_days_in_year(self._inner);
 }
 
 /// Returns the number of milliseconds since the Unix epoch to this instant.
-/// See [MDN Temporal.ZonedDateTime.prototype.epochMilliseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/epochMilliseconds)
+///
+/// See: [Temporal.ZonedDateTime.epochMilliseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/epochMilliseconds)
 pub fn epochMilliseconds(self: ZonedDateTime) i64 {
     return abi.c.temporal_rs_ZonedDateTime_epoch_milliseconds(self._inner);
 }
 
 /// Returns the number of nanoseconds since the Unix epoch to this instant.
-/// See [MDN Temporal.ZonedDateTime.prototype.epochNanoseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/epochNanoseconds)
+///
+/// See: [Temporal.ZonedDateTime.epochNanoseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/epochNanoseconds)
 pub fn epochNanoseconds(self: ZonedDateTime) i128 {
     const parts = abi.c.temporal_rs_ZonedDateTime_epoch_nanoseconds(self._inner);
     return abi.fromI128Nanoseconds(parts);
 }
 
 /// Returns the calendar-specific era of this date, or null if not applicable.
-/// See [MDN Temporal.ZonedDateTime.prototype.era](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/era)
+///
+/// See: [Temporal.ZonedDateTime.era](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/era)
 pub fn era(self: ZonedDateTime, allocator: std.mem.Allocator) !?[]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -405,57 +421,66 @@ pub fn era(self: ZonedDateTime, allocator: std.mem.Allocator) !?[]u8 {
 }
 
 /// Returns the year of this date within the era, or null if not applicable.
-/// See [MDN Temporal.ZonedDateTime.prototype.eraYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/eraYear)
+///
+/// See: [Temporal.ZonedDateTime.eraYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/eraYear)
 pub fn eraYear(self: ZonedDateTime) ?i32 {
     const result = abi.c.temporal_rs_ZonedDateTime_era_year(self._inner);
     return abi.fromOption(result);
 }
 
 /// Returns the hour component of this time (0-23).
-/// See [MDN Temporal.ZonedDateTime.prototype.hour](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/hour)
+///
+/// See: [Temporal.ZonedDateTime.hour](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/hour)
 pub fn hour(self: ZonedDateTime) u8 {
     return abi.c.temporal_rs_ZonedDateTime_hour(self._inner);
 }
 
 /// Returns the number of hours in the day of this date in the time zone.
-/// See [MDN Temporal.ZonedDateTime.prototype.hoursInDay](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/hoursInDay)
+///
+/// See: [Temporal.ZonedDateTime.hoursInDay](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/hoursInDay)
 pub fn hoursInDay(self: ZonedDateTime) !f64 {
     const result = abi.c.temporal_rs_ZonedDateTime_hours_in_day(self._inner);
     return try abi.extractResult(result);
 }
 
 /// Returns true if this date is in a leap year.
-/// See [MDN Temporal.ZonedDateTime.prototype.inLeapYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/inLeapYear)
+///
+/// See: [Temporal.ZonedDateTime.inLeapYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/inLeapYear)
 pub fn inLeapYear(self: ZonedDateTime) bool {
     return abi.c.temporal_rs_ZonedDateTime_in_leap_year(self._inner);
 }
 
 /// Returns the microsecond component of this time (0-999).
-/// See [MDN Temporal.ZonedDateTime.prototype.microsecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/microsecond)
+///
+/// See: [Temporal.ZonedDateTime.microsecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/microsecond)
 pub fn microsecond(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_microsecond(self._inner);
 }
 
 /// Returns the millisecond component of this time (0-999).
-/// See [MDN Temporal.ZonedDateTime.prototype.millisecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/millisecond)
+///
+/// See: [Temporal.ZonedDateTime.millisecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/millisecond)
 pub fn millisecond(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_millisecond(self._inner);
 }
 
 /// Returns the minute component of this time (0-59).
-/// See [MDN Temporal.ZonedDateTime.prototype.minute](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/minute)
+///
+/// See: [Temporal.ZonedDateTime.minute](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/minute)
 pub fn minute(self: ZonedDateTime) u8 {
     return abi.c.temporal_rs_ZonedDateTime_minute(self._inner);
 }
 
 /// Returns the 1-based month index in the year of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.month](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/month)
+///
+/// See: [Temporal.ZonedDateTime.month](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/month)
 pub fn month(self: ZonedDateTime) u8 {
     return abi.c.temporal_rs_ZonedDateTime_month(self._inner);
 }
 
 /// Returns the calendar-specific string representing the month of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.monthCode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/monthCode)
+///
+/// See: [Temporal.ZonedDateTime.monthCode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/monthCode)
 pub fn monthCode(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -464,19 +489,22 @@ pub fn monthCode(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
 }
 
 /// Returns the number of months in the year of this date.
-/// See [MDN Temporal.ZonedDateTime.prototype.monthsInYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/monthsInYear)
+///
+/// See: [Temporal.ZonedDateTime.monthsInYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/monthsInYear)
 pub fn monthsInYear(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_months_in_year(self._inner);
 }
 
 /// Returns the nanosecond component of this time (0-999).
-/// See [MDN Temporal.ZonedDateTime.prototype.nanosecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/nanosecond)
+///
+/// See: [Temporal.ZonedDateTime.nanosecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/nanosecond)
 pub fn nanosecond(self: ZonedDateTime) u16 {
     return abi.c.temporal_rs_ZonedDateTime_nanosecond(self._inner);
 }
 
 /// Returns the offset used to interpret the internal instant, as a string (±HH:mm).
-/// See [MDN Temporal.ZonedDateTime.prototype.offset](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/offset)
+///
+/// See: [Temporal.ZonedDateTime.offset](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/offset)
 pub fn offset(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
@@ -486,19 +514,22 @@ pub fn offset(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
 }
 
 /// Returns the offset used to interpret the internal instant, as a number of nanoseconds.
-/// See [MDN Temporal.ZonedDateTime.prototype.offsetNanoseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/offsetNanoseconds)
+///
+/// See: [Temporal.ZonedDateTime.offsetNanoseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/offsetNanoseconds)
 pub fn offsetNanoseconds(self: ZonedDateTime) i64 {
     return abi.c.temporal_rs_ZonedDateTime_offset_nanoseconds(self._inner);
 }
 
 /// Returns the second component of this time (0-59).
-/// See [MDN Temporal.ZonedDateTime.prototype.second](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/second)
+///
+/// See: [Temporal.ZonedDateTime.second](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/second)
 pub fn second(self: ZonedDateTime) u8 {
     return abi.c.temporal_rs_ZonedDateTime_second(self._inner);
 }
 
 /// Returns the time zone identifier used to interpret the internal instant.
-/// See [MDN Temporal.ZonedDateTime.prototype.timeZoneId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/timeZoneId)
+///
+/// See: [Temporal.ZonedDateTime.timeZoneId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/timeZoneId)
 pub fn timeZoneId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
     const tz = abi.c.temporal_rs_ZonedDateTime_timezone(self._inner);
     var write = abi.DiplomatWrite.init(allocator);
@@ -510,20 +541,23 @@ pub fn timeZoneId(self: ZonedDateTime, allocator: std.mem.Allocator) ![]u8 {
 }
 
 /// Returns the 1-based week index in the year of this date, or null if not defined.
-/// See [MDN Temporal.ZonedDateTime.prototype.weekOfYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/weekOfYear)
+///
+/// See: [Temporal.ZonedDateTime.weekOfYear](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/weekOfYear)
 pub fn weekOfYear(self: ZonedDateTime) ?u8 {
     const result = abi.c.temporal_rs_ZonedDateTime_week_of_year(self._inner);
     return abi.fromOption(result);
 }
 
 /// Returns the year of this date relative to the calendar's epoch.
-/// See [MDN Temporal.ZonedDateTime.prototype.year](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/year)
+///
+/// See: [Temporal.ZonedDateTime.year](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/year)
 pub fn year(self: ZonedDateTime) i32 {
     return abi.c.temporal_rs_ZonedDateTime_year(self._inner);
 }
 
 /// Returns the year to be paired with the weekOfYear of this date, or null if not defined.
-/// See [MDN Temporal.ZonedDateTime.prototype.yearOfWeek](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/yearOfWeek)
+///
+/// See: [Temporal.ZonedDateTime.yearOfWeek](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/yearOfWeek)
 pub fn yearOfWeek(self: ZonedDateTime) ?i32 {
     const result = abi.c.temporal_rs_ZonedDateTime_year_of_week(self._inner);
     return abi.fromOption(result);
@@ -540,7 +574,12 @@ pub fn deinit(self: ZonedDateTime) void {
     abi.c.temporal_rs_ZonedDateTime_destroy(self._inner);
 }
 
-// ---------- Tests ---------------------
+/// Helper function to wrap a C API result into a ZonedDateTime
+fn wrapZonedDateTime(result: anytype) !ZonedDateTime {
+    const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
+    return .{ ._inner = ptr };
+}
+
 test init {
     const tz = try TimeZone.init("America/New_York");
     const zdt = try init(0, tz);

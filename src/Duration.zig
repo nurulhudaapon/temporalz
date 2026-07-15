@@ -82,7 +82,7 @@ pub const CompareOptions = struct {
 /// Construct a Duration from years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, and nanoseconds.
 /// Equivalent to `Temporal.Duration()` constructor.
 ///
-/// See: [Temporal.Duration.Duration](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/Duration)
+/// See: [Temporal.Duration](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/Duration)
 pub fn init(
     years_val: i64,
     months_val: i64,
@@ -366,8 +366,6 @@ pub fn deinit(self: Duration) void {
     abi.c.temporal_rs_Duration_destroy(self._inner);
 }
 
-// --- Helpers -----------------------------------------------------------------
-
 inline fn handleVoidResult(res: anytype) !void {
     _ = try abi.extractResult(res);
 }
@@ -378,8 +376,6 @@ fn wrapDuration(res: anytype) !Duration {
     return .{ ._inner = ptr.? };
 }
 
-// --- Aliases and enums ------------------------------------------
-
 const OptionU8 = abi.c.OptionU8;
 const OptionU32 = abi.c.OptionU32;
 const OptionI64 = abi.c.OptionI64;
@@ -387,8 +383,6 @@ const OptionF64 = abi.c.OptionF64;
 const Precision = abi.c.Precision;
 const Unit_option = abi.c.Unit_option;
 const RoundingMode_option = abi.c.RoundingMode_option;
-
-// --- Tests -------------------------------------------------------------------
 
 test init {
     // Create a simple duration: 1 hour, 30 minutes
