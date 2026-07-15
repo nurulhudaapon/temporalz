@@ -17,54 +17,147 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # macOS
           - target: x86_64-macos
             os: macos-latest
             rust-target: x86_64-apple-darwin
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: aarch64-macos
             os: macos-latest
             rust-target: aarch64-apple-darwin
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
+
+          # Linux (esbuild tier)
           - target: x86_64-linux-gnu
             os: ubuntu-latest
             rust-target: x86_64-unknown-linux-gnu
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: aarch64-linux-gnu
             os: ubuntu-latest
             rust-target: aarch64-unknown-linux-gnu
             cross-packages: gcc-aarch64-linux-gnu
+            cargo-linker-env: ""
+            cargo-linker: ""
+          - target: x86-linux-gnu
+            os: ubuntu-latest
+            rust-target: i686-unknown-linux-gnu
+            cross-packages: gcc-i686-linux-gnu
+            cargo-linker-env: ""
+            cargo-linker: ""
+          - target: arm-linux-gnueabihf
+            os: ubuntu-latest
+            rust-target: armv7-unknown-linux-gnueabihf
+            cross-packages: gcc-arm-linux-gnueabihf
+            cargo-linker-env: ""
+            cargo-linker: ""
+          - target: loongarch64-linux-gnu
+            os: ubuntu-latest
+            rust-target: loongarch64-unknown-linux-gnu
+            cross-packages: gcc-loongarch64-linux-gnu
+            cargo-linker-env: ""
+            cargo-linker: ""
+          - target: powerpc64-linux-gnu
+            os: ubuntu-latest
+            rust-target: powerpc64le-unknown-linux-gnu
+            cross-packages: gcc-powerpc64-linux-gnu
+            cargo-linker-env: ""
+            cargo-linker: ""
+          - target: riscv64-linux-gnu
+            os: ubuntu-latest
+            rust-target: riscv64gc-unknown-linux-gnu
+            cross-packages: gcc-riscv64-linux-gnu
+            cargo-linker-env: ""
+            cargo-linker: ""
+          - target: s390x-linux-gnu
+            os: ubuntu-latest
+            rust-target: s390x-unknown-linux-gnu
+            cross-packages: gcc-s390x-linux-gnu
+            cargo-linker-env: ""
+            cargo-linker: ""
+
+          # Windows
           - target: x86_64-windows-gnu
             os: ubuntu-latest
             rust-target: x86_64-pc-windows-gnu
             cross-packages: mingw-w64
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: aarch64-windows-gnu
             os: ubuntu-latest
             rust-target: aarch64-pc-windows-gnullvm
             cross-packages: mingw-w64
+            cargo-linker-env: ""
+            cargo-linker: ""
+          - target: x86-windows-gnu
+            os: ubuntu-latest
+            rust-target: i686-pc-windows-gnu
+            cross-packages: mingw-w64
+            cargo-linker-env: ""
+            cargo-linker: ""
+
+          # BSD / illumos (esbuild tier; use zig cc as cargo linker)
+          - target: x86_64-freebsd
+            os: ubuntu-latest
+            rust-target: x86_64-unknown-freebsd
+            cross-packages: ""
+            cargo-linker-env: CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_LINKER
+            cargo-linker: zig cc -target x86_64-freebsd
+          - target: x86_64-netbsd
+            os: ubuntu-latest
+            rust-target: x86_64-unknown-netbsd
+            cross-packages: ""
+            cargo-linker-env: CARGO_TARGET_X86_64_UNKNOWN_NETBSD_LINKER
+            cargo-linker: zig cc -target x86_64-netbsd
+          - target: x86_64-solaris
+            os: ubuntu-latest
+            rust-target: x86_64-pc-solaris
+            cross-packages: ""
+            cargo-linker-env: CARGO_TARGET_X86_64_PC_SOLARIS_LINKER
+            cargo-linker: zig cc -target x86_64-solaris
+
+          # Additional targets
           - target: wasm32-freestanding
             os: ubuntu-latest
             rust-target: wasm32-unknown-unknown
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: wasm32-wasi
             os: ubuntu-latest
             rust-target: wasm32-wasip1
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: x86_64-linux-musl
             os: ubuntu-latest
             rust-target: x86_64-unknown-linux-musl
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: aarch64-linux-musl
             os: ubuntu-latest
             rust-target: aarch64-unknown-linux-musl
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: aarch64-linux-android
             os: ubuntu-latest
             rust-target: aarch64-linux-android
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
           - target: aarch64-ios
             os: macos-latest
             rust-target: aarch64-apple-ios
             cross-packages: ""
+            cargo-linker-env: ""
+            cargo-linker: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +180,9 @@ jobs:
 
       - name: Build Package
         run: |
+          if [ -n "${{ matrix.cargo-linker-env }}" ]; then
+            export "${{ matrix.cargo-linker-env }}=${{ matrix.cargo-linker }}"
+          fi
           cd lib
           zig build -Dbuild-rust -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
 
