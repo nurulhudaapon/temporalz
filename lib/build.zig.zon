@@ -1,14 +1,13 @@
 .{
-    .name = .temporal,
+    .name = .libtemporal,
     .version = "0.2.0",
-    .fingerprint = 0xd5dcf3f41df6b117,
-    .minimum_zig_version = "0.17.0-dev.1398+cb5635714",
+    .fingerprint = 0xded01f16f20c2a64,
     .dependencies = .{
         .temporal_rs = .{
             .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.3#c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
             .hash = "N-V-__8AAPLKOQDfJ5TYhiiy_6a_dZqUmo9K4e8Xhjfup3fd",
         },
-        .libtemporal = .{
+        .prebuilt_libtemporal = .{
             .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.3/libtemporal.tar.gz",
             .hash = "N-V-__8AADYZ_AXnqpmkTa49ZQ6lEQlDXWRLthyxEbgse3Hi",
             .lazy = true,

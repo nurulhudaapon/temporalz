@@ -2,7 +2,6 @@
     .name = .temporalz_example,
     .version = "0.1.2",
     .fingerprint = 0x686c9dfc777f9593,
-    .minimum_zig_version = "0.17.0-dev.1398+cb5635714",
     .dependencies = .{
         .temporalz = .{
             .path = "../",

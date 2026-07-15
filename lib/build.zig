@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) !void {
     var selected_lib_file: std.Build.LazyPath = undefined;
 
     if (!force_build_rust) {
-        const libtemporal_dep = b.lazyDependency("libtemporal", .{});
+        const libtemporal_dep = b.lazyDependency("prebuilt_libtemporal", .{});
         if (libtemporal_dep) |dep| {
             const lib_file_candidate = dep.path(prebuilt_lib_path);
             if (dep.builder.root.access(b.graph.io, prebuilt_lib_path, .{})) {
@@ -59,7 +59,7 @@ pub fn build(b: *std.Build) !void {
     b.getInstallStep().dependOn(&install_lib.step);
 
     // --- Zig Module --- //
-    const mod = b.addModule("temporal_rs", .{
+    const mod = b.addModule("libtemporal", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,

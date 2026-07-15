@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const c = @import("temporal_rs").c;
+pub const c = @import("libtemporal").c;
 
 pub const to_string_rounding_options_auto: c.ToStringRoundingOptions = .{
     .precision = .{ .is_minute = false, .precision = toOption(c.OptionU8, null) },

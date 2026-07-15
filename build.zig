@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) !void {
     const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse false;
 
     // --- Rust C ABI & Pre-built via temporal-rs subpackage --- //
-    const temporal = b.dependency("temporal", .{
+    const libtemporal = b.dependency("libtemporal", .{
         .target = target,
         .optimize = optimize,
         .@"build-rust" = force_build_rust,
@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    mod.addImport("temporal_rs", temporal.module("temporal_rs"));
+    mod.addImport("libtemporal", libtemporal.module("libtemporal"));
 
     // --- Zig Executable: temporalz --- //
     const exe = b.addExecutable(.{

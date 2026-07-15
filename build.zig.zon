@@ -4,8 +4,8 @@
     .fingerprint = 0xd8d79d59acc4faae,
     .minimum_zig_version = "0.17.0-dev.1398+cb5635714",
     .dependencies = .{
-        .temporal = .{
-            .path = "pkg/temporal",
+        .libtemporal = .{
+            .path = "lib",
         },
     },
     .paths = .{
@@ -14,6 +14,6 @@
         "README.md",
         "LICENCE",
         "src",
-        "pkg",
+        "lib",
     },
 }
