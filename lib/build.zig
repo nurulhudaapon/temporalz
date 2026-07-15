@@ -40,14 +40,19 @@ pub fn build(b: *std.Build) !void {
     } else {
         // std.debug.print("building from source: {s}\n searched for prebuild at: {s}\n", .{ prebuilt_lib_path, prebuilt_lib_path });
         const build_crab = @import("build_crab");
+
+        var zig_target = target.result;
+        if (zig_target.os.tag == .windows) zig_target.abi = .gnu;
+        const rust_target = build_crab.rust.Target.fromZig(zig_target) catch
+            @panic("unable to convert target triple to Rust");
         const build_dir = build_crab.addCargoBuild(
             b,
             .{
                 .manifest_path = b.path("Cargo.toml"),
                 .cargo_args = if (optimize == .Debug) &.{} else &.{"--release"},
+                .rust_target = .{ .value = b.fmt("{f}", .{rust_target}) },
             },
             .{
-                .target = target,
                 .optimize = .ReleaseSafe,
             },
         );
