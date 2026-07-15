@@ -6,7 +6,6 @@ A Zig library for working with temporal types based on the [Temporal Standard](h
 
 Temporalz provides Zig bindings to the Rust-based [temporal_rs](https://github.com/boa-dev/temporal) library for handling dates, times, and durations with proper timezone support.
 
-
 ## Installation
 
 #### Prerequisites
@@ -35,19 +34,18 @@ const exe = b.addExecutable(.{...});
 exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
 ```
 
-
 ## Checklist ([Test262](https://github.com/tc39/test262/tree/main/test/built-ins/Temporal))
 
-| Namespace | Test262 (todo) |
-| --- | --- |
-| Instant | 0/0 |
-| Duration | 0/0 |
-| PlainDate | 0/0 |
-| PlainTime | 0/0 |
-| PlainDateTime | 0/0 |
-| PlainYearMonth | 0/0 |
-| PlainMonthDay | 0/0 |
-| ZonedDateTime | 0/0 |
+| Namespace      | Status |
+| -------------- | ------ |
+| Instant        | ✅     |
+| Duration       | ✅     |
+| PlainDate      | ✅     |
+| PlainTime      | ✅     |
+| PlainDateTime  | ✅     |
+| PlainYearMonth | ✅     |
+| PlainMonthDay  | ✅     |
+| ZonedDateTime  | ✅     |
 
 ## Prebuilt
 
@@ -94,7 +92,3 @@ zig build run -Dtarget=wasm32-wasi
 ```bash
 zig build test
 ```
-
-## License
-
-MIT

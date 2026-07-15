@@ -4,4 +4,3 @@ zig-pkg
 target
 
 .tool-versions
-test/test262/polyfill-injected.js
