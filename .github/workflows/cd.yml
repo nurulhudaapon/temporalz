@@ -54,18 +54,18 @@ jobs:
             os: ubuntu-latest
             rust-target: armv7-unknown-linux-gnueabihf
             cross-packages: gcc-arm-linux-gnueabihf
-            cargo-linker-env: ""
-            cargo-linker: ""
+            cargo-linker-env: CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER
+            cargo-linker: arm-linux-gnueabihf-gcc
           - target: loongarch64-linux-gnu
             os: ubuntu-latest
             rust-target: loongarch64-unknown-linux-gnu
-            cross-packages: gcc-loongarch64-linux-gnu
-            cargo-linker-env: ""
-            cargo-linker: ""
-          - target: powerpc64-linux-gnu
+            cross-packages: ""
+            cargo-linker-env: CARGO_TARGET_LOONGARCH64_UNKNOWN_LINUX_GNU_LINKER
+            cargo-linker: zig cc -target loongarch64-linux-gnu
+          - target: powerpc64le-linux-gnu
             os: ubuntu-latest
             rust-target: powerpc64le-unknown-linux-gnu
-            cross-packages: gcc-powerpc64-linux-gnu
+            cross-packages: gcc-powerpc64le-linux-gnu
             cargo-linker-env: ""
             cargo-linker: ""
           - target: riscv64-linux-gnu
@@ -114,12 +114,12 @@ jobs:
             cross-packages: ""
             cargo-linker-env: CARGO_TARGET_X86_64_UNKNOWN_NETBSD_LINKER
             cargo-linker: zig cc -target x86_64-netbsd
-          - target: x86_64-solaris
+          - target: x86_64-illumos
             os: ubuntu-latest
-            rust-target: x86_64-pc-solaris
+            rust-target: x86_64-unknown-illumos
             cross-packages: ""
-            cargo-linker-env: CARGO_TARGET_X86_64_PC_SOLARIS_LINKER
-            cargo-linker: zig cc -target x86_64-solaris
+            cargo-linker-env: CARGO_TARGET_X86_64_UNKNOWN_ILLUMOS_LINKER
+            cargo-linker: zig cc -target x86_64-illumos
 
           # Additional targets
           - target: wasm32-freestanding

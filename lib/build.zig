@@ -43,14 +43,26 @@ pub fn build(b: *std.Build) !void {
 
         var zig_target = target.result;
         if (zig_target.os.tag == .windows) zig_target.abi = .gnu;
-        const rust_target = build_crab.rust.Target.fromZig(zig_target) catch
-            @panic("unable to convert target triple to Rust");
+        // Zig's baseline `.arm` maps to Rust `arm-*`, but rustup ships `armv7-*`.
+        const rust_target_str: []const u8 = if (zig_target.cpu.arch == .arm and zig_target.os.tag == .linux)
+            switch (zig_target.abi) {
+                .gnueabihf, .eabihf => "armv7-unknown-linux-gnueabihf",
+                .gnueabi, .eabi => "armv7-unknown-linux-gnueabi",
+                .musleabihf => "armv7-unknown-linux-musleabihf",
+                .musleabi => "armv7-unknown-linux-musleabi",
+                else => "armv7-unknown-linux-gnueabihf",
+            }
+        else blk: {
+            const rust_target = build_crab.rust.Target.fromZig(zig_target) catch
+                @panic("unable to convert target triple to Rust");
+            break :blk b.fmt("{f}", .{rust_target});
+        };
         const build_dir = build_crab.addCargoBuild(
             b,
             .{
                 .manifest_path = b.path("Cargo.toml"),
                 .cargo_args = if (optimize == .Debug) &.{} else &.{"--release"},
-                .rust_target = .{ .value = b.fmt("{f}", .{rust_target}) },
+                .rust_target = .{ .value = rust_target_str },
             },
             .{
                 .optimize = .ReleaseSafe,
