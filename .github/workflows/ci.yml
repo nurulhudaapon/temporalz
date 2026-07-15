@@ -30,7 +30,7 @@ jobs:
           version: 0.17.0-dev.1398+cb5635714
 
       - name: Build and run project
-        run: zig build run
+        run: cd example && zig build run
 
   test:
     name: Test (${{ matrix.os }})
