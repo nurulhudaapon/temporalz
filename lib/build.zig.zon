@@ -4,8 +4,8 @@
     .fingerprint = 0xded01f16f20c2a64,
     .dependencies = .{
         .temporal_rs = .{
-            .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.3#c003cc92325e19b26f8ee2f85e4a47d98cbcc781",
-            .hash = "N-V-__8AAPLKOQDfJ5TYhiiy_6a_dZqUmo9K4e8Xhjfup3fd",
+            .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.4#a5cebbcce231552bf6ed985d7ea13b0c7b195f02",
+            .hash = "N-V-__8AALjnOQBiCk4NffYgEewZ5v9qlLlDyXO22FIyzNdf",
         },
         .prebuilt_libtemporal = .{
             .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.3/libtemporal.tar.gz",
