@@ -77,15 +77,9 @@ pub fn plainDateTimeISO(allocator: std.mem.Allocator, io: std.Io, time_zone_like
 ///
 /// See: [Temporal.Now.plainTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Now/plainTimeISO)
 pub fn plainTimeISO(allocator: std.mem.Allocator, io: std.Io, time_zone_like: ?[]const u8) !PlainTime {
-    const time_zone = try resolveTimeZone(allocator, io, time_zone_like);
-    const now = try instant(io);
-    defer now.deinit();
-
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainTime_from_epoch_nanoseconds(
-        abi.toI128Nanoseconds(now.epochNanoseconds()),
-        abi.to.toTimeZone(time_zone),
-    ))) orelse return abi.TemporalError.Generic;
-    return PlainTime{ ._inner = ptr };
+    const zdt = try zonedDateTimeISO(allocator, io, time_zone_like);
+    defer zdt.deinit();
+    return zdt.toPlainTime();
 }
 
 /// Returns a time zone identifier representing the system's current time zone.

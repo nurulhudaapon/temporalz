@@ -45,14 +45,21 @@ pub fn init(
     microsecond_val: u16,
     nanosecond_val: u16,
 ) !PlainTime {
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_try_new(
+    if (hour_val > 23 or minute_val > 59 or second_val > 59 or
+        millisecond_val > 999 or microsecond_val > 999 or nanosecond_val > 999)
+    {
+        return abi.TemporalError.RangeError;
+    }
+    var buf: [18]u8 = undefined;
+    const s = std.fmt.bufPrint(&buf, "{d:0>2}:{d:0>2}:{d:0>2}.{d:0>3}{d:0>3}{d:0>3}", .{
         hour_val,
         minute_val,
         second_val,
         millisecond_val,
         microsecond_val,
         nanosecond_val,
-    ));
+    }) catch unreachable;
+    return from(s);
 }
 
 /// Parses a PlainTime from a string.
