@@ -8,7 +8,7 @@ on:
       - 'lib/**'
       - 'test/**'
       - '.github/workflows/ci.yml'
-      
+
   pull_request:
     branches: [main]
 
@@ -29,13 +29,8 @@ jobs:
         with:
           version: 0.17.0-dev.1398+cb5635714
 
-      - name: Build project
-        run: zig build
-
-      - name: Verify executable
-        run: |
-          ./zig-out/bin/zx --help || echo "Executable built successfully"
-        shell: bash
+      - name: Build and run project
+        run: zig build run
 
   test:
     name: Test (${{ matrix.os }})
