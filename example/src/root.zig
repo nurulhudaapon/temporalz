@@ -53,10 +53,10 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     if (io_optional) |io| {
         const now_instant = try Temporal.Now.instant(io);
         defer now_instant.deinit();
-        const now_date = try Temporal.Now.plainDateISO(io);
+        const now_date = try Temporal.Now.plainDateISO(allocator, io, null);
         defer now_date.deinit();
-        const now_datetime = try Temporal.Now.plainDateTimeISO(io);
-        const now_time = try Temporal.Now.plainTimeISO(io);
+        const now_datetime = try Temporal.Now.plainDateTimeISO(allocator, io, null);
+        const now_time = try Temporal.Now.plainTimeISO(allocator, io, null);
         std.log.info(
             \\Now
             \\ - instant: {s}
@@ -185,6 +185,8 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         try zdt.timeZoneId(allocator),
         try zdt.toString(allocator, .{}),
     });
+
+    try runTimeZoneExamples(allocator, io_optional, null);
 
     // ----
     // More complex Temporal API examples
@@ -523,9 +525,9 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     });
 
     if (io_optional) |io| {
-        const now_zdt = try Temporal.Now.zonedDateTimeISO(allocator, io);
+        const now_zdt = try Temporal.Now.zonedDateTimeISO(allocator, io, null);
         defer now_zdt.deinit();
-        const now_tz_id = try Temporal.Now.timeZoneId(allocator);
+        const now_tz_id = try Temporal.Now.timeZoneId(allocator, io);
         defer allocator.free(now_tz_id);
         std.log.info(
             \\Now Coverage
@@ -812,6 +814,102 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         zdt_valueof_supported,
         try zdt_with_coverage.toString(allocator, .{}),
     });
+}
+
+pub fn runTimeZoneExamples(
+    allocator: std.mem.Allocator,
+    io_optional: ?std.Io,
+    now_epoch_ms: ?i64,
+) !void {
+    const epoch_ns: i128 = if (now_epoch_ms) |ms| @as(i128, ms) * 1_000_000 else 1_706_881_530_123_456_789;
+
+    const utc_tz = try Temporal.ZonedDateTime.TimeZone.init("UTC");
+    const ny_tz = try Temporal.ZonedDateTime.TimeZone.init("America/New_York");
+    const dhaka_tz = try Temporal.ZonedDateTime.TimeZone.init("Asia/Dhaka");
+
+    const zdt_utc = try Temporal.ZonedDateTime.fromEpochNanoseconds(epoch_ns, utc_tz);
+    defer zdt_utc.deinit();
+    const zdt_ny = try zdt_utc.withTimeZone(ny_tz);
+    defer zdt_ny.deinit();
+    const zdt_dhaka = try zdt_utc.withTimeZone(dhaka_tz);
+    defer zdt_dhaka.deinit();
+
+    const utc_id = try zdt_utc.timeZoneId(allocator);
+    defer allocator.free(utc_id);
+    const ny_id = try zdt_ny.timeZoneId(allocator);
+    defer allocator.free(ny_id);
+    const dhaka_id = try zdt_dhaka.timeZoneId(allocator);
+    defer allocator.free(dhaka_id);
+
+    std.log.info(
+        \\TimeZone
+        \\ - same instant in UTC ({s}): {s}
+        \\ - same instant in New York ({s}): {s}
+        \\ - same instant in Dhaka ({s}): {s}
+        \\ - UTC offset: {s}
+        \\ - New York offset: {s}
+        \\ - Dhaka offset: {s}
+        \\
+        \\
+    , .{
+        utc_id,
+        try zdt_utc.toString(allocator, .{}),
+        ny_id,
+        try zdt_ny.toString(allocator, .{}),
+        dhaka_id,
+        try zdt_dhaka.toString(allocator, .{}),
+        try zdt_utc.offset(allocator),
+        try zdt_ny.offset(allocator),
+        try zdt_dhaka.offset(allocator),
+    });
+
+    if (io_optional) |io| {
+        const system_tz_id = try Temporal.Now.timeZoneId(allocator, io);
+        defer allocator.free(system_tz_id);
+
+        const now_zdt = try Temporal.Now.zonedDateTimeISO(allocator, io, null);
+        defer now_zdt.deinit();
+        const now_zdt_utc = try Temporal.Now.zonedDateTimeISO(allocator, io, "UTC");
+        defer now_zdt_utc.deinit();
+        const now_date = try Temporal.Now.plainDateISO(allocator, io, null);
+        defer now_date.deinit();
+
+        std.log.info(
+            \\TimeZone (system)
+            \\ - system timeZoneId(): {s}
+            \\ - Now.zonedDateTimeISO(): {s}
+            \\ - Now.zonedDateTimeISO("UTC"): {s}
+            \\ - Now.plainDateISO(): {s}
+            \\
+            \\
+        , .{
+            system_tz_id,
+            try now_zdt.toString(allocator, .{}),
+            try now_zdt_utc.toString(allocator, .{}),
+            try now_date.toString(allocator, .{}),
+        });
+    } else if (now_epoch_ms) |ms| {
+        const inst = try Temporal.Instant.fromEpochMilliseconds(ms);
+        defer inst.deinit();
+
+        const inst_dhaka_tz = try Temporal.Instant.TimeZone.init("Asia/Dhaka");
+        const inst_utc_tz = try Temporal.Instant.TimeZone.init("UTC");
+        const host_zdt = try inst.toZonedDateTimeISO(inst_dhaka_tz);
+        defer host_zdt.deinit();
+        const host_zdt_utc = try inst.toZonedDateTimeISO(inst_utc_tz);
+        defer host_zdt_utc.deinit();
+
+        std.log.info(
+            \\TimeZone (host epoch)
+            \\ - Instant.toZonedDateTimeISO("Asia/Dhaka"): {s}
+            \\ - Instant.toZonedDateTimeISO("UTC"): {s}
+            \\
+            \\
+        , .{
+            try host_zdt.toString(allocator, .{}),
+            try host_zdt_utc.toString(allocator, .{}),
+        });
+    }
 }
 
 extern fn consoleLog(ptr: [*]u8, len: u32) void;
