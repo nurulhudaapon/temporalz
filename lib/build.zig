@@ -1,4 +1,5 @@
 const std = @import("std");
+const targets = @import("targets.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -12,38 +13,65 @@ pub fn build(b: *std.Build) !void {
         b.fmt("{s}-{s}", .{ arch_str, os_str })
     else
         b.fmt("{s}-{s}-{s}", .{ arch_str, os_str, @tagName(abi) });
+    const prebuilt_name = targets.prebuiltName(b, target);
 
     const lib_name = if (target.result.os.tag == .windows and abi == .msvc)
         "temporal_capi.lib"
     else
         "libtemporal_capi.a";
 
-    const prebuilt_lib_path = b.fmt("{s}/{s}", .{ target_triple, lib_name });
+    // --- Module --- //
+    const mod = b.addModule("libtemporal", .{
+        .root_source_file = b.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    // --- Pre-built resolution --- //
-    var prebuilt_lib_file: ?std.Build.LazyPath = null;
-    var selected_lib_file: std.Build.LazyPath = undefined;
+    const temporal_rs = b.dependency("temporal_rs", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
-    if (!force_build_rust) {
-        const libtemporal_dep = b.lazyDependency("prebuilt_libtemporal", .{});
-        if (libtemporal_dep) |dep| {
-            const lib_file_candidate = dep.path(prebuilt_lib_path);
-            if (dep.builder.root.access(b.graph.io, prebuilt_lib_path, .{})) {
-                prebuilt_lib_file = lib_file_candidate;
-            } else |_| {}
-        }
+    const translated = b.addTranslateC(.{
+        .root_source_file = b.path("src/lib.h"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = false,
+    });
+    translated.addIncludePath(temporal_rs.path("temporal_capi/bindings/c"));
+    translated.addIncludePath(b.path("src/stubs/c_headers"));
+    mod.addImport("lib", translated.createModule());
+
+    // --- Rust Misc Deps --- //
+    if (target.result.os.tag == .windows) mod.linkSystemLibrary("userenv", .{});
+    const unwind_stubs = b.addLibrary(.{ .linkage = .static, .name = "unwind_stubs", .root_module = b.createModule(.{
+        .root_source_file = b.path("src/stubs/unwind.zig"),
+        .target = target,
+        .optimize = optimize,
+    }) });
+    mod.linkLibrary(unwind_stubs);
+
+    // --- Steps: update prebuilt dependency hashes --- //
+    {
+        const update_step = b.step("update", "Fetch prebuilt packages and update build.zig.zon");
+        addPrebuiltDependencyFetches(b, update_step);
     }
 
-    if (prebuilt_lib_file) |plf| {
-        // std.debug.print("Using pre-built temporal_capi library from downloaded artifact at: {s}\n", .{prebuilt_lib_path});
-        selected_lib_file = plf;
+    // --- Static lib resolution (prebuilt or source) --- //
+    var selected_lib_file: std.Build.LazyPath = undefined;
+
+    if (!force_build_rust and targets.isDeclared(prebuilt_name)) {
+        const prebuilt_dep = b.lazyDependency(prebuilt_name, .{}) orelse {
+            return;
+        };
+        std.log.info("using prebuilt libtemporal for {s}", .{prebuilt_name});
+        selected_lib_file = prebuilt_dep.path(lib_name);
     } else {
-        // std.debug.print("building from source: {s}\n searched for prebuild at: {s}\n", .{ prebuilt_lib_path, prebuilt_lib_path });
+        std.log.info("building libtemporal from source for {s}, requires Rust toolchain", .{target_triple});
         const build_crab = @import("build_crab");
 
         var zig_target = target.result;
         if (zig_target.os.tag == .windows) zig_target.abi = .gnu;
-        // Zig's baseline `.arm` maps to Rust `arm-*`, but rustup ships `armv7-*`.
         const rust_target_str: []const u8 = if (zig_target.cpu.arch == .arm and zig_target.os.tag == .linux)
             switch (zig_target.abi) {
                 .gnueabihf, .eabihf => "armv7-unknown-linux-gnueabihf",
@@ -71,39 +99,44 @@ pub fn build(b: *std.Build) !void {
         selected_lib_file = build_dir.path(b, lib_name);
     }
 
-    // --- Install Step (for publishing) --- //
-    const install_lib = b.addInstallFile(selected_lib_file, b.fmt("lib/{s}/{s}", .{ target_triple, lib_name }));
-    b.getInstallStep().dependOn(&install_lib.step);
-
-    // --- Zig Module --- //
-    const mod = b.addModule("libtemporal", .{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const temporal_rs = b.dependency("temporal_rs", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const translated = b.addTranslateC(.{
-        .root_source_file = b.path("src/lib.h"),
-        .target = target,
-        .optimize = optimize,
-        .link_libc = false,
-    });
-    translated.addIncludePath(temporal_rs.path("temporal_capi/bindings/c"));
-    translated.addIncludePath(b.path("src/stubs/c_headers"));
-    mod.addImport("lib", translated.createModule());
     mod.addObjectFile(selected_lib_file);
 
-    // --- Rust Misc Deps --- //
-    if (target.result.os.tag == .windows) mod.linkSystemLibrary("userenv", .{});
-    const unwind_stubs = b.addLibrary(.{ .linkage = .static, .name = "unwind_stubs", .root_module = b.createModule(.{
-        .root_source_file = b.path("src/stubs/unwind.zig"),
-        .target = target,
-        .optimize = optimize,
-    }) });
-    mod.linkLibrary(unwind_stubs);
+    // --- Install Step (for publishing) --- //
+    const install_lib = b.addInstallFile(selected_lib_file, b.fmt("lib/{s}/{s}", .{ prebuilt_name, lib_name }));
+    b.getInstallStep().dependOn(&install_lib.step);
+}
+
+fn addPrebuiltDependencyFetches(b: *std.Build, parent: *std.Build.Step) void {
+    var prev_save: ?*std.Build.Step = null;
+
+    inline for (targets.config.targets) |target_triple| {
+        const url = targets.releaseUrl(b, target_triple);
+
+        const fetch = b.addSystemCommand(&.{ b.graph.zig_exe, "fetch", url });
+        fetch.setName(b.fmt("fetch {s}", .{target_triple}));
+        fetch.setCwd(b.path("."));
+        fetch.has_side_effects = true;
+        fetch.expectExitCode(0);
+        _ = fetch.captureStdErr(.{});
+
+        const save = b.addSystemCommand(&.{
+            b.graph.zig_exe,
+            "fetch",
+            b.fmt("--save={s}", .{target_triple}),
+            url,
+        });
+        save.setName(b.fmt("save {s}", .{target_triple}));
+        save.setCwd(b.path("."));
+        save.has_side_effects = true;
+        save.expectExitCode(0);
+        _ = save.captureStdErr(.{});
+
+        save.step.dependOn(&fetch.step);
+
+        if (prev_save) |prev| {
+            save.step.dependOn(prev);
+        }
+        parent.dependOn(&save.step);
+        prev_save = &save.step;
+    }
 }

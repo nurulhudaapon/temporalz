@@ -184,7 +184,7 @@ jobs:
         run: |
           cd lib
           mkdir -p dist
-          tar -czf "dist/${{ matrix.target }}.tar.gz" -C zig-out/lib .
+          tar -czf "dist/${{ matrix.target }}.tar.gz" -C "zig-out/lib/${{ matrix.target }}" .
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

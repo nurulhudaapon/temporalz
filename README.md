@@ -51,18 +51,14 @@ exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
 
 Prebuilt libraries are included for the following platforms:
 
-- `x86_64-macos`
-- `aarch64-macos`
-- `x86_64-linux-gnu`
-- `aarch64-linux-gnu`
-- `x86_64-windows-gnu`
-- `aarch64-windows-gnu`
-- `wasm32-freestanding`
-- `wasm32-wasi`
-- `x86_64-linux-musl`
-- `aarch64-linux-musl`
-- `aarch64-linux-android`
-- `aarch64-ios`
+- `x86_64-macos`, `aarch64-macos`
+- `x86_64-linux-gnu`, `aarch64-linux-gnu`, `x86-linux-gnu`, `arm-linux-gnueabihf`
+- `loongarch64-linux-gnu`, `powerpc64le-linux-gnu`, `riscv64-linux-gnu`, `s390x-linux-gnu`
+- `x86_64-windows-gnu`, `aarch64-windows-gnu`, `x86-windows-gnu`
+- `x86_64-freebsd`, `x86_64-netbsd`
+- `wasm32-freestanding`, `wasm32-wasi`
+- `x86_64-linux-musl`, `aarch64-linux-musl`
+- `aarch64-linux-android`, `aarch64-ios`
 
 For other platforms, the library will build from source; you need the Rust toolchain installed.
 

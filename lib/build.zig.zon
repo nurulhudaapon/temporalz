@@ -7,19 +7,121 @@
             .url = "git+https://github.com/boa-dev/temporal?ref=v0.2.4#a5cebbcce231552bf6ed985d7ea13b0c7b195f02",
             .hash = "N-V-__8AALjnOQBiCk4NffYgEewZ5v9qlLlDyXO22FIyzNdf",
         },
-        .prebuilt_libtemporal = .{
-            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.3/libtemporal.tar.gz",
-            .hash = "N-V-__8AADYZ_AXnqpmkTa49ZQ6lEQlDXWRLthyxEbgse3Hi",
-            .lazy = true,
-        },
         .build_crab = .{
             .url = "git+https://github.com/nurulhudaapon/build.crab?ref=zig-dev#69a630f8fa9ccca37a8ba2e898e7934e3b5b8fe2",
             .hash = "build_crab-0.2.1-U0id_zfKAAAvOuam-kPYKMuEQpHuEBjrP96uQCVj94yr",
+        },
+        .@"aarch64-ios" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/aarch64-ios.tar.gz",
+            .hash = "N-V-__8AAJAyaADZvWvrmaGR5reVCH4y8JZ3-Gfxu_9-pcHB",
+            .lazy = true,
+        },
+        .@"aarch64-linux-android" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/aarch64-linux-android.tar.gz",
+            .hash = "N-V-__8AAKYEkwCQonhHp5MAYaRE8IFcWN493Y2a5nqWJmF7",
+            .lazy = true,
+        },
+        .@"aarch64-linux-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/aarch64-linux-gnu.tar.gz",
+            .hash = "N-V-__8AAGSQjQDYfN0voDb4c1sCM374u570U8hcEJYoAoTc",
+            .lazy = true,
+        },
+        .@"aarch64-linux-musl" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/aarch64-linux-musl.tar.gz",
+            .hash = "N-V-__8AAE7bjwA2arkXXgbgaMe8oHdmJEez8y2XFeCUvSnn",
+            .lazy = true,
+        },
+        .@"aarch64-macos" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/aarch64-macos.tar.gz",
+            .hash = "N-V-__8AAFBxZwC9MEuiOD8EihBoSl_00IDUJnpQsjmnpkmK",
+            .lazy = true,
+        },
+        .@"aarch64-windows-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/aarch64-windows-gnu.tar.gz",
+            .hash = "N-V-__8AADKDagD1bmYDywq4IZPBo2la8m1xzSObPCsxyfmW",
+            .lazy = true,
+        },
+        .@"arm-linux-gnueabihf" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/arm-linux-gnueabihf.tar.gz",
+            .hash = "N-V-__8AAIAAfgDYWro4rWudgosfdPK1tzxLe77uoRBtL4rl",
+            .lazy = true,
+        },
+        .@"loongarch64-linux-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/loongarch64-linux-gnu.tar.gz",
+            .hash = "N-V-__8AAEKptADVBZFKw7ZKvLurwzp_WA-FD-OwZFgEMf4q",
+            .lazy = true,
+        },
+        .@"powerpc64le-linux-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/powerpc64le-linux-gnu.tar.gz",
+            .hash = "N-V-__8AAKwdfQDZIHVuhOtUOs9tKx-RJCM_1HnX-FwGA0l2",
+            .lazy = true,
+        },
+        .@"riscv64-linux-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/riscv64-linux-gnu.tar.gz",
+            .hash = "N-V-__8AAPBiogBQe_5VZhzDgpZrfwuzfj_54IyUFK2igsQo",
+            .lazy = true,
+        },
+        .@"s390x-linux-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/s390x-linux-gnu.tar.gz",
+            .hash = "N-V-__8AAEiKkwC4qkNJoOuzgxHuS_q46SIbqITuODu9Hz3Q",
+            .lazy = true,
+        },
+        .@"wasm32-freestanding" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/wasm32-freestanding.tar.gz",
+            .hash = "N-V-__8AACjsTwB3jX1mva0svtTn39kCz5aabikQbczLJlp9",
+            .lazy = true,
+        },
+        .@"wasm32-wasi" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/wasm32-wasi.tar.gz",
+            .hash = "N-V-__8AAPbTQADoTDaLXmk3KlebN5pZWX-eXhD6BLPJuxpt",
+            .lazy = true,
+        },
+        .@"x86-linux-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86-linux-gnu.tar.gz",
+            .hash = "N-V-__8AALzUbwBdOV8TmU7vPbofrSgkCz70GG0SwvHZGWEZ",
+            .lazy = true,
+        },
+        .@"x86-windows-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86-windows-gnu.tar.gz",
+            .hash = "N-V-__8AAAgSYQAjy_QNLkxQurUPnbT8s4fNjunaYgPQjiwB",
+            .lazy = true,
+        },
+        .@"x86_64-freebsd" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86_64-freebsd.tar.gz",
+            .hash = "N-V-__8AAJAFkQCAz3khARx91vZb6HMPqV3oBdmJM8kaxd9Y",
+            .lazy = true,
+        },
+        .@"x86_64-linux-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86_64-linux-gnu.tar.gz",
+            .hash = "N-V-__8AACAdiQB3WUysJXS42gsJZdpzna_04l6omEQGzJZa",
+            .lazy = true,
+        },
+        .@"x86_64-linux-musl" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86_64-linux-musl.tar.gz",
+            .hash = "N-V-__8AAGhKiwDlW7Ecy5CJf7-PEGSdDgr4VnCNLkl9cery",
+            .lazy = true,
+        },
+        .@"x86_64-macos" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86_64-macos.tar.gz",
+            .hash = "N-V-__8AAHDyZwCPo6HVOYeFWas2bcTqi67vJuxoL2huROlC",
+            .lazy = true,
+        },
+        .@"x86_64-netbsd" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86_64-netbsd.tar.gz",
+            .hash = "N-V-__8AAL7_lgBmD0lfXqzAxRdjDiPLi6bgLvnVVbQszw3p",
+            .lazy = true,
+        },
+        .@"x86_64-windows-gnu" = .{
+            .url = "https://github.com/nurulhudaapon/temporalz/releases/download/v0.2.4/x86_64-windows-gnu.tar.gz",
+            .hash = "N-V-__8AAD5eTQDfQ9ddNZh3g8e6SaA9CnVSQRMozhHs_jWt",
+            .lazy = true,
         },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
+        "targets.zon",
+        "targets.zig",
         "src",
     },
 }
