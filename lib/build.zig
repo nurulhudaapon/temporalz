@@ -21,10 +21,12 @@ pub fn build(b: *std.Build) !void {
         "libtemporal_capi.a";
 
     // --- Module --- //
+    const is_freestanding = target.result.os.tag == .freestanding;
     const mod = b.addModule("libtemporal", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = !is_freestanding,
     });
 
     const temporal_rs = b.dependency("temporal_rs", .{
