@@ -34,7 +34,7 @@ const exe = b.addExecutable(.{...});
 exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
 ```
 
-## Checklist ([Test262](https://github.com/tc39/test262/tree/main/test/built-ins/Temporal))
+## Checklist
 
 | Namespace      | Status |
 | -------------- | ------ |
