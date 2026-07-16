@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     // --- Rust C ABI & Pre-built via temporal-rs subpackage --- //
-    const build_rust = b.option(bool, "build-rust", "Build Rust library from source");
+    const build_rust = b.option(bool, "build-rust", "Build Rust library from source") orelse false;
     const libtemporal = b.dependency("libtemporal", .{
         .target = target,
         .optimize = optimize,
