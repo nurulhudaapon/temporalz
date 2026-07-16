@@ -3,17 +3,16 @@ const std = @import("std");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const is_freestanding = target.result.os.tag == .freestanding;
-    const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse false;
 
     // --- Rust C ABI & Pre-built via temporal-rs subpackage --- //
+    const build_rust = b.option(bool, "build-rust", "Build Rust library from source");
     const libtemporal = b.dependency("libtemporal", .{
         .target = target,
         .optimize = optimize,
-        .@"build-rust" = force_build_rust,
+        .@"build-rust" = build_rust,
     });
 
-    // --- Zig Module: temporalz --- //
+    // --- Module: temporalz --- //
     const mod = b.addModule("temporalz", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -21,40 +20,21 @@ pub fn build(b: *std.Build) !void {
     });
     mod.addImport("libtemporal", libtemporal.module("libtemporal"));
 
-    // --- Zig Executable: temporalz --- //
-    const exe = b.addExecutable(.{
-        .name = "temporalz",
-        .root_module = b.createModule(.{
-            .root_source_file = if (is_freestanding)
-                b.path("example/src/wasm.zig")
-            else
-                b.path("example/src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "temporalz", .module = mod },
-            },
-        }),
-    });
-    exe.root_module.link_libc = !is_freestanding;
-    exe.rdynamic = is_freestanding;
-    b.installArtifact(exe);
-
-    // --- Steps: Run --- //
+    // --- Step: run --- //
     {
-        const run_step = b.step("run", "Run the example project");
+        const run_step = b.step("run", "Run the test project");
         const run_cmd = b.addSystemCommand(&.{
             b.graph.zig_exe,
             "build",
             "run",
             b.fmt("-Dtarget={s}", .{try target.result.zigTriple(b.allocator)}),
         });
-        run_cmd.setCwd(b.path("example"));
+        run_cmd.setCwd(b.path("test"));
         run_cmd.addPassthruArgs();
         run_step.dependOn(&run_cmd.step);
     }
 
-    // --- Steps: Docs --- //
+    // --- Step: docs --- //
     {
         const docs_step = b.step("docs", "Build the temporalz docs");
         const docs_obj = b.addObject(.{ .name = "temporalz", .root_module = mod });
@@ -67,7 +47,7 @@ pub fn build(b: *std.Build) !void {
         }).step);
     }
 
-    // --- Steps: Test --- //
+    // --- Step: test --- //
     {
         const test_step = b.step("test", "Run tests");
         const mod_tests = b.addTest(.{
@@ -77,20 +57,6 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
-        mod_tests.root_module.link_libc = !is_freestanding;
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
-        if (!is_freestanding) {
-            const exe_tests = b.addTest(.{ .root_module = exe.root_module });
-            test_step.dependOn(&b.addRunArtifact(exe_tests).step);
-        }
-    }
-
-    // --- Steps: test-262 --- //
-    {
-        const test262_step = b.step("test262", "Run test-262 tests");
-        const run_cmd = b.addSystemCommand(&.{ "node", "test/test262/runner.mjs" });
-        run_cmd.addPassthruArgs();
-        run_cmd.step.dependOn(b.getInstallStep());
-        test262_step.dependOn(&run_cmd.step);
     }
 }
