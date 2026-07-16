@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "temporalz",
         .root_module = b.createModule(.{
-            .root_source_file = b.path(if (is_freestanding) "src/wasm.zig" else "src/main.zig"),
+            .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
             .link_libc = !is_freestanding,
@@ -21,6 +21,7 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
     exe.rdynamic = is_freestanding;
+    if (is_freestanding) exe.entry = .disabled;
     b.installArtifact(exe);
     b.enable_wasmtime = true; // This doesn't work since Zig 0.17.0 release
 

@@ -911,18 +911,3 @@ pub fn runTimeZoneExamples(
         });
     }
 }
-
-extern fn consoleLog(ptr: [*]u8, len: u32) void;
-pub fn logFn(comptime message_level: std.log.Level, comptime scope: @TypeOf(.enum_literal), comptime format: []const u8, args: anytype) void {
-    if (builtin.os.tag == .freestanding) {
-        const prefix = if (scope == .default) "" else "(" ++ @tagName(scope) ++ ") ";
-        const formatted = std.fmt.allocPrint(std.heap.wasm_allocator, prefix ++ format, args) catch return;
-        consoleLog(formatted.ptr, formatted.len);
-    }
-
-    std.log.defaultLog(message_level, scope, format, args);
-}
-
-pub const std_options: std.Options = .{
-    .logFn = logFn,
-};
