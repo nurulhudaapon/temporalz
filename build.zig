@@ -57,6 +57,7 @@ pub fn build(b: *std.Build) !void {
                 .mode = .simple,
             },
         });
+        mod_tests.root_module.link_libc = target.result.os.tag == .freestanding;
         test_step.dependOn(&b.addRunArtifact(mod_tests).step);
     }
 }
