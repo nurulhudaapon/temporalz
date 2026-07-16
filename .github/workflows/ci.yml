@@ -7,6 +7,8 @@ on:
       - 'src/**'
       - 'lib/**'
       - 'test/**'
+      - 'build.zig'
+      - 'build.zig.zon'
       - '.github/workflows/ci.yml'
 
   pull_request:
