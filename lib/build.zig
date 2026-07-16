@@ -64,7 +64,7 @@ pub fn build(b: *std.Build) !void {
         const prebuilt_dep = b.lazyDependency(prebuilt_name, .{}) orelse {
             return;
         };
-        std.log.info("using prebuilt libtemporal for {s}", .{prebuilt_name});
+        // std.log.info("using prebuilt libtemporal for {s}", .{prebuilt_name});
         selected_lib_file = prebuilt_dep.path(lib_name);
     } else {
         std.log.info("building libtemporal from source for {s}, requires Rust toolchain", .{target_triple});

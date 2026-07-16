@@ -1,6 +1,6 @@
 .{
     .name = .temporalz,
-    .version = "0.2.0",
+    .version = "0.2.4",
     .fingerprint = 0xd8d79d59acc4faae,
     .minimum_zig_version = "0.17.0-dev.1398+cb5635714",
     .dependencies = .{

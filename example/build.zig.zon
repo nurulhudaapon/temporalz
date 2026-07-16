@@ -1,6 +1,6 @@
 .{
     .name = .temporalz_example,
-    .version = "0.1.2",
+    .version = "0.0.0",
     .fingerprint = 0x686c9dfc777f9593,
     .dependencies = .{
         .temporalz = .{

@@ -1,6 +1,6 @@
 .{
     .name = .libtemporal,
-    .version = "0.2.0",
+    .version = "0.2.4",
     .fingerprint = 0xded01f16f20c2a64,
     .dependencies = .{
         .temporal_rs = .{
