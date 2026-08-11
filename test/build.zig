@@ -23,7 +23,6 @@ pub fn build(b: *std.Build) void {
     exe.rdynamic = is_freestanding;
     if (is_freestanding) exe.entry = .disabled;
     b.installArtifact(exe);
-    b.enable_wasmtime = true; // This doesn't work since Zig 0.17.0 release
 
     const run_step = b.step("run", "Run the app");
     switch (target.result.os.tag) {

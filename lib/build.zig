@@ -91,7 +91,7 @@ pub fn build(b: *std.Build) !void {
             b,
             .{
                 .manifest_path = b.path("Cargo.toml"),
-                .cargo_args = if (optimize == .Debug) &.{} else &.{"--release"},
+                .cargo_args = if (optimize == .debug) &.{} else &.{"--release"},
                 .rust_target = .{ .value = rust_target_str },
             },
             .{

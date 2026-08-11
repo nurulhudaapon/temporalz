@@ -9,8 +9,7 @@ Temporalz provides Zig bindings to the Rust-based [temporal_rs](https://github.c
 ## Installation
 
 #### Prerequisites
-
-- Zig 0.17.0-dev.1398+cb5635714
+- Zig ([version](https://github.com/nurulhudaapon/temporalz/blob/main/build.zig.zon#L5))
 - Rust toolchain (only required if [prebuilt staticlibs](#prebuilt) are not available for your platform)
 
 #### Add as a Dependency
