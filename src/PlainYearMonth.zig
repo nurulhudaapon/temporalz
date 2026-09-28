@@ -1,6 +1,6 @@
 const std = @import("std");
 const abi = @import("abi.zig");
-const t = @import("temporal.zig");
+const t = @import("Temporal.zig");
 
 const PlainDate = @import("PlainDate.zig");
 const Duration = @import("Duration.zig");

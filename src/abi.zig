@@ -365,7 +365,7 @@ pub inline fn extractResult(result: anytype) TemporalError!Success(@TypeOf(resul
     return TemporalError.Generic;
 }
 
-const t = @import("temporal.zig");
+const t = @import("Temporal.zig");
 const dur = @import("Duration.zig");
 const ins = @import("Instant.zig");
 

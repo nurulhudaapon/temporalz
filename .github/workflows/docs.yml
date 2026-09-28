@@ -30,7 +30,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.17.0-dev.1662+cc6f42302
+          version: 0.17.0-dev.2320+1e770dbef
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

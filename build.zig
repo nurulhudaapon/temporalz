@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) !void {
 
     // --- Module: temporalz --- //
     const mod = b.addModule("temporalz", .{
-        .root_source_file = b.path("src/root.zig"),
+        .root_source_file = b.path("src/Temporal.zig"),
         .target = target,
         .optimize = optimize,
     });
