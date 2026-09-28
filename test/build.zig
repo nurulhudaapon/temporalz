@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
             .imports = &.{},
         }),
     });
-    exe.root_module.addImport("temporalz", temporalz.module("temporalz"));
+    exe.root_module.addImport("Temporal", temporalz.module("Temporal"));
     exe.rdynamic = is_freestanding;
     if (is_freestanding) exe.entry = .disabled;
     b.installArtifact(exe);

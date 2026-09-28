@@ -12,8 +12,8 @@ pub fn build(b: *std.Build) !void {
         .@"build-rust" = build_rust,
     });
 
-    // --- Module: temporalz --- //
-    const mod = b.addModule("temporalz", .{
+    // --- Module: Temporal --- //
+    const mod = b.addModule("Temporal", .{
         .root_source_file = b.path("src/Temporal.zig"),
         .target = target,
         .optimize = optimize,
@@ -36,8 +36,8 @@ pub fn build(b: *std.Build) !void {
 
     // --- Step: docs --- //
     {
-        const docs_step = b.step("docs", "Build the temporalz docs");
-        const docs_obj = b.addObject(.{ .name = "temporalz", .root_module = mod });
+        const docs_step = b.step("docs", "Build the Temporal docs");
+        const docs_obj = b.addObject(.{ .name = "Temporal", .root_module = mod });
         const docs = docs_obj.getEmittedDocs();
 
         docs_step.dependOn(&b.addInstallDirectory(.{

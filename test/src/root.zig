@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const Temporal = @import("temporalz");
+const Temporal = @import("Temporal");
 
 pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     // --- Instant --- //
