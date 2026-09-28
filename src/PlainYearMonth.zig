@@ -223,6 +223,11 @@ pub fn eraYear(self: PlainYearMonth) ?i32 {
     return result.unnamed_0.ok;
 }
 
+/// Returns the reference day used to interpret this year-month in its calendar.
+pub fn referenceDay(self: PlainYearMonth) u8 {
+    return abi.c.temporal_rs_PlainYearMonth_reference_day(self._inner);
+}
+
 // Modification
 /// Returns a new PlainYearMonth with some fields replaced by new values.
 ///
@@ -322,6 +327,16 @@ pub fn toLocaleString(self: PlainYearMonth, allocator: std.mem.Allocator) ![]u8 
 pub fn valueOf(self: PlainYearMonth) !void {
     _ = self;
     return error.ValueError;
+}
+
+fn clone(self: PlainYearMonth) PlainYearMonth {
+    const ptr = abi.c.temporal_rs_PlainYearMonth_clone(self._inner) orelse unreachable;
+    return .{ ._inner = ptr };
+}
+
+/// Frees resources associated with this PlainYearMonth.
+pub fn deinit(self: PlainYearMonth) void {
+    abi.c.temporal_rs_PlainYearMonth_destroy(self._inner);
 }
 
 test init {
@@ -553,5 +568,17 @@ test "props" {
 
 test valueOf {
     const ym = try init(2024, 12, null);
+    defer ym.deinit();
     try std.testing.expectError(error.ValueError, ym.valueOf());
+}
+
+test referenceDay {
+    const ym = try init(2024, 12, null);
+    defer ym.deinit();
+    try std.testing.expectEqual(@as(u8, 1), ym.referenceDay());
+}
+
+test deinit {
+    const ym = try init(2024, 12, null);
+    ym.deinit();
 }

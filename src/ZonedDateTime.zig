@@ -28,17 +28,7 @@ pub const DifferenceSettings = t.DifferenceSettings;
 pub const RoundOptions = t.RoundingOptions;
 
 /// Represents a time zone, identified by an IANA time zone identifier or a fixed offset.
-pub const TimeZone = struct {
-    _inner: abi.c.TimeZone,
-
-    /// Initialize a TimeZone from an IANA identifier or offset string.
-    pub fn init(id: []const u8) !TimeZone {
-        const view = abi.toDiplomatStringView(id);
-        const result = abi.c.temporal_rs_TimeZone_try_from_str(view);
-        const tz = try abi.extractResult(result);
-        return .{ ._inner = tz };
-    }
-};
+pub const TimeZone = t.TimeZone;
 
 /// Disambiguation options for resolving ambiguous local times (e.g., during DST transitions).
 pub const Disambiguation = enum {

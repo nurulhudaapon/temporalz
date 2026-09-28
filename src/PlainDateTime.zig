@@ -57,7 +57,15 @@ pub const ToZonedDateTimeOptions = struct {
     /// The time zone identifier (IANA string).
     timeZone: []const u8,
     /// Disambiguation option for ambiguous times.
-    disambiguation: ?[]const u8 = null,
+    disambiguation: Disambiguation = .compatible,
+};
+
+/// Disambiguation options for resolving ambiguous local times (e.g., during DST transitions).
+pub const Disambiguation = enum {
+    compatible,
+    earlier,
+    later,
+    reject,
 };
 
 /// Options for `with()` method.
@@ -168,6 +176,22 @@ pub fn calInit(
 
 const FromInit = union(enum) { plain_date: PlainDate, plain_date_time: PlainDateTime };
 
+/// Creates a PlainDateTime from epoch milliseconds in the given time zone.
+pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: t.TimeZone) !PlainDateTime {
+    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_from_epoch_milliseconds(
+        epoch_ms,
+        abi.to.toTimeZone(time_zone),
+    ));
+}
+
+/// Creates a PlainDateTime from epoch nanoseconds in the given time zone.
+pub fn fromEpochNanoseconds(epoch_ns: i128, time_zone: t.TimeZone) !PlainDateTime {
+    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_from_epoch_nanoseconds(
+        abi.toI128Nanoseconds(epoch_ns),
+        abi.to.toTimeZone(time_zone),
+    ));
+}
+
 /// Creates a PlainDateTime from another PlainDateTime, PlainDate, PlainTime, or from a string (ISO 8601) or UTF-16 array.
 pub fn from(info: anytype, opts: FromOptions) !PlainDateTime {
     const T = @TypeOf(info);
@@ -215,7 +239,7 @@ pub fn compare(a: PlainDateTime, b: PlainDateTime) i8 {
 
 /// Returns true if two PlainDateTime objects represent the same date and time.
 pub fn equals(self: PlainDateTime, other: PlainDateTime) bool {
-    return compare(self, other) == 0;
+    return abi.c.temporal_rs_PlainDateTime_equals(self._inner, other._inner);
 }
 
 /// Returns a new PlainDateTime by adding a Duration to this date-time.
@@ -387,36 +411,30 @@ pub fn nanosecond(self: PlainDateTime) u16 {
 
 /// Returns a new PlainDateTime with some fields replaced.
 pub fn with(self: PlainDateTime, partial: WithOptions) !PlainDateTime {
-    // Extract fields from partial, or use current values as defaults
-    const new_year = partial.year orelse self.year();
-    const new_month = partial.month orelse self.month();
-    const new_day = partial.day orelse self.day();
-    const new_hour = partial.hour orelse self.hour();
-    const new_minute = partial.minute orelse self.minute();
-    const new_second = partial.second orelse self.second();
-    const new_millisecond = partial.millisecond orelse self.millisecond();
-    const new_microsecond = partial.microsecond orelse self.microsecond();
-    const new_nanosecond = partial.nanosecond orelse self.nanosecond();
-
-    // Preserve calendar
-    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-    const cal_view = abi.c.DiplomatStringView{ .data = cal_id_view.data, .len = cal_id_view.len };
-    const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
-    const cal_kind = try abi.extractResult(cal_result);
-
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_try_new(
-        new_year,
-        new_month,
-        new_day,
-        new_hour,
-        new_minute,
-        new_second,
-        new_millisecond,
-        new_microsecond,
-        new_nanosecond,
-        cal_kind,
-    ));
+    const partial_dt = abi.c.PartialDateTime{
+        .date = .{
+            .year = if (partial.year) |y| abi.toOption(abi.c.OptionI32, y) else .{ .is_ok = false },
+            .month = if (partial.month) |m| abi.toOption(abi.c.OptionU8, m) else .{ .is_ok = false },
+            .day = if (partial.day) |d| abi.toOption(abi.c.OptionU8, d) else .{ .is_ok = false },
+            .month_code = .{ .data = null, .len = 0 },
+            .era = .{ .data = null, .len = 0 },
+            .era_year = .{ .is_ok = false },
+            .calendar = abi.c.AnyCalendarKind_Iso,
+        },
+        .time = .{
+            .hour = if (partial.hour) |h| abi.toOption(abi.c.OptionU8, h) else .{ .is_ok = false },
+            .minute = if (partial.minute) |m| abi.toOption(abi.c.OptionU8, m) else .{ .is_ok = false },
+            .second = if (partial.second) |s| abi.toOption(abi.c.OptionU8, s) else .{ .is_ok = false },
+            .millisecond = if (partial.millisecond) |ms| abi.toOption(abi.c.OptionU16, ms) else .{ .is_ok = false },
+            .microsecond = if (partial.microsecond) |us| abi.toOption(abi.c.OptionU16, us) else .{ .is_ok = false },
+            .nanosecond = if (partial.nanosecond) |ns| abi.toOption(abi.c.OptionU16, ns) else .{ .is_ok = false },
+        },
+    };
+    const overflow = abi.c.ArithmeticOverflow_option{
+        .is_ok = true,
+        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
+    };
+    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_with(self._inner, partial_dt, overflow));
 }
 
 /// Returns a new PlainDateTime with a different calendar.
@@ -431,31 +449,8 @@ pub fn withCalendar(self: PlainDateTime, calendar: []const u8) !PlainDateTime {
 
 /// Returns a new PlainDateTime with the time fields replaced by the given PlainTime (or zeroed if null).
 pub fn withPlainTime(self: PlainDateTime, time: ?PlainTime) !PlainDateTime {
-    const new_hour: u8 = if (time) |tt| tt.hour() else 0;
-    const new_minute: u8 = if (time) |tt| tt.minute() else 0;
-    const new_second: u8 = if (time) |tt| tt.second() else 0;
-    const new_millisecond: u16 = if (time) |tt| tt.millisecond() else 0;
-    const new_microsecond: u16 = if (time) |tt| tt.microsecond() else 0;
-    const new_nanosecond: u16 = if (time) |tt| tt.nanosecond() else 0;
-
-    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
-    const cal_view = abi.c.DiplomatStringView{ .data = cal_id_view.data, .len = cal_id_view.len };
-    const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
-    const cal_kind = try abi.extractResult(cal_result);
-
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_try_new(
-        self.year(),
-        self.month(),
-        self.day(),
-        new_hour,
-        new_minute,
-        new_second,
-        new_millisecond,
-        new_microsecond,
-        new_nanosecond,
-        cal_kind,
-    ));
+    const time_ptr = if (time) |tt| tt._inner else null;
+    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_with_time(self._inner, time_ptr));
 }
 
 /// Returns a PlainDate representing the date part of this PlainDateTime.
@@ -477,12 +472,11 @@ pub fn toZonedDateTime(self: PlainDateTime, options: ToZonedDateTimeOptions) !Zo
     const tz_result = abi.c.temporal_rs_TimeZone_try_from_str(tz_view);
     const time_zone = try abi.extractResult(tz_result);
 
-    // Convert to PlainDate and PlainTime
-    const date = try self.toPlainDate();
-    const time = try self.toPlainTime();
-
-    // Use PlainDate's toZonedDateTime with the time component
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_zoned_date_time(date._inner, time_zone, time._inner))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDateTime_to_zoned_date_time(
+        self._inner,
+        time_zone,
+        abi.to.toDisambiguation(options.disambiguation),
+    ))) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
@@ -531,11 +525,12 @@ pub fn valueOf(self: PlainDateTime) !void {
 
 /// Returns a clone of this PlainDateTime.
 fn clone(self: PlainDateTime) PlainDateTime {
-    return abi.c.temporal_rs_PlainDateTime_clone(self._inner);
+    const ptr = abi.c.temporal_rs_PlainDateTime_clone(self._inner) orelse unreachable;
+    return .{ ._inner = ptr };
 }
 
 /// Frees resources associated with this PlainDateTime.
-pub fn deinit(self: *PlainDateTime) void {
+pub fn deinit(self: PlainDateTime) void {
     abi.c.temporal_rs_PlainDateTime_destroy(self._inner);
 }
 
@@ -696,12 +691,23 @@ test withCalendar {
 }
 
 test withPlainTime {
-    const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 0, 0, 0, 0);
-    const tt = try PlainTime.from("10:15:30");
-    const result = try dt.withPlainTime(tt);
-    try std.testing.expectEqual(@as(u8, 10), result.hour());
-    try std.testing.expectEqual(@as(u8, 15), result.minute());
-    try std.testing.expectEqual(@as(u8, 30), result.second());
+    {
+        const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 0, 0, 0, 0);
+        const tt = try PlainTime.from("10:15:30");
+        const result = try dt.withPlainTime(tt);
+        try std.testing.expectEqual(@as(u8, 10), result.hour());
+        try std.testing.expectEqual(@as(u8, 15), result.minute());
+        try std.testing.expectEqual(@as(u8, 30), result.second());
+    }
+    {
+        const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
+        defer dt.deinit();
+        const result = try dt.withPlainTime(null);
+        defer result.deinit();
+        try std.testing.expectEqual(@as(u8, 0), result.hour());
+        try std.testing.expectEqual(@as(u8, 0), result.minute());
+        try std.testing.expectEqual(@as(u8, 0), result.second());
+    }
 }
 
 test calInit {
@@ -844,4 +850,19 @@ test nanosecond {
 test valueOf {
     const dt = try PlainDateTime.init(2024, 1, 15, 14, 30, 45, 123, 456, 789);
     try std.testing.expectError(error.ComparisonNotSupported, dt.valueOf());
+}
+
+test fromEpochMilliseconds {
+    const dt = try PlainDateTime.fromEpochMilliseconds(1_704_067_200_000, t.TimeZone.utc());
+    defer dt.deinit();
+    try std.testing.expectEqual(@as(i32, 2024), dt.year());
+    try std.testing.expectEqual(@as(u8, 1), dt.month());
+    try std.testing.expectEqual(@as(u8, 1), dt.day());
+}
+
+test fromEpochNanoseconds {
+    const dt = try PlainDateTime.fromEpochNanoseconds(1_704_067_200_000_000_000, t.TimeZone.utc());
+    defer dt.deinit();
+    try std.testing.expectEqual(@as(i32, 2024), dt.year());
+    try std.testing.expectEqual(@as(u8, 0), dt.hour());
 }

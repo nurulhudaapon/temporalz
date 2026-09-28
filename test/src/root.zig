@@ -745,12 +745,15 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     const zdt_valueof_supported = zdt.valueOf() != error.ValueOfNotSupported;
     const zdt_with_coverage = try zdt.with(allocator, .{ .year = 2025 });
     defer zdt_with_coverage.deinit();
+    const zdt_clone = zdt.clone();
+    defer zdt_clone.deinit();
     std.log.info(
         \\ZonedDateTime Coverage
         \\ - init: {s}
         \\ - fromEpochMilliseconds: {s}
         \\ - from string: {s}
         \\ - compare(zdt, from): {}
+        \\ - clone equals: {}
         \\ - next/previous transition exists: {}/{}
         \\ - startOfDay: {s}
         \\ - toJSON(): {s}
@@ -768,6 +771,7 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
         try zdt_from_ms.toString(allocator, .{}),
         try zdt_from.toString(allocator, .{}),
         Temporal.ZonedDateTime.compare(zdt, zdt_from),
+        zdt.equals(zdt_clone),
         zdt_transition_next != null,
         zdt_transition_previous != null,
         try zdt_day_start.toString(allocator, .{}),

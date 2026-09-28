@@ -237,6 +237,14 @@ pub fn epochNanoseconds(self: Instant) i128 {
     return abi.fromI128Nanoseconds(abi.c.temporal_rs_Instant_epoch_nanoseconds(self._inner));
 }
 
+/// Throws an error; valueOf() is not supported for Instant.
+///
+/// See: [Temporal.Instant.valueOf](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/valueOf)
+pub fn valueOf(self: Instant) !void {
+    _ = self;
+    return error.ValueError;
+}
+
 /// Deinitialize the Instant, freeing underlying resources.
 pub fn deinit(self: Instant) void {
     abi.c.temporal_rs_Instant_destroy(self._inner);
@@ -550,4 +558,10 @@ test epochNanoseconds {
     const inst = try Instant.fromEpochNanoseconds(epoch_ns);
     defer inst.deinit();
     try std.testing.expectEqual(epoch_ns, inst.epochNanoseconds());
+}
+
+test valueOf {
+    const inst = try Instant.fromEpochMilliseconds(0);
+    defer inst.deinit();
+    try std.testing.expectError(error.ValueError, inst.valueOf());
 }

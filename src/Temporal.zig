@@ -1,3 +1,4 @@
+const std = @import("std");
 const abi = @import("abi.zig");
 
 /// The `Temporal` namespace contains date and time related objects and functions, providing a modern alternative to the existing `Date` object in JavaScript.
@@ -135,17 +136,57 @@ pub const ToStringRoundingOptions = struct {
 pub const TimeZone = struct {
     _inner: abi.c.TimeZone,
 
-    /// Initialize a TimeZone from an identifier string.
+    /// Initialize a TimeZone from an identifier string (IANA or offset).
     pub fn init(id: []const u8) !TimeZone {
         const view = abi.toDiplomatStringView(id);
         const result = abi.c.temporal_rs_TimeZone_try_from_str(view);
         const time_zone = try abi.extractResult(result);
         return .{ ._inner = time_zone };
     }
+
+    /// Initialize a TimeZone from an IANA identifier string.
+    pub fn fromIdentifier(id: []const u8) !TimeZone {
+        const view = abi.toDiplomatStringView(id);
+        const result = abi.c.temporal_rs_TimeZone_try_from_identifier_str(view);
+        const time_zone = try abi.extractResult(result);
+        return .{ ._inner = time_zone };
+    }
+
+    /// Initialize a TimeZone from a UTC offset string (e.g. "+05:00").
+    pub fn fromOffset(offset: []const u8) !TimeZone {
+        const view = abi.toDiplomatStringView(offset);
+        const result = abi.c.temporal_rs_TimeZone_try_from_offset_str(view);
+        const time_zone = try abi.extractResult(result);
+        return .{ ._inner = time_zone };
+    }
+
+    /// Returns the UTC time zone.
+    pub fn utc() TimeZone {
+        return .{ ._inner = abi.c.temporal_rs_TimeZone_utc() };
+    }
+
+    /// Returns the zero-offset (+00:00) time zone.
+    pub fn zero() TimeZone {
+        return .{ ._inner = abi.c.temporal_rs_TimeZone_zero() };
+    }
+
+    /// Returns the primary identifier for this time zone (e.g. links resolve to canonical IANA ids).
+    pub fn primaryIdentifier(self: TimeZone) !TimeZone {
+        const result = abi.c.temporal_rs_TimeZone_primary_identifier(self._inner);
+        const time_zone = try abi.extractResult(result);
+        return .{ ._inner = time_zone };
+    }
+
+    /// Returns the string identifier for this time zone.
+    pub fn identifier(self: TimeZone, allocator: std.mem.Allocator) ![]u8 {
+        var write = abi.DiplomatWrite.init(allocator);
+        defer write.deinit();
+        abi.c.temporal_rs_TimeZone_identifier(self._inner, &write.inner);
+        return try write.toOwnedSlice();
+    }
 };
 
 test Temporal {
-    const std = @import("std");
     _ = @import("abi.zig");
 
     const expected_scopes = .{
@@ -186,7 +227,7 @@ test Duration {
         "toString",
         "total",
         "valueOf",
-        // "with",
+        "with",
 
         // Properties
         "blank",
@@ -282,6 +323,8 @@ test PlainDate {
         // Static methods
         "compare",
         "from",
+        "fromEpochMilliseconds",
+        "fromEpochNanoseconds",
 
         // Instance methods
         "add",
@@ -341,6 +384,8 @@ test PlainDateTime {
         // Static methods
         "compare",
         "from",
+        "fromEpochMilliseconds",
+        "fromEpochNanoseconds",
         // "fromUtf8",
         // "fromUtf16",
 
@@ -392,6 +437,7 @@ test PlainDateTime {
         "Sign",
         "CalendarDisplay",
         "DifferenceSettings",
+        "Disambiguation",
         "RoundOptions",
         "ToStringOptions",
         "ToZonedDateTimeOptions",
@@ -421,7 +467,9 @@ test PlainMonthDay {
         // Properties
         "calendarId",
         "day",
+        "month",
         "monthCode",
+        "referenceYear",
 
         // Public types
         "CalendarDisplay",
@@ -505,6 +553,7 @@ test PlainYearMonth {
         "month",
         "monthCode",
         "monthsInYear",
+        "referenceDay",
         "year",
 
         // Public types
@@ -603,9 +652,33 @@ test ZonedDateTime {
     try assertDecls(ZonedDateTime, checks);
 }
 
+test TimeZone {
+    const utc = TimeZone.utc();
+    const zero = TimeZone.zero();
+    const from_offset = try TimeZone.fromOffset("+05:00");
+    const from_id = try TimeZone.fromIdentifier("UTC");
+    const primary = try utc.primaryIdentifier();
+
+    const utc_id = try utc.identifier(std.testing.allocator);
+    defer std.testing.allocator.free(utc_id);
+    const zero_id = try zero.identifier(std.testing.allocator);
+    defer std.testing.allocator.free(zero_id);
+    const offset_id = try from_offset.identifier(std.testing.allocator);
+    defer std.testing.allocator.free(offset_id);
+    const primary_id = try primary.identifier(std.testing.allocator);
+    defer std.testing.allocator.free(primary_id);
+    const from_id_str = try from_id.identifier(std.testing.allocator);
+    defer std.testing.allocator.free(from_id_str);
+
+    try std.testing.expect(utc_id.len > 0);
+    try std.testing.expect(zero_id.len > 0);
+    try std.testing.expect(offset_id.len > 0);
+    try std.testing.expect(primary_id.len > 0);
+    try std.testing.expect(from_id_str.len > 0);
+}
+
 fn assertDecls(comptime T: type, checks: anytype) !void {
     @setEvalBranchQuota(5000); // Increase branch quota for large check lists
-    const std = @import("std");
     const typeInfo = @typeInfo(T);
 
     // Check: all items in checks exist (either as decls or as fields)

@@ -102,6 +102,13 @@ pub fn day(self: PlainMonthDay) u8 {
     return abi.c.temporal_rs_PlainMonthDay_day(self._inner);
 }
 
+/// Returns the 1-based month index of this month-day.
+///
+/// See: [Temporal.PlainMonthDay.monthCode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/monthCode)
+pub fn month(self: PlainMonthDay) u8 {
+    return abi.c.temporal_rs_PlainMonthDay_month(self._inner);
+}
+
 /// Returns the calendar-specific string representing the month of this date.
 ///
 /// See: [Temporal.PlainMonthDay.monthCode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/monthCode)
@@ -111,6 +118,11 @@ pub fn monthCode(self: PlainMonthDay, allocator: std.mem.Allocator) ![]const u8 
 
     abi.c.temporal_rs_PlainMonthDay_month_code(self._inner, &write.inner);
     return try write.toOwnedSlice();
+}
+
+/// Returns the reference year used to interpret this month-day in its calendar.
+pub fn referenceYear(self: PlainMonthDay) i32 {
+    return abi.c.temporal_rs_PlainMonthDay_reference_year(self._inner);
 }
 
 // Modification
@@ -212,6 +224,16 @@ pub fn toLocaleString(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
 pub fn valueOf(self: PlainMonthDay) !void {
     _ = self;
     return error.ValueError;
+}
+
+fn clone(self: PlainMonthDay) PlainMonthDay {
+    const ptr = abi.c.temporal_rs_PlainMonthDay_clone(self._inner) orelse unreachable;
+    return .{ ._inner = ptr };
+}
+
+/// Frees resources associated with this PlainMonthDay.
+pub fn deinit(self: PlainMonthDay) void {
+    abi.c.temporal_rs_PlainMonthDay_destroy(self._inner);
 }
 
 test init {
@@ -316,5 +338,23 @@ test monthCode {
 
 test valueOf {
     const md = try init(12, 25, null);
+    defer md.deinit();
     try std.testing.expectError(error.ValueError, md.valueOf());
+}
+
+test month {
+    const md = try init(12, 25, null);
+    defer md.deinit();
+    try std.testing.expectEqual(@as(u8, 12), md.month());
+}
+
+test referenceYear {
+    const md = try init(12, 25, null);
+    defer md.deinit();
+    try std.testing.expect(md.referenceYear() != 0);
+}
+
+test deinit {
+    const md = try init(12, 25, null);
+    md.deinit();
 }

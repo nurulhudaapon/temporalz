@@ -84,6 +84,22 @@ pub fn calInit(year_val: i32, month_val: u8, day_val: u8, calendar: []const u8) 
     return wrapPlainDate(abi.c.temporal_rs_PlainDate_try_new(year_val, month_val, day_val, cal_kind));
 }
 
+/// Creates a PlainDate from epoch milliseconds in the given time zone.
+pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: t.TimeZone) !PlainDate {
+    return wrapPlainDate(abi.c.temporal_rs_PlainDate_from_epoch_milliseconds(
+        epoch_ms,
+        abi.to.toTimeZone(time_zone),
+    ));
+}
+
+/// Creates a PlainDate from epoch nanoseconds in the given time zone.
+pub fn fromEpochNanoseconds(epoch_ns: i128, time_zone: t.TimeZone) !PlainDate {
+    return wrapPlainDate(abi.c.temporal_rs_PlainDate_from_epoch_nanoseconds(
+        abi.toI128Nanoseconds(epoch_ns),
+        abi.to.toTimeZone(time_zone),
+    ));
+}
+
 /// Creates a PlainDate from another PlainDate or from a string (ISO 8601) or UTF-16 array.
 pub fn from(info: anytype) !PlainDate {
     const T = @TypeOf(info);
@@ -706,4 +722,20 @@ test yearOfWeek {
     if (yow) |y| {
         try std.testing.expect(y >= 2020);
     }
+}
+
+test fromEpochMilliseconds {
+    const date = try PlainDate.fromEpochMilliseconds(1_704_067_200_000, try t.TimeZone.init("UTC"));
+    defer date.deinit();
+    try std.testing.expectEqual(@as(i32, 2024), date.year());
+    try std.testing.expectEqual(@as(u8, 1), date.month());
+    try std.testing.expectEqual(@as(u8, 1), date.day());
+}
+
+test fromEpochNanoseconds {
+    const date = try PlainDate.fromEpochNanoseconds(1_704_067_200_000_000_000, t.TimeZone.utc());
+    defer date.deinit();
+    try std.testing.expectEqual(@as(i32, 2024), date.year());
+    try std.testing.expectEqual(@as(u8, 1), date.month());
+    try std.testing.expectEqual(@as(u8, 1), date.day());
 }

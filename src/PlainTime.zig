@@ -45,21 +45,14 @@ pub fn init(
     microsecond_val: u16,
     nanosecond_val: u16,
 ) !PlainTime {
-    if (hour_val > 23 or minute_val > 59 or second_val > 59 or
-        millisecond_val > 999 or microsecond_val > 999 or nanosecond_val > 999)
-    {
-        return abi.TemporalError.RangeError;
-    }
-    var buf: [18]u8 = undefined;
-    const s = std.fmt.bufPrint(&buf, "{d:0>2}:{d:0>2}:{d:0>2}.{d:0>3}{d:0>3}{d:0>3}", .{
+    return wrapPlainTime(abi.c.temporal_rs_PlainTime_try_new(
         hour_val,
         minute_val,
         second_val,
         millisecond_val,
         microsecond_val,
         nanosecond_val,
-    }) catch unreachable;
-    return from(s);
+    ));
 }
 
 /// Parses a PlainTime from a string.
@@ -247,6 +240,16 @@ pub fn valueOf(self: PlainTime) !void {
     return error.ValueError;
 }
 
+fn clone(self: PlainTime) PlainTime {
+    const ptr = abi.c.temporal_rs_PlainTime_clone(self._inner) orelse unreachable;
+    return .{ ._inner = ptr };
+}
+
+/// Frees resources associated with this PlainTime.
+pub fn deinit(self: PlainTime) void {
+    abi.c.temporal_rs_PlainTime_destroy(self._inner);
+}
+
 test init {
     {
         const time = try init(14, 30, 45, 123, 456, 789);
@@ -269,6 +272,8 @@ test init {
         try std.testing.expectEqual(@as(u8, 59), time.minute());
         try std.testing.expectEqual(@as(u8, 59), time.second());
     }
+    try std.testing.expectError(error.RangeError, init(24, 0, 0, 0, 0, 0));
+    try std.testing.expectError(error.RangeError, init(0, 60, 0, 0, 0, 0));
 }
 
 test from {
@@ -467,6 +472,11 @@ test toLocaleString {
 
 test valueOf {
     const time = try init(14, 30, 45, 123, 456, 789);
-    // defer time.deinit();
+    defer time.deinit();
     try std.testing.expectError(error.ValueError, time.valueOf());
+}
+
+test deinit {
+    const time = try init(14, 30, 45, 123, 456, 789);
+    time.deinit();
 }

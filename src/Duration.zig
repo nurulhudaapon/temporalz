@@ -355,6 +355,32 @@ pub fn toLocaleString(self: Duration, allocator: std.mem.Allocator) ![]u8 {
     return error.TemporalNotImplemented;
 }
 
+/// Returns a new Duration with some fields replaced by new values.
+///
+/// See: [Temporal.Duration.with](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/with)
+pub fn with(self: Duration, fields: PartialDuration) !Duration {
+    return fromPartialDuration(.{
+        .years = fields.years orelse self.years(),
+        .months = fields.months orelse self.months(),
+        .weeks = fields.weeks orelse self.weeks(),
+        .days = fields.days orelse self.days(),
+        .hours = fields.hours orelse self.hours(),
+        .minutes = fields.minutes orelse self.minutes(),
+        .seconds = fields.seconds orelse self.seconds(),
+        .milliseconds = fields.milliseconds orelse self.milliseconds(),
+        .microseconds = fields.microseconds orelse self.microseconds(),
+        .nanoseconds = fields.nanoseconds orelse self.nanoseconds(),
+    });
+}
+
+/// Throws an error; valueOf() is not supported for Duration.
+///
+/// See: [Temporal.Duration.valueOf](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/valueOf)
+pub fn valueOf(self: Duration) !void {
+    _ = self;
+    return error.ValueError;
+}
+
 /// Clone the underlying duration.
 fn clone(self: Duration) Duration {
     const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_clone(self._inner) orelse unreachable;
@@ -717,4 +743,24 @@ test toLocaleString {
     defer dur.deinit();
 
     try std.testing.expectError(error.TemporalNotImplemented, dur.toLocaleString(std.testing.allocator));
+}
+
+test with {
+    const dur = try Duration.from("P1Y2M3DT4H5M6S");
+    defer dur.deinit();
+    const updated = try dur.with(.{ .years = 5, .hours = 10 });
+    defer updated.deinit();
+
+    try std.testing.expectEqual(@as(i64, 5), updated.years());
+    try std.testing.expectEqual(@as(i64, 2), updated.months());
+    try std.testing.expectEqual(@as(i64, 3), updated.days());
+    try std.testing.expectEqual(@as(i64, 10), updated.hours());
+    try std.testing.expectEqual(@as(i64, 5), updated.minutes());
+    try std.testing.expectEqual(@as(i64, 6), updated.seconds());
+}
+
+test valueOf {
+    const dur = try Duration.from("P1D");
+    defer dur.deinit();
+    try std.testing.expectError(error.ValueError, dur.valueOf());
 }
