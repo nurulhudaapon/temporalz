@@ -27,6 +27,26 @@ pub const RoundingMode = t.RoundingMode;
 pub const Sign = t.Sign;
 /// Settings for difference calculations between dates.
 pub const DifferenceSettings = t.DifferenceSettings;
+/// How out-of-range values are handled.
+pub const Overflow = t.Overflow;
+/// Options for `addWithOptions()` / `subtractWithOptions()`.
+pub const ArithmeticOptions = t.ArithmeticOptions;
+
+/// Fields accepted by `from()` (the spec's property-bag form).
+///
+/// See: [Temporal.PlainDate.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/from)
+pub const Fields = struct {
+    year: ?i32 = null,
+    month: ?u8 = null,
+    month_code: ?[]const u8 = null,
+    day: ?u8 = null,
+    era: ?[]const u8 = null,
+    era_year: ?i32 = null,
+    /// Calendar identifier (e.g. "iso8601", "gregory"). Defaults to ISO 8601.
+    calendar: ?[]const u8 = null,
+    /// How out-of-range values are handled. Defaults to `constrain`.
+    overflow: ?Overflow = null,
+};
 
 /// Options for `toString()` method.
 pub const ToStringOptions = struct {
@@ -68,6 +88,8 @@ pub const WithOptions = struct {
     era: ?[]const u8 = null,
     /// Era year value to override.
     era_year: ?i32 = null,
+    /// How out-of-range values are handled. Defaults to `constrain`.
+    overflow: ?Overflow = null,
 };
 
 /// Creates a new PlainDate from the given ISO year, month, and day.
@@ -79,14 +101,14 @@ pub fn init(year_val: i32, month_val: u8, day_val: u8) !PlainDate {
 /// - `calendar`: Calendar identifier string (e.g., "iso8601").
 pub fn calInit(year_val: i32, month_val: u8, day_val: u8, calendar: []const u8) !PlainDate {
     const cal_view = abi.toDiplomatStringView(calendar);
-    const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
+    const cal_result = abi.c.temporal_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = try abi.extractResult(cal_result);
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_try_new(year_val, month_val, day_val, cal_kind));
+    return wrapPlainDate(abi.c.temporal_PlainDate_try_new(year_val, month_val, day_val, cal_kind));
 }
 
 /// Creates a PlainDate from epoch milliseconds in the given time zone.
 pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: t.TimeZone) !PlainDate {
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_from_epoch_milliseconds(
+    return wrapPlainDate(abi.c.temporal_PlainDate_from_epoch_milliseconds(
         epoch_ms,
         abi.to.toTimeZone(time_zone),
     ));
@@ -94,13 +116,16 @@ pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: t.TimeZone) !PlainDate {
 
 /// Creates a PlainDate from epoch nanoseconds in the given time zone.
 pub fn fromEpochNanoseconds(epoch_ns: i128, time_zone: t.TimeZone) !PlainDate {
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_from_epoch_nanoseconds(
+    return wrapPlainDate(abi.c.temporal_PlainDate_from_epoch_nanoseconds(
         abi.toI128Nanoseconds(epoch_ns),
         abi.to.toTimeZone(time_zone),
     ));
 }
 
-/// Creates a PlainDate from another PlainDate or from a string (ISO 8601) or UTF-16 array.
+/// Creates a PlainDate from another PlainDate, a string (ISO 8601) or UTF-16 array,
+/// or a set of fields (`Fields` or an anonymous struct literal with the same field names).
+///
+/// See: [Temporal.PlainDate.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/from)
 pub fn from(info: anytype) !PlainDate {
     const T = @TypeOf(info);
 
@@ -117,87 +142,91 @@ pub fn from(info: anytype) !PlainDate {
 
             if (ChildType == u8) return fromUtf8(info);
             if (ChildType == u16) return fromUtf16(info);
+            @compileError("from() expects a PlainDate, string, or fields struct");
         },
-        else => @compileError("from() expects a PlainDate, []const u8, or []const u16"),
+        .@"struct" => return fromFields(info),
+        else => @compileError("from() expects a PlainDate, string, or fields struct"),
     }
+}
+
+/// Internal: Creates a PlainDate from a fields struct.
+fn fromFields(fields: anytype) !PlainDate {
+    return wrapPlainDate(abi.c.temporal_PlainDate_from_partial(try abi.toPartialDate(fields), abi.overflowField(fields)));
 }
 
 /// Internal: Creates a PlainDate from a UTF-8 string.
 inline fn fromUtf8(text: []const u8) !PlainDate {
     const view = abi.toDiplomatStringView(text);
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_from_utf8(view));
+    return wrapPlainDate(abi.c.temporal_PlainDate_from_utf8(view));
 }
 
 /// Internal: Creates a PlainDate from a UTF-16 string.
 inline fn fromUtf16(text: []const u16) !PlainDate {
     const view = abi.toDiplomatString16View(text);
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_from_utf16(view));
+    return wrapPlainDate(abi.c.temporal_PlainDate_from_utf16(view));
 }
 
 /// Compares two PlainDate objects. Returns -1, 0, or 1.
 pub fn compare(a: PlainDate, b: PlainDate) i8 {
-    return abi.c.temporal_rs_PlainDate_compare(a._inner, b._inner);
+    return abi.c.temporal_PlainDate_compare(a._inner, b._inner);
 }
 
 /// Returns true if two PlainDate objects represent the same date.
 pub fn equals(self: PlainDate, other: PlainDate) bool {
-    return abi.c.temporal_rs_PlainDate_equals(self._inner, other._inner);
+    return abi.c.temporal_PlainDate_equals(self._inner, other._inner);
 }
 
-/// Returns a new PlainDate by adding a Duration to this date.
+/// Returns a new PlainDate by adding a Duration to this date (overflow: `constrain`).
 pub fn add(self: PlainDate, duration: Duration) !PlainDate {
-    const overflow_opt = abi.c.ArithmeticOverflow_option{ .is_ok = true, .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain } };
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_add(self._inner, duration._inner, overflow_opt));
+    return self.addWithOptions(duration, .{});
 }
 
-/// Returns a new PlainDate by subtracting a Duration from this date.
+/// Returns a new PlainDate by adding a Duration to this date, with options.
+///
+/// See: [Temporal.PlainDate.add](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/add)
+pub fn addWithOptions(self: PlainDate, duration: Duration, options: ArithmeticOptions) !PlainDate {
+    return wrapPlainDate(abi.c.temporal_PlainDate_add(self._inner, duration._inner, abi.toOverflowOption(options.overflow orelse .constrain)));
+}
+
+/// Returns a new PlainDate by subtracting a Duration from this date (overflow: `constrain`).
 pub fn subtract(self: PlainDate, duration: Duration) !PlainDate {
-    const overflow_opt = abi.c.ArithmeticOverflow_option{ .is_ok = true, .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain } };
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_subtract(self._inner, duration._inner, overflow_opt));
+    return self.subtractWithOptions(duration, .{});
+}
+
+/// Returns a new PlainDate by subtracting a Duration from this date, with options.
+///
+/// See: [Temporal.PlainDate.subtract](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/subtract)
+pub fn subtractWithOptions(self: PlainDate, duration: Duration, options: ArithmeticOptions) !PlainDate {
+    return wrapPlainDate(abi.c.temporal_PlainDate_subtract(self._inner, duration._inner, abi.toOverflowOption(options.overflow orelse .constrain)));
 }
 
 /// Returns the Duration until another PlainDate, according to the given settings.
 pub fn until(self: PlainDate, other: PlainDate, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_until(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDate_until(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Returns the Duration since another PlainDate, according to the given settings.
 pub fn since(self: PlainDate, other: PlainDate, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_since(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDate_since(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Returns a new PlainDate with some fields replaced.
 pub fn with(self: PlainDate, fields: WithOptions) !PlainDate {
-    const partial_date = abi.c.PartialDate{
-        .year = if (fields.year) |y| abi.toOption(abi.c.OptionI32, y) else .{ .is_ok = false },
-        .month = if (fields.month) |m| abi.toOption(abi.c.OptionU8, m) else .{ .is_ok = false },
-        .day = if (fields.day) |d| abi.toOption(abi.c.OptionU8, d) else .{ .is_ok = false },
-        .month_code = if (fields.month_code) |mc| abi.toDiplomatStringView(mc) else .{ .data = null, .len = 0 },
-        .era = if (fields.era) |e| abi.toDiplomatStringView(e) else .{ .data = null, .len = 0 },
-        .era_year = if (fields.era_year) |ey| abi.toOption(abi.c.OptionI32, ey) else .{ .is_ok = false },
-        .calendar = abi.c.AnyCalendarKind_Iso,
-    };
-
-    const overflow = abi.c.ArithmeticOverflow_option{
-        .is_ok = true,
-        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
-    };
-
-    return wrapPlainDate(abi.c.temporal_rs_PlainDate_with(
+    return wrapPlainDate(abi.c.temporal_PlainDate_with(
         self._inner,
-        partial_date,
-        overflow,
+        try abi.toPartialDate(fields),
+        abi.toOverflowOption(fields.overflow orelse .constrain),
     ));
 }
 
 /// Returns a new PlainDate with a different calendar.
 pub fn withCalendar(self: PlainDate, calendar: []const u8) !PlainDate {
     const cal_view = abi.toDiplomatStringView(calendar);
-    const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
+    const cal_result = abi.c.temporal_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = try abi.extractResult(cal_result);
-    const ptr = abi.c.temporal_rs_PlainDate_with_calendar(self._inner, cal_kind) orelse return abi.TemporalError.Generic;
+    const ptr = abi.c.temporal_PlainDate_with_calendar(self._inner, cal_kind) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
@@ -205,30 +234,30 @@ pub fn withCalendar(self: PlainDate, calendar: []const u8) !PlainDate {
 /// Returns a PlainDateTime by combining this date with a PlainTime (or midnight if null).
 pub fn toPlainDateTime(self: PlainDate, time: ?PlainTime) !PlainDateTime {
     const time_ptr = if (time) |tt| tt._inner else null;
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_plain_date_time(self._inner, time_ptr))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDate_to_plain_date_time(self._inner, time_ptr))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Returns a PlainMonthDay representing the month and day in this date.
 pub fn toPlainMonthDay(self: PlainDate) !PlainMonthDay {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_plain_month_day(self._inner))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDate_to_plain_month_day(self._inner))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Returns a PlainYearMonth representing the year and month in this date.
 pub fn toPlainYearMonth(self: PlainDate) !PlainYearMonth {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_plain_year_month(self._inner))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDate_to_plain_year_month(self._inner))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Returns a ZonedDateTime by combining this date with a time and time zone.
 pub fn toZonedDateTime(self: PlainDate, options: ToZonedDateTimeOptions) !ZonedDateTime {
     const tz_view = abi.toDiplomatStringView(options.time_zone);
-    const tz_result = abi.c.temporal_rs_TimeZone_try_from_str(tz_view);
+    const tz_result = abi.c.temporal_TimeZone_try_from_str(tz_view);
     const time_zone = try abi.extractResult(tz_result);
 
     const time_ptr = if (options.plain_time) |tt| tt._inner else null;
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_to_zoned_date_time(self._inner, time_zone, time_ptr))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDate_to_zoned_date_time(self._inner, time_zone, time_ptr))) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
@@ -245,7 +274,7 @@ pub fn toString(self: PlainDate, allocator: std.mem.Allocator, options: ToString
         .critical => @intCast(abi.c.DisplayCalendar_Critical),
     } else @intCast(abi.c.DisplayCalendar_Auto);
 
-    abi.c.temporal_rs_PlainDate_to_ixdtf_string(self._inner, display_cal, &write.inner);
+    abi.c.temporal_PlainDate_to_ixdtf_string(self._inner, display_cal, &write.inner);
     return try write.toOwnedSlice();
 }
 
@@ -269,32 +298,32 @@ pub fn valueOf(self: PlainDate) !void {
 
 /// Returns the day of the month (1-31).
 pub fn day(self: PlainDate) u8 {
-    return abi.c.temporal_rs_PlainDate_day(self._inner);
+    return abi.c.temporal_PlainDate_day(self._inner);
 }
 
 /// Returns the day of the week (1 = Monday, 7 = Sunday).
 pub fn dayOfWeek(self: PlainDate) u16 {
-    return abi.c.temporal_rs_PlainDate_day_of_week(self._inner);
+    return abi.c.temporal_PlainDate_day_of_week(self._inner);
 }
 
 /// Returns the day of the year (1-366).
 pub fn dayOfYear(self: PlainDate) u16 {
-    return abi.c.temporal_rs_PlainDate_day_of_year(self._inner);
+    return abi.c.temporal_PlainDate_day_of_year(self._inner);
 }
 
 /// Returns the number of days in the month for this date.
 pub fn daysInMonth(self: PlainDate) u16 {
-    return abi.c.temporal_rs_PlainDate_days_in_month(self._inner);
+    return abi.c.temporal_PlainDate_days_in_month(self._inner);
 }
 
 /// Returns the number of days in the week for this date.
 pub fn daysInWeek(self: PlainDate) u16 {
-    return abi.c.temporal_rs_PlainDate_days_in_week(self._inner);
+    return abi.c.temporal_PlainDate_days_in_week(self._inner);
 }
 
 /// Returns the number of days in the year for this date.
 pub fn daysInYear(self: PlainDate) u16 {
-    return abi.c.temporal_rs_PlainDate_days_in_year(self._inner);
+    return abi.c.temporal_PlainDate_days_in_year(self._inner);
 }
 
 /// Returns the month code (e.g., "M03").
@@ -302,34 +331,34 @@ pub fn monthCode(self: PlainDate, allocator: std.mem.Allocator) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    abi.c.temporal_rs_PlainDate_month_code(self._inner, &write.inner);
+    abi.c.temporal_PlainDate_month_code(self._inner, &write.inner);
     return try write.toOwnedSlice();
 }
 
 /// Returns the month (1-12).
 pub fn month(self: PlainDate) u8 {
-    return abi.c.temporal_rs_PlainDate_month(self._inner);
+    return abi.c.temporal_PlainDate_month(self._inner);
 }
 
 /// Returns the number of months in the year for this date.
 pub fn monthsInYear(self: PlainDate) u16 {
-    return abi.c.temporal_rs_PlainDate_months_in_year(self._inner);
+    return abi.c.temporal_PlainDate_months_in_year(self._inner);
 }
 
 /// Returns the year.
 pub fn year(self: PlainDate) i32 {
-    return abi.c.temporal_rs_PlainDate_year(self._inner);
+    return abi.c.temporal_PlainDate_year(self._inner);
 }
 
 /// Returns true if the year is a leap year.
 pub fn inLeapYear(self: PlainDate) bool {
-    return abi.c.temporal_rs_PlainDate_in_leap_year(self._inner);
+    return abi.c.temporal_PlainDate_in_leap_year(self._inner);
 }
 
 /// Returns the calendar identifier for this date.
 pub fn calendarId(self: PlainDate, allocator: std.mem.Allocator) ![]u8 {
-    const calendar_ptr = abi.c.temporal_rs_PlainDate_calendar(self._inner) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    const calendar_ptr = abi.c.temporal_PlainDate_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_Calendar_identifier(calendar_ptr);
     return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
@@ -338,7 +367,7 @@ pub fn era(self: PlainDate, allocator: std.mem.Allocator) !?[]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    abi.c.temporal_rs_PlainDate_era(self._inner, &write.inner);
+    abi.c.temporal_PlainDate_era(self._inner, &write.inner);
     const result = try write.toOwnedSlice();
     if (result.len == 0) {
         allocator.free(result);
@@ -349,34 +378,34 @@ pub fn era(self: PlainDate, allocator: std.mem.Allocator) !?[]u8 {
 
 /// Returns the era year for this date, if any.
 pub fn eraYear(self: PlainDate) ?i32 {
-    const result = abi.c.temporal_rs_PlainDate_era_year(self._inner);
+    const result = abi.c.temporal_PlainDate_era_year(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
 }
 
 /// Returns the week of the year for this date, if any.
 pub fn weekOfYear(self: PlainDate) ?u8 {
-    const result = abi.c.temporal_rs_PlainDate_week_of_year(self._inner);
+    const result = abi.c.temporal_PlainDate_week_of_year(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
 }
 
 /// Returns the year of the week for this date, if any.
 pub fn yearOfWeek(self: PlainDate) ?i32 {
-    const result = abi.c.temporal_rs_PlainDate_year_of_week(self._inner);
+    const result = abi.c.temporal_PlainDate_year_of_week(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
 }
 
 /// Returns a clone of this PlainDate.
 fn clone(self: PlainDate) PlainDate {
-    const ptr = abi.c.temporal_rs_PlainDate_clone(self._inner) orelse unreachable;
+    const ptr = abi.c.temporal_PlainDate_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Frees resources associated with this PlainDate.
 pub fn deinit(self: PlainDate) void {
-    abi.c.temporal_rs_PlainDate_destroy(self._inner);
+    abi.c.temporal_PlainDate_destroy(self._inner);
 }
 
 /// Internal: Wraps a result as a PlainDate.
@@ -738,4 +767,77 @@ test fromEpochNanoseconds {
     try std.testing.expectEqual(@as(i32, 2024), date.year());
     try std.testing.expectEqual(@as(u8, 1), date.month());
     try std.testing.expectEqual(@as(u8, 1), date.day());
+}
+
+test "from fields" {
+    const gpa = std.testing.allocator;
+
+    // Out-of-range day is clamped by default (`constrain`).
+    const constrained = try PlainDate.from(.{ .year = 2024, .month = 2, .day = 30 });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+
+    // ...and rejected with `overflow = .reject`.
+    try std.testing.expectError(error.RangeError, PlainDate.from(.{ .year = 2024, .month = 2, .day = 30, .overflow = .reject }));
+
+    // Named `Fields` struct with a month code.
+    const by_code = try PlainDate.from(Fields{ .year = 2024, .month_code = "M03", .day = 1 });
+    defer by_code.deinit();
+    try std.testing.expectEqual(@as(u8, 3), by_code.month());
+
+    // Non-ISO calendar.
+    const gregory = try PlainDate.from(.{ .year = 2024, .month = 1, .day = 1, .calendar = "gregory" });
+    defer gregory.deinit();
+    const cal = try gregory.calendarId(gpa);
+    defer gpa.free(cal);
+    try std.testing.expectEqualStrings("gregory", cal);
+
+    // Missing required field.
+    try std.testing.expectError(error.TypeError, PlainDate.from(.{ .year = 2024, .month = 1 }));
+    // Unknown calendar.
+    // temporal_capi reports unknown calendar identifiers as a generic error.
+    try std.testing.expectError(error.Generic, PlainDate.from(.{ .year = 2024, .month = 1, .day = 1, .calendar = "not-a-calendar" }));
+}
+
+test "with overflow" {
+    const date = try PlainDate.init(2024, 1, 31);
+    defer date.deinit();
+
+    const constrained = try date.with(.{ .month = 2 });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+
+    try std.testing.expectError(error.RangeError, date.with(.{ .month = 2, .overflow = .reject }));
+}
+
+test addWithOptions {
+    const date = try PlainDate.init(2024, 1, 31);
+    defer date.deinit();
+    const one_month = try Duration.from("P1M");
+    defer one_month.deinit();
+
+    const constrained = try date.addWithOptions(one_month, .{});
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+
+    try std.testing.expectError(error.RangeError, date.addWithOptions(one_month, .{ .overflow = .reject }));
+}
+
+test subtractWithOptions {
+    const date = try PlainDate.init(2024, 3, 31);
+    defer date.deinit();
+    const one_month = try Duration.from("P1M");
+    defer one_month.deinit();
+
+    const constrained = try date.subtractWithOptions(one_month, .{ .overflow = .constrain });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 2), constrained.month());
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+
+    try std.testing.expectError(error.RangeError, date.subtractWithOptions(one_month, .{ .overflow = .reject }));
+}
+
+test "from invalid string" {
+    try std.testing.expectError(error.RangeError, PlainDate.from("2024-13-01"));
+    try std.testing.expectError(error.RangeError, PlainDate.from("not a date"));
 }

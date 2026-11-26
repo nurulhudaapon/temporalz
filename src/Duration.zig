@@ -95,7 +95,7 @@ pub fn init(
     microseconds_val: f64,
     nanoseconds_val: f64,
 ) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_try_new(
+    return wrapDuration(abi.c.temporal_Duration_try_new(
         years_val,
         months_val,
         weeks_val,
@@ -149,113 +149,113 @@ pub fn from(info: anytype) !Duration {
 
 inline fn fromUtf16(text: []const u16) !Duration {
     const view = abi.toDiplomatString16View(text);
-    return wrapDuration(abi.c.temporal_rs_Duration_from_utf16(view));
+    return wrapDuration(abi.c.temporal_Duration_from_utf16(view));
 }
 
 inline fn fromUtf8(text: []const u8) !Duration {
     const view = abi.toDiplomatStringView(text);
-    return wrapDuration(abi.c.temporal_rs_Duration_from_utf8(view));
+    return wrapDuration(abi.c.temporal_Duration_from_utf8(view));
 }
 
 /// Create a Duration from a partial duration (where some fields may be omitted).
 fn fromPartialDuration(partial: PartialDuration) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_from_partial_duration(abi.to.partialdur(partial)));
+    return wrapDuration(abi.c.temporal_Duration_from_partial_duration(abi.to.partialdur(partial)));
 }
 
 /// Check if the time portion of the duration is within valid ranges.
 fn isTimeWithinRange(self: Duration) bool {
-    return abi.c.temporal_rs_Duration_is_time_within_range(self._inner);
+    return abi.c.temporal_Duration_is_time_within_range(self._inner);
 }
 
 /// Returns the number of years in the duration.
 ///
 /// See: [Temporal.Duration.years](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/years)
 pub fn years(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_years(self._inner);
+    return abi.c.temporal_Duration_years(self._inner);
 }
 
 /// Returns the number of months in the duration.
 ///
 /// See: [Temporal.Duration.months](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/months)
 pub fn months(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_months(self._inner);
+    return abi.c.temporal_Duration_months(self._inner);
 }
 
 /// Returns the number of weeks in the duration.
 ///
 /// See: [Temporal.Duration.weeks](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/weeks)
 pub fn weeks(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_weeks(self._inner);
+    return abi.c.temporal_Duration_weeks(self._inner);
 }
 
 /// Returns the number of days in the duration.
 ///
 /// See: [Temporal.Duration.days](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/days)
 pub fn days(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_days(self._inner);
+    return abi.c.temporal_Duration_days(self._inner);
 }
 
 /// Returns the number of hours in the duration.
 ///
 /// See: [Temporal.Duration.hours](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/hours)
 pub fn hours(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_hours(self._inner);
+    return abi.c.temporal_Duration_hours(self._inner);
 }
 
 /// Returns the number of minutes in the duration.
 ///
 /// See: [Temporal.Duration.minutes](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/minutes)
 pub fn minutes(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_minutes(self._inner);
+    return abi.c.temporal_Duration_minutes(self._inner);
 }
 
 /// Returns the number of seconds in the duration.
 ///
 /// See: [Temporal.Duration.seconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/seconds)
 pub fn seconds(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_seconds(self._inner);
+    return abi.c.temporal_Duration_seconds(self._inner);
 }
 
 /// Returns the number of milliseconds in the duration.
 ///
 /// See: [Temporal.Duration.milliseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/milliseconds)
 pub fn milliseconds(self: Duration) i64 {
-    return abi.c.temporal_rs_Duration_milliseconds(self._inner);
+    return abi.c.temporal_Duration_milliseconds(self._inner);
 }
 
 /// Returns the number of microseconds in the duration.
 ///
 /// See: [Temporal.Duration.microseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/microseconds)
 pub fn microseconds(self: Duration) f64 {
-    return abi.c.temporal_rs_Duration_microseconds(self._inner);
+    return abi.c.temporal_Duration_microseconds(self._inner);
 }
 
 /// Returns the number of nanoseconds in the duration.
 ///
 /// See: [Temporal.Duration.nanoseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/nanoseconds)
 pub fn nanoseconds(self: Duration) f64 {
-    return abi.c.temporal_rs_Duration_nanoseconds(self._inner);
+    return abi.c.temporal_Duration_nanoseconds(self._inner);
 }
 
 /// Returns the sign of the duration: positive (1), zero (0), or negative (-1).
 ///
 /// See: [Temporal.Duration.sign](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/sign)
 pub fn sign(self: Duration) Sign {
-    return abi.from.sign(abi.c.temporal_rs_Duration_sign(self._inner));
+    return abi.from.sign(abi.c.temporal_Duration_sign(self._inner));
 }
 
 /// Returns true if the duration is zero (all fields are zero), false otherwise.
 ///
 /// See: [Temporal.Duration.blank](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/blank)
 pub fn blank(self: Duration) bool {
-    return abi.c.temporal_rs_Duration_is_zero(self._inner);
+    return abi.c.temporal_Duration_is_zero(self._inner);
 }
 
 /// Returns a new Duration with the absolute value (all components positive).
 ///
 /// See: [Temporal.Duration.abs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/abs)
 pub fn abs(self: Duration) Duration {
-    const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_abs(self._inner) orelse unreachable;
+    const ptr: *abi.c.Duration = abi.c.temporal_Duration_abs(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
@@ -263,7 +263,7 @@ pub fn abs(self: Duration) Duration {
 ///
 /// See: [Temporal.Duration.negated](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/negated)
 pub fn negated(self: Duration) Duration {
-    const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_negated(self._inner) orelse unreachable;
+    const ptr: *abi.c.Duration = abi.c.temporal_Duration_negated(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
@@ -271,14 +271,14 @@ pub fn negated(self: Duration) Duration {
 ///
 /// See: [Temporal.Duration.add](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/add)
 pub fn add(self: Duration, other: Duration) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_add(self._inner, other._inner));
+    return wrapDuration(abi.c.temporal_Duration_add(self._inner, other._inner));
 }
 
 /// Returns a new Duration with the difference between this duration and another (balanced as needed).
 ///
 /// See: [Temporal.Duration.subtract](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/subtract)
 pub fn subtract(self: Duration, other: Duration) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_subtract(self._inner, other._inner));
+    return wrapDuration(abi.c.temporal_Duration_subtract(self._inner, other._inner));
 }
 
 /// Returns a new Duration rounded to the given smallest/largest unit and/or balanced.
@@ -286,12 +286,12 @@ pub fn subtract(self: Duration, other: Duration) !Duration {
 /// See: [Temporal.Duration.round](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/round)
 pub fn round(self: Duration, options: RoundingOptions) !Duration {
     const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
-    return wrapDuration(abi.c.temporal_rs_Duration_round(self._inner, abi.to.durRoundingOpts(options), rel));
+    return wrapDuration(abi.c.temporal_Duration_round(self._inner, abi.to.durRoundingOpts(options), rel));
 }
 
 /// Round the duration with an explicit provider.
 fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: RelativeTo, provider: *const abi.c.Provider) !Duration {
-    return wrapDuration(abi.c.temporal_rs_Duration_round_with_provider(self._inner, options.toCApi(), relative_to, provider));
+    return wrapDuration(abi.c.temporal_Duration_round_with_provider(self._inner, options.toCApi(), relative_to, provider));
 }
 
 /// Compares two durations, returning -1, 0, or 1 if this duration is shorter, equal, or longer than the other.
@@ -299,13 +299,13 @@ fn roundWithProvider(self: Duration, options: RoundingOptions, relative_to: Rela
 /// See: [Temporal.Duration.compare](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/compare)
 pub fn compare(self: Duration, other: Duration, options: CompareOptions) !i8 {
     const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
-    const res = abi.c.temporal_rs_Duration_compare(self._inner, other._inner, rel);
+    const res = abi.c.temporal_Duration_compare(self._inner, other._inner, rel);
     return try abi.extractResult(res);
 }
 
 /// Compare two durations with an explicit provider.
 fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo, provider: *const abi.c.Provider) !i8 {
-    const res = abi.c.temporal_rs_Duration_compare_with_provider(self._inner, other._inner, relative_to.toCApi(), provider);
+    const res = abi.c.temporal_Duration_compare_with_provider(self._inner, other._inner, relative_to.toCApi(), provider);
     return try abi.extractResult(res);
 }
 
@@ -314,14 +314,14 @@ fn compareWithProvider(self: Duration, other: Duration, relative_to: RelativeTo,
 /// See: [Temporal.Duration.total](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Duration/total)
 pub fn total(self: Duration, options: TotalOptions) !f64 {
     const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
-    const res = abi.c.temporal_rs_Duration_total(self._inner, abi.to.unit(options.unit).?, rel);
+    const res = abi.c.temporal_Duration_total(self._inner, abi.to.unit(options.unit).?, rel);
     return try abi.extractResult(res);
 }
 
 /// Get the total value of the duration with an explicit provider.
 fn totalWithProvider(self: Duration, options: TotalOptions, provider: *const abi.c.Provider) !f64 {
     const rel = if (options.relative_to) |r| abi.to.durRelativeTo(r) else abi.c.RelativeTo{ .date = null, .zoned = null };
-    const res = abi.c.temporal_rs_Duration_total_with_provider(self._inner, options.unit.toCApi(), rel, provider);
+    const res = abi.c.temporal_Duration_total_with_provider(self._inner, options.unit.toCApi(), rel, provider);
     return try abi.extractResult(res);
 }
 
@@ -332,7 +332,7 @@ pub fn toString(self: Duration, allocator: std.mem.Allocator, options: ToStringR
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = abi.c.temporal_rs_Duration_to_string(self._inner, abi.to.strRoundingOpts(options), &write.inner);
+    const res = abi.c.temporal_Duration_to_string(self._inner, abi.to.strRoundingOpts(options), &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
@@ -383,13 +383,13 @@ pub fn valueOf(self: Duration) !void {
 
 /// Clone the underlying duration.
 fn clone(self: Duration) Duration {
-    const ptr: *abi.c.Duration = abi.c.temporal_rs_Duration_clone(self._inner) orelse unreachable;
+    const ptr: *abi.c.Duration = abi.c.temporal_Duration_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Deinitialize the Duration, freeing underlying resources.
 pub fn deinit(self: Duration) void {
-    abi.c.temporal_rs_Duration_destroy(self._inner);
+    abi.c.temporal_Duration_destroy(self._inner);
 }
 
 inline fn handleVoidResult(res: anytype) !void {
@@ -763,4 +763,95 @@ test valueOf {
     const dur = try Duration.from("P1D");
     defer dur.deinit();
     try std.testing.expectError(error.ValueError, dur.valueOf());
+}
+
+// Regression (temporal v0.2.4, test262 a70493eb / proposal-temporal#3316):
+// rounding an exact multiple of a larger unit must not overshoot, for every rounding mode.
+// Ported from temporal's `test_exact_multiple_of_larger_unit_plaindate`.
+test "round exact multiple of larger unit" {
+    const relative_to = try PlainDate.init(2012, 1, 1);
+    defer relative_to.deinit();
+    const d = try Duration.from("P31D");
+    defer d.deinit();
+
+    const modes = [_]RoundingMode{ .ceil, .floor, .expand, .half_ceil, .half_floor, .half_even, .half_expand, .half_trunc, .trunc };
+    for (modes) |mode| {
+        const r = try d.round(.{
+            .smallest_unit = .week,
+            .largest_unit = .month,
+            .rounding_mode = mode,
+            .relative_to = .{ .plain_date = relative_to },
+        });
+        defer r.deinit();
+        try std.testing.expectEqual(@as(i64, 1), r.months());
+        try std.testing.expectEqual(@as(i64, 0), r.weeks());
+        try std.testing.expectEqual(@as(i64, 0), r.days());
+    }
+}
+
+test "relativeTo month lengths" {
+    const feb = try PlainDate.init(2024, 2, 1);
+    defer feb.deinit();
+    const jan = try PlainDate.init(2024, 1, 1);
+    defer jan.deinit();
+
+    const one_month = try Duration.from("P1M");
+    defer one_month.deinit();
+    const thirty_days = try Duration.from("P30D");
+    defer thirty_days.deinit();
+
+    try std.testing.expectEqual(@as(f64, 29), try one_month.total(.{ .unit = .day, .relative_to = .{ .plain_date = feb } }));
+    try std.testing.expectEqual(@as(f64, 31), try one_month.total(.{ .unit = .day, .relative_to = .{ .plain_date = jan } }));
+
+    try std.testing.expectEqual(@as(i8, -1), try one_month.compare(thirty_days, .{ .relative_to = .{ .plain_date = feb } }));
+    try std.testing.expectEqual(@as(i8, 1), try one_month.compare(thirty_days, .{ .relative_to = .{ .plain_date = jan } }));
+}
+
+test "relativeTo ZonedDateTime across DST" {
+    const zdt = try ZonedDateTime.from("2024-03-10T00:00:00-05:00[America/New_York]", null, .compatible, .reject);
+    defer zdt.deinit();
+    const one_day = try Duration.from("P1D");
+    defer one_day.deinit();
+
+    // The spring-forward day in New York is 23 hours long.
+    try std.testing.expectEqual(@as(f64, 23), try one_day.total(.{ .unit = .hour, .relative_to = .{ .zoned_date_time = zdt } }));
+}
+
+test "calendar units require relativeTo" {
+    const one_month = try Duration.from("P1M");
+    defer one_month.deinit();
+    try std.testing.expectError(error.RangeError, one_month.round(.{ .smallest_unit = .day }));
+    try std.testing.expectError(error.RangeError, one_month.total(.{ .unit = .day }));
+}
+
+test "invalid durations" {
+    // Mixed signs are not allowed.
+    try std.testing.expectError(error.RangeError, Duration.init(1, -1, 0, 0, 0, 0, 0, 0, 0, 0));
+    try std.testing.expectError(error.RangeError, Duration.from("P1Y-1M"));
+    try std.testing.expectError(error.RangeError, Duration.from("not a duration"));
+}
+
+test "round modes" {
+    const gpa = std.testing.allocator;
+    const d = try Duration.from("PT1H30M");
+    defer d.deinit();
+
+    const cases = .{
+        .{ RoundingMode.ceil, "PT2H" },
+        .{ RoundingMode.floor, "PT1H" },
+        .{ RoundingMode.expand, "PT2H" },
+        .{ RoundingMode.trunc, "PT1H" },
+        .{ RoundingMode.half_ceil, "PT2H" },
+        .{ RoundingMode.half_floor, "PT1H" },
+        .{ RoundingMode.half_expand, "PT2H" },
+        .{ RoundingMode.half_trunc, "PT1H" },
+        .{ RoundingMode.half_even, "PT2H" },
+    };
+    inline for (cases) |case| {
+        const r = try d.round(.{ .smallest_unit = .hour, .rounding_mode = case[0] });
+        defer r.deinit();
+        const s = try r.toString(gpa, .{});
+        defer gpa.free(s);
+        try std.testing.expectEqualStrings(case[1], s);
+    }
 }

@@ -25,9 +25,33 @@ pub const ToStringOptions = struct {
     calendar_display: ?CalendarDisplay = null,
 };
 
+pub const Overflow = t.Overflow;
+
 pub const WithOptions = struct {
+    month: ?u8 = null,
     month_code: ?[]const u8 = null,
     day: ?u8 = null,
+    /// Year used to resolve `month` (non-ISO calendars) and leap days.
+    year: ?i32 = null,
+    /// How out-of-range values are handled. Defaults to `constrain`.
+    overflow: ?Overflow = null,
+};
+
+/// Fields accepted by `from()` (the spec's property-bag form).
+///
+/// See: [Temporal.PlainMonthDay.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/from)
+pub const Fields = struct {
+    month: ?u8 = null,
+    month_code: ?[]const u8 = null,
+    day: ?u8 = null,
+    /// Year used to resolve `month` (non-ISO calendars) and leap days.
+    year: ?i32 = null,
+    era: ?[]const u8 = null,
+    era_year: ?i32 = null,
+    /// Calendar identifier (e.g. "iso8601", "gregory"). Defaults to ISO 8601.
+    calendar: ?[]const u8 = null,
+    /// How out-of-range values are handled. Defaults to `constrain`.
+    overflow: ?Overflow = null,
 };
 
 // Helper to wrap PlainMonthDay pointer
@@ -44,14 +68,14 @@ fn wrapPlainMonthDay(result: anytype) !PlainMonthDay {
 pub fn init(month_val: u8, day_val: u8, calendar: ?[]const u8) !PlainMonthDay {
     const cal_kind = if (calendar) |cal| blk: {
         const cal_view = abi.toDiplomatStringView(cal);
-        const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
+        const cal_result = abi.c.temporal_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
         break :blk try abi.extractResult(cal_result);
     } else abi.c.AnyCalendarKind_Iso;
 
     const overflow = abi.c.ArithmeticOverflow_Constrain;
     const ref_year = abi.c.OptionI32{ .is_ok = false };
 
-    return wrapPlainMonthDay(abi.c.temporal_rs_PlainMonthDay_try_new_with_overflow(
+    return wrapPlainMonthDay(abi.c.temporal_PlainMonthDay_try_new_with_overflow(
         month_val,
         day_val,
         cal_kind,
@@ -60,21 +84,35 @@ pub fn init(month_val: u8, day_val: u8, calendar: ?[]const u8) !PlainMonthDay {
     ));
 }
 
-/// Parses a PlainMonthDay from a string.
+/// Creates a PlainMonthDay from a string (UTF-8 or UTF-16) or a set of fields
+/// (`Fields` or an anonymous struct literal with the same field names).
 ///
 /// See: [Temporal.PlainMonthDay.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/from)
-pub fn from(s: []const u8) !PlainMonthDay {
-    return fromUtf8(s);
+pub fn from(info: anytype) !PlainMonthDay {
+    const T = @TypeOf(info);
+    switch (@typeInfo(T)) {
+        .pointer => |ptr| {
+            const Child = switch (@typeInfo(ptr.child)) {
+                .array => |arr| arr.child,
+                else => ptr.child,
+            };
+            if (Child == u8) return fromUtf8(info);
+            if (Child == u16) return fromUtf16(info);
+            @compileError("from() expects a string or fields struct");
+        },
+        .@"struct" => return wrapPlainMonthDay(abi.c.temporal_PlainMonthDay_from_partial(try abi.toPartialDate(info), abi.overflowField(info))),
+        else => @compileError("from() expects a string or fields struct"),
+    }
 }
 
 fn fromUtf8(utf8: []const u8) !PlainMonthDay {
     const view = abi.toDiplomatStringView(utf8);
-    return wrapPlainMonthDay(abi.c.temporal_rs_PlainMonthDay_from_utf8(view));
+    return wrapPlainMonthDay(abi.c.temporal_PlainMonthDay_from_utf8(view));
 }
 
 fn fromUtf16(utf16: []const u16) !PlainMonthDay {
     const view = abi.toDiplomatString16View(utf16);
-    return wrapPlainMonthDay(abi.c.temporal_rs_PlainMonthDay_from_utf16(view));
+    return wrapPlainMonthDay(abi.c.temporal_PlainMonthDay_from_utf16(view));
 }
 
 // Comparison
@@ -82,7 +120,7 @@ fn fromUtf16(utf16: []const u16) !PlainMonthDay {
 ///
 /// See: [Temporal.PlainMonthDay.equals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/equals)
 pub fn equals(self: PlainMonthDay, other: PlainMonthDay) bool {
-    return abi.c.temporal_rs_PlainMonthDay_equals(self._inner, other._inner);
+    return abi.c.temporal_PlainMonthDay_equals(self._inner, other._inner);
 }
 
 // Property accessors
@@ -90,8 +128,8 @@ pub fn equals(self: PlainMonthDay, other: PlainMonthDay) bool {
 ///
 /// See: [Temporal.PlainMonthDay.calendarId](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/calendarId)
 pub fn calendarId(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
-    const calendar_ptr = abi.c.temporal_rs_PlainMonthDay_calendar(self._inner) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    const calendar_ptr = abi.c.temporal_PlainMonthDay_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_Calendar_identifier(calendar_ptr);
     return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
@@ -99,14 +137,14 @@ pub fn calendarId(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
 ///
 /// See: [Temporal.PlainMonthDay.day](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/day)
 pub fn day(self: PlainMonthDay) u8 {
-    return abi.c.temporal_rs_PlainMonthDay_day(self._inner);
+    return abi.c.temporal_PlainMonthDay_day(self._inner);
 }
 
 /// Returns the 1-based month index of this month-day.
 ///
 /// See: [Temporal.PlainMonthDay.monthCode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/monthCode)
 pub fn month(self: PlainMonthDay) u8 {
-    return abi.c.temporal_rs_PlainMonthDay_month(self._inner);
+    return abi.c.temporal_PlainMonthDay_month(self._inner);
 }
 
 /// Returns the calendar-specific string representing the month of this date.
@@ -116,13 +154,13 @@ pub fn monthCode(self: PlainMonthDay, allocator: std.mem.Allocator) ![]const u8 
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    abi.c.temporal_rs_PlainMonthDay_month_code(self._inner, &write.inner);
+    abi.c.temporal_PlainMonthDay_month_code(self._inner, &write.inner);
     return try write.toOwnedSlice();
 }
 
 /// Returns the reference year used to interpret this month-day in its calendar.
 pub fn referenceYear(self: PlainMonthDay) i32 {
-    return abi.c.temporal_rs_PlainMonthDay_reference_year(self._inner);
+    return abi.c.temporal_PlainMonthDay_reference_year(self._inner);
 }
 
 // Modification
@@ -130,32 +168,10 @@ pub fn referenceYear(self: PlainMonthDay) i32 {
 ///
 /// See: [Temporal.PlainMonthDay.with](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/with)
 pub fn with(self: PlainMonthDay, options: WithOptions) !PlainMonthDay {
-    // Build month_code view
-    const month_code_view = if (options.month_code) |mc|
-        abi.toDiplomatStringView(mc)
-    else
-        abi.c.DiplomatStringView{ .data = null, .len = 0 };
-
-    // Build partial date with only the fields we want to modify
-    const partial_date = abi.c.PartialDate{
-        .year = .{ .is_ok = false },
-        .month = .{ .is_ok = false },
-        .day = if (options.day) |d| abi.toOption(abi.c.OptionU8, d) else .{ .is_ok = false },
-        .month_code = month_code_view,
-        .era = .{ .data = null, .len = 0 },
-        .era_year = .{ .is_ok = false },
-        .calendar = abi.c.AnyCalendarKind_Iso,
-    };
-
-    const overflow = abi.c.ArithmeticOverflow_option{
-        .is_ok = true,
-        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
-    };
-
-    return wrapPlainMonthDay(abi.c.temporal_rs_PlainMonthDay_with(
+    return wrapPlainMonthDay(abi.c.temporal_PlainMonthDay_with(
         self._inner,
-        partial_date,
-        overflow,
+        try abi.toPartialDate(options),
+        abi.toOverflowOption(options.overflow orelse .constrain),
     ));
 }
 
@@ -179,7 +195,7 @@ pub fn toPlainDate(self: PlainMonthDay, year: i32) !PlainDate {
         },
     };
 
-    const result = abi.c.temporal_rs_PlainMonthDay_to_plain_date(self._inner, partial_date);
+    const result = abi.c.temporal_PlainMonthDay_to_plain_date(self._inner, partial_date);
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
 
     return PlainDate{ ._inner = ptr };
@@ -193,13 +209,15 @@ pub fn toString(self: PlainMonthDay, allocator: std.mem.Allocator) ![]u8 {
     return toStringWithOptions(self, allocator, .{});
 }
 
-fn toStringWithOptions(self: PlainMonthDay, allocator: std.mem.Allocator, options: ToStringOptions) ![]u8 {
-    _ = options;
+/// Returns a string representing this month-day, with calendar display options.
+///
+/// See: [Temporal.PlainMonthDay.toString](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainMonthDay/toString#options)
+pub fn toStringWithOptions(self: PlainMonthDay, allocator: std.mem.Allocator, options: ToStringOptions) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const display = abi.c.DisplayCalendar_Auto;
-    abi.c.temporal_rs_PlainMonthDay_to_ixdtf_string(self._inner, display, &write.inner);
+    const display = abi.to.calendarDisplay(options.calendar_display orelse .auto);
+    abi.c.temporal_PlainMonthDay_to_ixdtf_string(self._inner, display, &write.inner);
 
     return try write.toOwnedSlice();
 }
@@ -227,13 +245,13 @@ pub fn valueOf(self: PlainMonthDay) !void {
 }
 
 fn clone(self: PlainMonthDay) PlainMonthDay {
-    const ptr = abi.c.temporal_rs_PlainMonthDay_clone(self._inner) orelse unreachable;
+    const ptr = abi.c.temporal_PlainMonthDay_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Frees resources associated with this PlainMonthDay.
 pub fn deinit(self: PlainMonthDay) void {
-    abi.c.temporal_rs_PlainMonthDay_destroy(self._inner);
+    abi.c.temporal_PlainMonthDay_destroy(self._inner);
 }
 
 test init {
@@ -357,4 +375,45 @@ test referenceYear {
 test deinit {
     const md = try init(12, 25, null);
     md.deinit();
+}
+
+test "from fields" {
+    const md = try PlainMonthDay.from(.{ .month = 12, .day = 25 });
+    defer md.deinit();
+    try std.testing.expectEqual(@as(u8, 25), md.day());
+
+    const by_code = try PlainMonthDay.from(Fields{ .month_code = "M02", .day = 29 });
+    defer by_code.deinit();
+    try std.testing.expectEqual(@as(u8, 29), by_code.day());
+
+    const constrained = try PlainMonthDay.from(.{ .month = 4, .day = 31 });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 30), constrained.day());
+    try std.testing.expectError(error.RangeError, PlainMonthDay.from(.{ .month = 4, .day = 31, .overflow = .reject }));
+    try std.testing.expectError(error.TypeError, PlainMonthDay.from(.{ .month = 4 }));
+}
+
+test "with overflow" {
+    const md = try PlainMonthDay.init(4, 15, null);
+    defer md.deinit();
+
+    const constrained = try md.with(.{ .day = 31 });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 30), constrained.day());
+
+    try std.testing.expectError(error.RangeError, md.with(.{ .day = 31, .overflow = .reject }));
+}
+
+test toStringWithOptions {
+    const gpa = std.testing.allocator;
+    const md = try PlainMonthDay.init(12, 25, null);
+    defer md.deinit();
+
+    const auto = try md.toStringWithOptions(gpa, .{});
+    defer gpa.free(auto);
+    try std.testing.expectEqualStrings("12-25", auto);
+
+    const always = try md.toStringWithOptions(gpa, .{ .calendar_display = .always });
+    defer gpa.free(always);
+    try std.testing.expectEqualStrings("1972-12-25[u-ca=iso8601]", always);
 }

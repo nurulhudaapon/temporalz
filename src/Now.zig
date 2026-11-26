@@ -47,7 +47,7 @@ pub fn plainDateISO(allocator: std.mem.Allocator, io: std.Io, time_zone_like: ?[
     const now = try instant(io);
     defer now.deinit();
 
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDate_from_epoch_nanoseconds(
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDate_from_epoch_nanoseconds(
         abi.toI128Nanoseconds(now.epochNanoseconds()),
         abi.to.toTimeZone(time_zone),
     ))) orelse return abi.TemporalError.Generic;
@@ -64,7 +64,7 @@ pub fn plainDateTimeISO(allocator: std.mem.Allocator, io: std.Io, time_zone_like
     const now = try instant(io);
     defer now.deinit();
 
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDateTime_from_epoch_nanoseconds(
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDateTime_from_epoch_nanoseconds(
         abi.toI128Nanoseconds(now.epochNanoseconds()),
         abi.to.toTimeZone(time_zone),
     ))) orelse return abi.TemporalError.Generic;
@@ -92,7 +92,7 @@ pub fn timeZoneId(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    abi.c.temporal_rs_TimeZone_identifier(time_zone._inner, &write.inner);
+    abi.c.temporal_TimeZone_identifier(time_zone._inner, &write.inner);
     return try write.toOwnedSlice();
 }
 

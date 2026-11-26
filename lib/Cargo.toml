@@ -1,15 +1,19 @@
 [package]
 name = "temporal_capi"
-version = "0.2.3"
+version = "0.2.6"
 edition = "2024"
 
+# Pinned to boa-dev/temporal `main` (unreleased): C symbols use the `temporal_` prefix
+# and the core crate is named `temporal`. Keep `rev` in sync with `temporal_rs` in build.zig.zon.
 [dependencies.temporal_capi]
-version = "0.2.3"
+git = "https://github.com/boa-dev/temporal"
+rev = "acf6a5c86a1cb5dfc78748d71f86d29c648fb83e"
 default-features = false
 features = ["compiled_data"]
 
-[dependencies.temporal_rs]
-version = "0.2.3"
+[dependencies.temporal]
+git = "https://github.com/boa-dev/temporal"
+rev = "acf6a5c86a1cb5dfc78748d71f86d29c648fb83e"
 default-features = false
 features = ["float64_representable_durations"]
 

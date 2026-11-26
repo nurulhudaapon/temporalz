@@ -4,7 +4,7 @@ const targets = @import("targets.zig");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse false;
+    const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse true; // TODO: default back to false once prebuilts are rebuilt from temporal `main` (`temporal_` symbol prefix)
 
     const arch_str = @tagName(target.result.cpu.arch);
     const os_str = @tagName(target.result.os.tag);
@@ -21,12 +21,17 @@ pub fn build(b: *std.Build) !void {
         "libtemporal_capi.a";
 
     // --- Module --- //
-    const is_freestanding = target.result.os.tag == .freestanding;
+    // WASI: Zig 0.18 no longer ships wasi-libc, so the libc symbols the Rust
+    // `wasm32-wasip1` build needs are provided by `src/stubs/wasi_libc.zig`.
+    const is_wasm_no_libc = switch (target.result.os.tag) {
+        .freestanding, .wasi => true,
+        else => false,
+    };
     const mod = b.addModule("libtemporal", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
-        .link_libc = !is_freestanding,
+        .link_libc = !is_wasm_no_libc,
     });
 
     const temporal_rs = b.dependency("temporal_rs", .{
@@ -40,9 +45,11 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
         .link_libc = false,
     });
-    translated.addIncludePath(temporal_rs.path("temporal_capi/bindings/c"));
+    translated.addIncludePath(temporal_rs.path("crates/temporal_capi/bindings/c"));
     translated.addIncludePath(b.path("src/stubs/c_headers"));
-    mod.addImport("lib", translated.createModule());
+    const translated_mod = translated.createModule();
+    translated_mod.link_libc = null;
+    mod.addImport("lib", translated_mod);
 
     // --- Rust Misc Deps --- //
     if (target.result.os.tag == .windows) mod.linkSystemLibrary("userenv", .{});
@@ -52,6 +59,14 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     }) });
     mod.linkLibrary(unwind_stubs);
+    if (target.result.os.tag == .wasi) {
+        const wasi_libc = b.addLibrary(.{ .linkage = .static, .name = "wasi_libc", .root_module = b.createModule(.{
+            .root_source_file = b.path("src/stubs/wasi_libc.zig"),
+            .target = target,
+            .optimize = optimize,
+        }) });
+        mod.linkLibrary(wasi_libc);
+    }
 
     // --- Steps: update prebuilt dependency hashes --- //
     {
@@ -76,10 +91,10 @@ pub fn build(b: *std.Build) !void {
         if (zig_target.os.tag == .windows) zig_target.abi = .gnu;
         const rust_target_str: []const u8 = if (zig_target.cpu.arch == .arm and zig_target.os.tag == .linux)
             switch (zig_target.abi) {
-                .gnueabihf, .eabihf => "armv7-unknown-linux-gnueabihf",
-                .gnueabi, .eabi => "armv7-unknown-linux-gnueabi",
-                .musleabihf => "armv7-unknown-linux-musleabihf",
-                .musleabi => "armv7-unknown-linux-musleabi",
+                .gnu, .none => "armv7-unknown-linux-gnueabihf",
+                .gnusf, .sf => "armv7-unknown-linux-gnueabi",
+                .musl => "armv7-unknown-linux-musleabihf",
+                .muslsf => "armv7-unknown-linux-musleabi",
                 else => "armv7-unknown-linux-gnueabihf",
             }
         else blk: {
@@ -108,18 +123,21 @@ pub fn build(b: *std.Build) !void {
     b.getInstallStep().dependOn(&install_lib.step);
 }
 
+/// For each prebuilt target: fetch it, save it to build.zig.zon, then set its
+/// `.version` and the matching versioned hash (`zig fetch` can't do either).
 fn addPrebuiltDependencyFetches(b: *std.Build, parent: *std.Build.Step) void {
-    var prev_save: ?*std.Build.Step = null;
+    const zon_version = b.addExecutable(.{
+        .name = "zon_version",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/tools/zon_version.zig"),
+            .target = b.graph.host,
+        }),
+    });
+
+    var prev: ?*std.Build.Step = null;
 
     inline for (targets.config.targets) |target_triple| {
         const url = targets.releaseUrl(b, target_triple);
-
-        const fetch = b.addSystemCommand(&.{ b.graph.zig_exe, "fetch", url });
-        fetch.setName(b.fmt("fetch {s}", .{target_triple}));
-        fetch.setCwd(b.path("."));
-        fetch.has_side_effects = true;
-        fetch.expectExitCode(0);
-        _ = fetch.captureStdErr(.{});
 
         const save = b.addSystemCommand(&.{
             b.graph.zig_exe,
@@ -132,13 +150,16 @@ fn addPrebuiltDependencyFetches(b: *std.Build, parent: *std.Build.Step) void {
         save.has_side_effects = true;
         save.expectExitCode(0);
         _ = save.captureStdErr(.{});
+        if (prev) |p| save.step.dependOn(p);
 
-        save.step.dependOn(&fetch.step);
+        const set_version = b.addRunArtifact(zon_version);
+        set_version.setName(b.fmt("set version {s}", .{target_triple}));
+        set_version.setCwd(b.path("."));
+        set_version.has_side_effects = true;
+        set_version.addArgs(&.{ "build.zig.zon", target_triple, targets.config.version });
+        set_version.step.dependOn(&save.step);
 
-        if (prev_save) |prev| {
-            save.step.dependOn(prev);
-        }
-        parent.dependOn(&save.step);
-        prev_save = &save.step;
+        parent.dependOn(&set_version.step);
+        prev = &set_version.step;
     }
 }

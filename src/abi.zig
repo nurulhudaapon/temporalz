@@ -114,6 +114,55 @@ pub fn toPartialZonedDateTime(fields: anytype) c.PartialZonedDateTime {
     };
 }
 
+/// Build a `PartialDate` from any struct with optional `year`, `month`, `month_code`,
+/// `day`, `era`, `era_year`, and `calendar` (identifier string) fields.
+pub fn toPartialDate(fields: anytype) !c.PartialDate {
+    return .{
+        .year = toI32OptionField(fields, "year"),
+        .month = toU8OptionField(fields, "month"),
+        .month_code = toStringViewField(fields, "month_code"),
+        .day = toU8OptionField(fields, "day"),
+        .era = toStringViewField(fields, "era"),
+        .era_year = toI32OptionField(fields, "era_year"),
+        .calendar = try calendarField(fields),
+    };
+}
+
+/// Build a `PartialTime` from any struct with optional time fields.
+pub fn toPartialTime(fields: anytype) c.PartialTime {
+    return .{
+        .hour = toU8OptionField(fields, "hour"),
+        .minute = toU8OptionField(fields, "minute"),
+        .second = toU8OptionField(fields, "second"),
+        .millisecond = toU16OptionField(fields, "millisecond"),
+        .microsecond = toU16OptionField(fields, "microsecond"),
+        .nanosecond = toU16OptionField(fields, "nanosecond"),
+    };
+}
+
+/// Parse the optional `calendar` identifier field; defaults to ISO 8601.
+pub fn calendarField(fields: anytype) !c.AnyCalendarKind {
+    const id = stringField(fields, "calendar") orelse return c.AnyCalendarKind_Iso;
+    return try extractResult(c.temporal_AnyCalendarKind_parse_temporal_calendar_string(toDiplomatStringView(id)));
+}
+
+/// Convert a Zig `?Overflow` to a Rust `Option<ArithmeticOverflow>`.
+pub fn toOverflowOption(maybe_value: ?t.Overflow) c.ArithmeticOverflow_option {
+    return toOption(c.ArithmeticOverflow_option, if (maybe_value) |v| to.toArithmeticOverflow(v) else null);
+}
+
+/// Read an optional `overflow` field (enum, optional enum, or enum literal).
+pub fn overflowField(fields: anytype) c.ArithmeticOverflow_option {
+    return toOverflowOption(enumField(t.Overflow, fields, "overflow"));
+}
+
+/// Read an optional enum field of type `E` from `fields`.
+pub fn enumField(comptime E: type, fields: anytype, comptime name: []const u8) ?E {
+    if (!@hasField(@TypeOf(fields), name)) return null;
+    const value: ?E = @field(fields, name);
+    return value;
+}
+
 fn toI32OptionField(fields: anytype, comptime name: []const u8) c.OptionI32 {
     return toOption(c.OptionI32, intField(i32, fields, name));
 }
@@ -204,8 +253,8 @@ pub const RelativeTo = union(enum) {
 
     pub fn deinit(self: RelativeTo) void {
         switch (self) {
-            .owned_plain_date => |plain_date| c.temporal_rs_PlainDate_destroy(plain_date),
-            .owned_zoned_date_time => |zoned_date_time| c.temporal_rs_ZonedDateTime_destroy(zoned_date_time),
+            .owned_plain_date => |plain_date| c.temporal_PlainDate_destroy(plain_date),
+            .owned_zoned_date_time => |zoned_date_time| c.temporal_ZonedDateTime_destroy(zoned_date_time),
             else => {},
         }
     }

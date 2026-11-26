@@ -5,9 +5,12 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const is_freestanding = target.result.os.tag == .freestanding;
 
+    const build_rust = b.option(bool, "build-rust", "Build Rust library from source (default: true until prebuilts for temporal main are published)") orelse true;
+
     const temporalz = b.dependency("temporalz", .{
         .target = target,
         .optimize = optimize,
+        .@"build-rust" = build_rust,
     });
     const exe = b.addExecutable(.{
         .name = "temporalz",
@@ -15,7 +18,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .link_libc = !is_freestanding,
+            .link_libc = !is_freestanding and target.result.os.tag != .wasi,
             .imports = &.{},
         }),
     });

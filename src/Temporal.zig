@@ -99,6 +99,25 @@ pub const Sign = enum {
     negative,
 };
 
+/// ## Overflow
+/// How out-of-range field values are handled.
+///
+/// - [MDN: PlainDate.from `overflow`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/from#overflow)
+pub const Overflow = enum {
+    /// Clamp the value into the valid range (default).
+    constrain,
+    /// Return an error for out-of-range values.
+    reject,
+};
+
+/// ## ArithmeticOptions
+/// Options for `addWithOptions()` / `subtractWithOptions()`.
+///
+/// - [MDN: PlainDate.add](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/add#options)
+pub const ArithmeticOptions = struct {
+    overflow: ?Overflow = null,
+};
+
 /// ## RoundingOptions
 /// Options for rounding operations (e.g., Instant.round, Duration.round).
 ///
@@ -139,7 +158,7 @@ pub const TimeZone = struct {
     /// Initialize a TimeZone from an identifier string (IANA or offset).
     pub fn init(id: []const u8) !TimeZone {
         const view = abi.toDiplomatStringView(id);
-        const result = abi.c.temporal_rs_TimeZone_try_from_str(view);
+        const result = abi.c.temporal_TimeZone_try_from_str(view);
         const time_zone = try abi.extractResult(result);
         return .{ ._inner = time_zone };
     }
@@ -147,7 +166,7 @@ pub const TimeZone = struct {
     /// Initialize a TimeZone from an IANA identifier string.
     pub fn fromIdentifier(id: []const u8) !TimeZone {
         const view = abi.toDiplomatStringView(id);
-        const result = abi.c.temporal_rs_TimeZone_try_from_identifier_str(view);
+        const result = abi.c.temporal_TimeZone_try_from_identifier_str(view);
         const time_zone = try abi.extractResult(result);
         return .{ ._inner = time_zone };
     }
@@ -155,24 +174,24 @@ pub const TimeZone = struct {
     /// Initialize a TimeZone from a UTC offset string (e.g. "+05:00").
     pub fn fromOffset(offset: []const u8) !TimeZone {
         const view = abi.toDiplomatStringView(offset);
-        const result = abi.c.temporal_rs_TimeZone_try_from_offset_str(view);
+        const result = abi.c.temporal_TimeZone_try_from_offset_str(view);
         const time_zone = try abi.extractResult(result);
         return .{ ._inner = time_zone };
     }
 
     /// Returns the UTC time zone.
     pub fn utc() TimeZone {
-        return .{ ._inner = abi.c.temporal_rs_TimeZone_utc() };
+        return .{ ._inner = abi.c.temporal_TimeZone_utc() };
     }
 
     /// Returns the zero-offset (+00:00) time zone.
     pub fn zero() TimeZone {
-        return .{ ._inner = abi.c.temporal_rs_TimeZone_zero() };
+        return .{ ._inner = abi.c.temporal_TimeZone_zero() };
     }
 
     /// Returns the primary identifier for this time zone (e.g. links resolve to canonical IANA ids).
     pub fn primaryIdentifier(self: TimeZone) !TimeZone {
-        const result = abi.c.temporal_rs_TimeZone_primary_identifier(self._inner);
+        const result = abi.c.temporal_TimeZone_primary_identifier(self._inner);
         const time_zone = try abi.extractResult(result);
         return .{ ._inner = time_zone };
     }
@@ -181,7 +200,7 @@ pub const TimeZone = struct {
     pub fn identifier(self: TimeZone, allocator: std.mem.Allocator) ![]u8 {
         var write = abi.DiplomatWrite.init(allocator);
         defer write.deinit();
-        abi.c.temporal_rs_TimeZone_identifier(self._inner, &write.inner);
+        abi.c.temporal_TimeZone_identifier(self._inner, &write.inner);
         return try write.toOwnedSlice();
     }
 };
@@ -370,6 +389,13 @@ test PlainDate {
         "RoundingMode",
         "Sign",
         "DifferenceSettings",
+        "Overflow",
+        "ArithmeticOptions",
+        "Fields",
+
+        // Options variants
+        "addWithOptions",
+        "subtractWithOptions",
     };
 
     try assertDecls(PlainDate, checks);
@@ -442,6 +468,14 @@ test PlainDateTime {
         "ToStringOptions",
         "ToZonedDateTimeOptions",
         "WithOptions",
+        "FromOptions",
+        "Overflow",
+        "ArithmeticOptions",
+        "Fields",
+
+        // Options variants
+        "addWithOptions",
+        "subtractWithOptions",
     };
 
     try assertDecls(PlainDateTime, checks);
@@ -475,6 +509,11 @@ test PlainMonthDay {
         "CalendarDisplay",
         "ToStringOptions",
         "WithOptions",
+        "Overflow",
+        "Fields",
+
+        // Options variants
+        "toStringWithOptions",
     };
 
     try assertDecls(PlainMonthDay, checks);
@@ -516,6 +555,12 @@ test PlainTime {
         "DifferenceSettings",
         "RoundOptions",
         "WithOptions",
+        "Overflow",
+        "ToStringOptions",
+        "Fields",
+
+        // Options variants
+        "toStringWithOptions",
     };
 
     try assertDecls(PlainTime, checks);
@@ -564,6 +609,14 @@ test PlainYearMonth {
         "RoundOptions",
         "ToStringOptions",
         "WithOptions",
+        "Overflow",
+        "ArithmeticOptions",
+        "Fields",
+
+        // Options variants
+        "addWithOptions",
+        "subtractWithOptions",
+        "toStringWithOptions",
     };
 
     try assertDecls(PlainYearMonth, checks);
@@ -647,6 +700,13 @@ test ZonedDateTime {
         "DisplayTimeZone",
         "ToStringOptions",
         "WithOptions",
+        "Overflow",
+        "ArithmeticOptions",
+        "Fields",
+
+        // Options variants
+        "addWithOptions",
+        "subtractWithOptions",
     };
 
     try assertDecls(ZonedDateTime, checks);
@@ -678,7 +738,7 @@ test TimeZone {
 }
 
 fn assertDecls(comptime T: type, checks: anytype) !void {
-    @setEvalBranchQuota(5000); // Increase branch quota for large check lists
+    @setEvalBranchQuota(20000); // Increase branch quota for large check lists
     const typeInfo = @typeInfo(T);
 
     // Check: all items in checks exist (either as decls or as fields)

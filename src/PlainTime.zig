@@ -19,6 +19,10 @@ pub const RoundingMode = t.RoundingMode;
 pub const DifferenceSettings = t.DifferenceSettings;
 pub const RoundOptions = t.RoundingOptions;
 
+pub const Overflow = t.Overflow;
+/// Options for `toStringWithOptions()` (`fractional_second_digits`, `smallest_unit`, `rounding_mode`).
+pub const ToStringOptions = t.ToStringRoundingOptions;
+
 pub const WithOptions = struct {
     hour: ?u8 = null,
     minute: ?u8 = null,
@@ -26,7 +30,14 @@ pub const WithOptions = struct {
     millisecond: ?u16 = null,
     microsecond: ?u16 = null,
     nanosecond: ?u16 = null,
+    /// How out-of-range values are handled. Defaults to `constrain`.
+    overflow: ?Overflow = null,
 };
+
+/// Fields accepted by `from()` (the spec's property-bag form).
+///
+/// See: [Temporal.PlainTime.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/from)
+pub const Fields = WithOptions;
 
 // Helper to wrap PlainTime pointer
 fn wrapPlainTime(result: anytype) !PlainTime {
@@ -45,7 +56,7 @@ pub fn init(
     microsecond_val: u16,
     nanosecond_val: u16,
 ) !PlainTime {
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_try_new(
+    return wrapPlainTime(abi.c.temporal_PlainTime_try_new(
         hour_val,
         minute_val,
         second_val,
@@ -55,21 +66,37 @@ pub fn init(
     ));
 }
 
-/// Parses a PlainTime from a string.
+/// Creates a PlainTime from another PlainTime, a string (UTF-8 or UTF-16),
+/// or a set of fields (`Fields` or an anonymous struct literal with the same field names).
 ///
 /// See: [Temporal.PlainTime.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/from)
-pub fn from(s: []const u8) !PlainTime {
-    return fromUtf8(s);
+pub fn from(info: anytype) !PlainTime {
+    const T = @TypeOf(info);
+    if (T == PlainTime) return .{ ._inner = abi.c.temporal_PlainTime_clone(info._inner) orelse return abi.TemporalError.Generic };
+
+    switch (@typeInfo(T)) {
+        .pointer => |ptr| {
+            const Child = switch (@typeInfo(ptr.child)) {
+                .array => |arr| arr.child,
+                else => ptr.child,
+            };
+            if (Child == u8) return fromUtf8(info);
+            if (Child == u16) return fromUtf16(info);
+            @compileError("from() expects a PlainTime, string, or fields struct");
+        },
+        .@"struct" => return wrapPlainTime(abi.c.temporal_PlainTime_from_partial(abi.toPartialTime(info), abi.overflowField(info))),
+        else => @compileError("from() expects a PlainTime, string, or fields struct"),
+    }
 }
 
 fn fromUtf8(utf8: []const u8) !PlainTime {
     const view = abi.toDiplomatStringView(utf8);
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_from_utf8(view));
+    return wrapPlainTime(abi.c.temporal_PlainTime_from_utf8(view));
 }
 
 fn fromUtf16(utf16: []const u16) !PlainTime {
     const view = abi.toDiplomatString16View(utf16);
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_from_utf16(view));
+    return wrapPlainTime(abi.c.temporal_PlainTime_from_utf16(view));
 }
 
 /// Compares two PlainTime instances by their time values.
@@ -77,28 +104,28 @@ fn fromUtf16(utf16: []const u16) !PlainTime {
 ///
 /// See: [Temporal.PlainTime.compare](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/compare)
 pub fn compare(a: PlainTime, b: PlainTime) i8 {
-    return abi.c.temporal_rs_PlainTime_compare(a._inner, b._inner);
+    return abi.c.temporal_PlainTime_compare(a._inner, b._inner);
 }
 
 /// Returns true if this PlainTime is equal to another (same time values).
 ///
 /// See: [Temporal.PlainTime.equals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/equals)
 pub fn equals(self: PlainTime, other: PlainTime) bool {
-    return abi.c.temporal_rs_PlainTime_equals(self._inner, other._inner);
+    return abi.c.temporal_PlainTime_equals(self._inner, other._inner);
 }
 
 /// Returns a new PlainTime moved forward by the given duration, wrapping around the clock if necessary.
 ///
 /// See: [Temporal.PlainTime.add](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/add)
 pub fn add(self: PlainTime, duration: Duration) !PlainTime {
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_add(self._inner, duration._inner));
+    return wrapPlainTime(abi.c.temporal_PlainTime_add(self._inner, duration._inner));
 }
 
 /// Returns a new PlainTime moved backward by the given duration, wrapping around the clock if necessary.
 ///
 /// See: [Temporal.PlainTime.subtract](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/subtract)
 pub fn subtract(self: PlainTime, duration: Duration) !PlainTime {
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_subtract(self._inner, duration._inner));
+    return wrapPlainTime(abi.c.temporal_PlainTime_subtract(self._inner, duration._inner));
 }
 
 /// Returns the duration from this PlainTime to another.
@@ -106,7 +133,7 @@ pub fn subtract(self: PlainTime, duration: Duration) !PlainTime {
 /// See: [Temporal.PlainTime.until](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/until)
 pub fn until(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
     const settings = abi.to.diffsettings(options);
-    const result = abi.c.temporal_rs_PlainTime_until(self._inner, other._inner, settings);
+    const result = abi.c.temporal_PlainTime_until(self._inner, other._inner, settings);
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
@@ -116,7 +143,7 @@ pub fn until(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Du
 /// See: [Temporal.PlainTime.since](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/since)
 pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Duration {
     const settings = abi.to.diffsettings(options);
-    const result = abi.c.temporal_rs_PlainTime_since(self._inner, other._inner, settings);
+    const result = abi.c.temporal_PlainTime_since(self._inner, other._inner, settings);
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
@@ -126,7 +153,7 @@ pub fn since(self: PlainTime, other: PlainTime, options: DifferenceSettings) !Du
 ///
 /// See: [Temporal.PlainTime.round](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/round)
 pub fn round(self: PlainTime, options: RoundOptions) !PlainTime {
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_round(self._inner, abi.to.roundingOpts(options)));
+    return wrapPlainTime(abi.c.temporal_PlainTime_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 // Property accessors
@@ -134,42 +161,42 @@ pub fn round(self: PlainTime, options: RoundOptions) !PlainTime {
 ///
 /// See: [Temporal.PlainTime.hour](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/hour)
 pub fn hour(self: PlainTime) u8 {
-    return abi.c.temporal_rs_PlainTime_hour(self._inner);
+    return abi.c.temporal_PlainTime_hour(self._inner);
 }
 
 /// Returns the minute component of this time (0-59).
 ///
 /// See: [Temporal.PlainTime.minute](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/minute)
 pub fn minute(self: PlainTime) u8 {
-    return abi.c.temporal_rs_PlainTime_minute(self._inner);
+    return abi.c.temporal_PlainTime_minute(self._inner);
 }
 
 /// Returns the second component of this time (0-59).
 ///
 /// See: [Temporal.PlainTime.second](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/second)
 pub fn second(self: PlainTime) u8 {
-    return abi.c.temporal_rs_PlainTime_second(self._inner);
+    return abi.c.temporal_PlainTime_second(self._inner);
 }
 
 /// Returns the millisecond component of this time (0-999).
 ///
 /// See: [Temporal.PlainTime.millisecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/millisecond)
 pub fn millisecond(self: PlainTime) u16 {
-    return abi.c.temporal_rs_PlainTime_millisecond(self._inner);
+    return abi.c.temporal_PlainTime_millisecond(self._inner);
 }
 
 /// Returns the microsecond component of this time (0-999).
 ///
 /// See: [Temporal.PlainTime.microsecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/microsecond)
 pub fn microsecond(self: PlainTime) u16 {
-    return abi.c.temporal_rs_PlainTime_microsecond(self._inner);
+    return abi.c.temporal_PlainTime_microsecond(self._inner);
 }
 
 /// Returns the nanosecond component of this time (0-999).
 ///
 /// See: [Temporal.PlainTime.nanosecond](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/nanosecond)
 pub fn nanosecond(self: PlainTime) u16 {
-    return abi.c.temporal_rs_PlainTime_nanosecond(self._inner);
+    return abi.c.temporal_PlainTime_nanosecond(self._inner);
 }
 
 // Modification
@@ -177,19 +204,11 @@ pub fn nanosecond(self: PlainTime) u16 {
 ///
 /// See: [Temporal.PlainTime.with](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/with)
 pub fn with(self: PlainTime, options: WithOptions) !PlainTime {
-    const partial = abi.c.PartialTime{
-        .hour = abi.toOption(abi.c.OptionU8, options.hour),
-        .minute = abi.toOption(abi.c.OptionU8, options.minute),
-        .second = abi.toOption(abi.c.OptionU8, options.second),
-        .millisecond = abi.toOption(abi.c.OptionU16, options.millisecond),
-        .microsecond = abi.toOption(abi.c.OptionU16, options.microsecond),
-        .nanosecond = abi.toOption(abi.c.OptionU16, options.nanosecond),
-    };
-    const overflow_opt = abi.c.ArithmeticOverflow_option{
-        .is_ok = true,
-        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
-    };
-    return wrapPlainTime(abi.c.temporal_rs_PlainTime_with(self._inner, partial, overflow_opt));
+    return wrapPlainTime(abi.c.temporal_PlainTime_with(
+        self._inner,
+        abi.toPartialTime(options),
+        abi.toOverflowOption(options.overflow orelse .constrain),
+    ));
 }
 
 // String conversions
@@ -200,12 +219,15 @@ pub fn toString(self: PlainTime, allocator: std.mem.Allocator) ![]u8 {
     return toStringWithOptions(self, allocator, .{});
 }
 
-fn toStringWithOptions(self: PlainTime, allocator: std.mem.Allocator, options: t.ToStringRoundingOptions) ![]u8 {
+/// Returns a string representing this PlainTime, with precision and rounding options.
+///
+/// See: [Temporal.PlainTime.toString](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/toString#options)
+pub fn toStringWithOptions(self: PlainTime, allocator: std.mem.Allocator, options: ToStringOptions) ![]u8 {
     const rounding_opts = abi.to.strRoundingOpts(options);
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const result = abi.c.temporal_rs_PlainTime_to_ixdtf_string(
+    const result = abi.c.temporal_PlainTime_to_ixdtf_string(
         self._inner,
         rounding_opts,
         &write.inner,
@@ -241,13 +263,13 @@ pub fn valueOf(self: PlainTime) !void {
 }
 
 fn clone(self: PlainTime) PlainTime {
-    const ptr = abi.c.temporal_rs_PlainTime_clone(self._inner) orelse unreachable;
+    const ptr = abi.c.temporal_PlainTime_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Frees resources associated with this PlainTime.
 pub fn deinit(self: PlainTime) void {
-    abi.c.temporal_rs_PlainTime_destroy(self._inner);
+    abi.c.temporal_PlainTime_destroy(self._inner);
 }
 
 test init {
@@ -479,4 +501,81 @@ test valueOf {
 test deinit {
     const time = try init(14, 30, 45, 123, 456, 789);
     time.deinit();
+}
+
+test "from fields" {
+    const tm = try PlainTime.from(.{ .hour = 12, .minute = 34 });
+    defer tm.deinit();
+    try std.testing.expectEqual(@as(u8, 12), tm.hour());
+    try std.testing.expectEqual(@as(u8, 34), tm.minute());
+    try std.testing.expectEqual(@as(u8, 0), tm.second());
+
+    // Out-of-range hour: clamped by default, rejected with `.reject`.
+    const constrained = try PlainTime.from(Fields{ .hour = 25 });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 23), constrained.hour());
+    try std.testing.expectError(error.RangeError, PlainTime.from(.{ .hour = 25, .overflow = .reject }));
+
+    // Copy of an existing PlainTime.
+    const copy = try PlainTime.from(tm);
+    defer copy.deinit();
+    try std.testing.expect(copy.equals(tm));
+}
+
+test "with overflow" {
+    const tm = try PlainTime.init(10, 0, 0, 0, 0, 0);
+    defer tm.deinit();
+
+    const constrained = try tm.with(.{ .minute = 75 });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 59), constrained.minute());
+
+    try std.testing.expectError(error.RangeError, tm.with(.{ .minute = 75, .overflow = .reject }));
+}
+
+test toStringWithOptions {
+    const gpa = std.testing.allocator;
+    const tm = try PlainTime.from("12:34:56.789");
+    defer tm.deinit();
+
+    const two_digits = try tm.toStringWithOptions(gpa, .{ .fractional_second_digits = 2 });
+    defer gpa.free(two_digits);
+    try std.testing.expectEqualStrings("12:34:56.78", two_digits);
+
+    const minutes = try tm.toStringWithOptions(gpa, .{ .smallest_unit = .minute });
+    defer gpa.free(minutes);
+    try std.testing.expectEqualStrings("12:34", minutes);
+
+    const rounded = try tm.toStringWithOptions(gpa, .{ .smallest_unit = .second, .rounding_mode = .half_expand });
+    defer gpa.free(rounded);
+    try std.testing.expectEqualStrings("12:34:57", rounded);
+}
+
+test "round modes" {
+    const gpa = std.testing.allocator;
+    const tm = try PlainTime.from("10:30:00");
+    defer tm.deinit();
+
+    const cases = .{
+        .{ RoundingMode.ceil, "11:00:00" },
+        .{ RoundingMode.floor, "10:00:00" },
+        .{ RoundingMode.expand, "11:00:00" },
+        .{ RoundingMode.trunc, "10:00:00" },
+        .{ RoundingMode.half_ceil, "11:00:00" },
+        .{ RoundingMode.half_floor, "10:00:00" },
+        .{ RoundingMode.half_expand, "11:00:00" },
+        .{ RoundingMode.half_trunc, "10:00:00" },
+        .{ RoundingMode.half_even, "10:00:00" },
+    };
+    inline for (cases) |case| {
+        const r = try tm.round(.{ .smallest_unit = .hour, .rounding_mode = case[0] });
+        defer r.deinit();
+        const s = try r.toString(gpa);
+        defer gpa.free(s);
+        try std.testing.expectEqualStrings(case[1], s);
+    }
+}
+
+test "from invalid string" {
+    try std.testing.expectError(error.RangeError, PlainTime.from("25:00"));
 }

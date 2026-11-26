@@ -287,8 +287,8 @@ pub fn run(allocator: std.mem.Allocator, io_optional: ?std.Io) !void {
     });
 
     // Instant: add, subtract, round, equals, valueOf
-    const inst_add = try inst1.add(@constCast(&dur));
-    const inst_sub = try inst2.subtract(@constCast(&dur));
+    const inst_add = try inst1.add(dur);
+    const inst_sub = try inst2.subtract(dur);
     const inst_rounded = try inst1.round(.{ .smallest_unit = Temporal.Instant.Unit.second });
     const inst_eq = Temporal.Instant.compare(inst1, inst1) == 0;
     std.log.info(

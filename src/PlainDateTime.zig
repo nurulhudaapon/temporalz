@@ -88,33 +88,43 @@ pub const WithOptions = struct {
     microsecond: ?u16 = null,
     /// Nanosecond value to override.
     nanosecond: ?u16 = null,
-};
-
-const FromOptions = struct {
+    /// Calendar-specific month code to override.
+    month_code: ?[]const u8 = null,
+    /// Era value to override.
+    era: ?[]const u8 = null,
+    /// Era year value to override.
+    era_year: ?i32 = null,
+    /// How out-of-range values are handled. Defaults to `constrain`.
     overflow: ?Overflow = null,
 };
 
-const Overflow = enum {
-    constrain,
-    reject,
+/// Options for `from()`.
+pub const FromOptions = struct {
+    /// How out-of-range values are handled. Defaults to `constrain`.
+    overflow: ?Overflow = null,
 };
 
-const PartialDateTime = struct {
-    // Date fields (recognized by PlainDate.from)
-    calendar: ?[]const u8 = null,
-    era: ?[]const u8 = null,
-    eraYear: ?u32 = null,
+pub const Overflow = t.Overflow;
+pub const ArithmeticOptions = t.ArithmeticOptions;
+
+/// Fields accepted by `from()` (the spec's property-bag form).
+///
+/// See: [Temporal.PlainDateTime.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime/from)
+pub const Fields = struct {
     year: ?i32 = null,
     month: ?u8 = null,
-    monthCode: ?[]const u8 = null,
+    month_code: ?[]const u8 = null,
     day: ?u8 = null,
-    // Time fields (recognized by PlainTime.from)
+    era: ?[]const u8 = null,
+    era_year: ?i32 = null,
     hour: ?u8 = null,
     minute: ?u8 = null,
     second: ?u8 = null,
     millisecond: ?u16 = null,
     microsecond: ?u16 = null,
     nanosecond: ?u16 = null,
+    /// Calendar identifier (e.g. "iso8601", "gregory"). Defaults to ISO 8601.
+    calendar: ?[]const u8 = null,
 };
 
 /// Creates a new PlainDateTime with all date and time components.
@@ -129,7 +139,7 @@ pub fn init(
     microsecond_val: u16,
     nanosecond_val: u16,
 ) !PlainDateTime {
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_try_new(
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_try_new(
         year_val,
         month_val,
         day_val,
@@ -158,9 +168,9 @@ pub fn calInit(
     calendar: []const u8,
 ) !PlainDateTime {
     const cal_view = abi.toDiplomatStringView(calendar);
-    const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
+    const cal_result = abi.c.temporal_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = try abi.extractResult(cal_result);
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_try_new(
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_try_new(
         year_val,
         month_val,
         day_val,
@@ -178,7 +188,7 @@ const FromInit = union(enum) { plain_date: PlainDate, plain_date_time: PlainDate
 
 /// Creates a PlainDateTime from epoch milliseconds in the given time zone.
 pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: t.TimeZone) !PlainDateTime {
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_from_epoch_milliseconds(
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_from_epoch_milliseconds(
         epoch_ms,
         abi.to.toTimeZone(time_zone),
     ));
@@ -186,24 +196,25 @@ pub fn fromEpochMilliseconds(epoch_ms: i64, time_zone: t.TimeZone) !PlainDateTim
 
 /// Creates a PlainDateTime from epoch nanoseconds in the given time zone.
 pub fn fromEpochNanoseconds(epoch_ns: i128, time_zone: t.TimeZone) !PlainDateTime {
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_from_epoch_nanoseconds(
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_from_epoch_nanoseconds(
         abi.toI128Nanoseconds(epoch_ns),
         abi.to.toTimeZone(time_zone),
     ));
 }
 
-/// Creates a PlainDateTime from another PlainDateTime, PlainDate, PlainTime, or from a string (ISO 8601) or UTF-16 array.
+/// Creates a PlainDateTime from another PlainDateTime, a PlainDate (at midnight),
+/// a string (ISO 8601, UTF-8 or UTF-16), or a set of fields (`Fields` or an anonymous
+/// struct literal with the same field names).
+///
+/// See: [Temporal.PlainDateTime.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime/from)
 pub fn from(info: anytype, opts: FromOptions) !PlainDateTime {
     const T = @TypeOf(info);
+    const overflow = abi.toOverflowOption(opts.overflow);
 
-    const overflow = if (opts.overflow) |f| abi.to.toArithmeticOverflow(f) else null;
     if (T == PlainDateTime) return info.clone();
-    if (T == PlainTime) return abi.c.temporal_rs_PlainDateTime_from_partial(.{ .time = info._inner }, abi.toArithmeticOverflowOption(overflow));
-    if (T == PlainDate) return abi.c.temporal_rs_PlainDateTime_from_partial(.{ .date = info._inner }, abi.toArithmeticOverflowOption(overflow));
+    if (T == PlainDate) return info.toPlainDateTime(null);
 
-    // Handle string types (both literals and slices)
-    const type_info = @typeInfo(T);
-    switch (type_info) {
+    switch (@typeInfo(T)) {
         .pointer => |ptr_info| {
             const ChildType = switch (@typeInfo(ptr_info.child)) {
                 .array => |arr| arr.child,
@@ -212,144 +223,156 @@ pub fn from(info: anytype, opts: FromOptions) !PlainDateTime {
 
             if (ChildType == u8) return fromUtf8(info);
             if (ChildType == u16) return fromUtf16(info);
-            return abi.TemporalError.Generic;
+            @compileError("from() expects a PlainDateTime, PlainDate, string, or fields struct");
         },
-        else => return abi.TemporalError.Generic,
+        .@"struct" => {
+            const partial = abi.c.PartialDateTime{
+                .date = try abi.toPartialDate(info),
+                .time = abi.toPartialTime(info),
+            };
+            return wrapPlainDateTime(abi.c.temporal_PlainDateTime_from_partial(partial, overflow));
+        },
+        else => @compileError("from() expects a PlainDateTime, PlainDate, string, or fields struct"),
     }
 }
 
 fn fromUtf8(utf8: []const u8) !PlainDateTime {
     const view = abi.toDiplomatStringView(utf8);
-    const parsed = abi.c.temporal_rs_ParsedDateTime_from_utf8(view);
+    const parsed = abi.c.temporal_ParsedDateTime_from_utf8(view);
     const ptr = try abi.extractResult(parsed);
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_from_parsed(ptr));
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_from_parsed(ptr));
 }
 
 fn fromUtf16(utf16: []const u16) !PlainDateTime {
     const view = abi.toDiplomatString16View(utf16);
-    const parsed = abi.c.temporal_rs_ParsedDateTime_from_utf16(view);
+    const parsed = abi.c.temporal_ParsedDateTime_from_utf16(view);
     const ptr = try abi.extractResult(parsed);
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_from_parsed(ptr));
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_from_parsed(ptr));
 }
 
 /// Compares two PlainDateTime objects. Returns -1, 0, or 1.
 pub fn compare(a: PlainDateTime, b: PlainDateTime) i8 {
-    return abi.c.temporal_rs_PlainDateTime_compare(a._inner, b._inner);
+    return abi.c.temporal_PlainDateTime_compare(a._inner, b._inner);
 }
 
 /// Returns true if two PlainDateTime objects represent the same date and time.
 pub fn equals(self: PlainDateTime, other: PlainDateTime) bool {
-    return abi.c.temporal_rs_PlainDateTime_equals(self._inner, other._inner);
+    return abi.c.temporal_PlainDateTime_equals(self._inner, other._inner);
 }
 
 /// Returns a new PlainDateTime by adding a Duration to this date-time.
 pub fn add(self: PlainDateTime, duration: Duration) !PlainDateTime {
-    const overflow_opt = abi.c.ArithmeticOverflow_option{
-        .is_ok = true,
-        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
-    };
+    return self.addWithOptions(duration, .{});
+}
 
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_add(self._inner, duration._inner, overflow_opt));
+/// Returns a new PlainDateTime by adding a Duration, with options.
+///
+/// See: [Temporal.PlainDateTime.add](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime/add)
+pub fn addWithOptions(self: PlainDateTime, duration: Duration, options: ArithmeticOptions) !PlainDateTime {
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_add(self._inner, duration._inner, abi.toOverflowOption(options.overflow orelse .constrain)));
 }
 
 /// Returns a new PlainDateTime by subtracting a Duration from this date-time.
 pub fn subtract(self: PlainDateTime, duration: Duration) !PlainDateTime {
-    const overflow_opt = abi.c.ArithmeticOverflow_option{
-        .is_ok = true,
-        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
-    };
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_subtract(self._inner, duration._inner, overflow_opt));
+    return self.subtractWithOptions(duration, .{});
+}
+
+/// Returns a new PlainDateTime by subtracting a Duration, with options.
+///
+/// See: [Temporal.PlainDateTime.subtract](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime/subtract)
+pub fn subtractWithOptions(self: PlainDateTime, duration: Duration, options: ArithmeticOptions) !PlainDateTime {
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_subtract(self._inner, duration._inner, abi.toOverflowOption(options.overflow orelse .constrain)));
 }
 
 /// Returns the Duration until another PlainDateTime, according to the given settings.
 pub fn until(self: PlainDateTime, other: PlainDateTime, options: DifferenceSettings) !Duration {
-    const result = abi.c.temporal_rs_PlainDateTime_until(self._inner, other._inner, abi.to.diffsettings(options));
+    const result = abi.c.temporal_PlainDateTime_until(self._inner, other._inner, abi.to.diffsettings(options));
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Returns the Duration since another PlainDateTime, according to the given settings.
 pub fn since(self: PlainDateTime, other: PlainDateTime, options: DifferenceSettings) !Duration {
-    const result = abi.c.temporal_rs_PlainDateTime_since(self._inner, other._inner, abi.to.diffsettings(options));
+    const result = abi.c.temporal_PlainDateTime_since(self._inner, other._inner, abi.to.diffsettings(options));
     const ptr = (try abi.extractResult(result)) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Returns a new PlainDateTime rounded according to the given options.
 pub fn round(self: PlainDateTime, options: RoundOptions) !PlainDateTime {
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_round(self._inner, abi.to.roundingOpts(options)));
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 /// Returns the calendar identifier for this date-time.
 pub fn calendarId(self: PlainDateTime, allocator: std.mem.Allocator) ![]u8 {
-    const calendar_ptr = abi.c.temporal_rs_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
-    const cal_id_view = abi.c.temporal_rs_Calendar_identifier(calendar_ptr);
+    const calendar_ptr = abi.c.temporal_PlainDateTime_calendar(self._inner) orelse return error.TemporalError;
+    const cal_id_view = abi.c.temporal_Calendar_identifier(calendar_ptr);
     return try allocator.dupe(u8, cal_id_view.data[0..cal_id_view.len]);
 }
 
 /// Returns the day of the month (1-31).
 pub fn day(self: PlainDateTime) u8 {
-    return abi.c.temporal_rs_PlainDateTime_day(self._inner);
+    return abi.c.temporal_PlainDateTime_day(self._inner);
 }
 
 /// Returns the day of the week (1 = Monday, 7 = Sunday).
 pub fn dayOfWeek(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_day_of_week(self._inner);
+    return abi.c.temporal_PlainDateTime_day_of_week(self._inner);
 }
 
 /// Returns the day of the year (1-366).
 pub fn dayOfYear(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_day_of_year(self._inner);
+    return abi.c.temporal_PlainDateTime_day_of_year(self._inner);
 }
 
 /// Returns the number of days in the month for this date-time.
 pub fn daysInMonth(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_days_in_month(self._inner);
+    return abi.c.temporal_PlainDateTime_days_in_month(self._inner);
 }
 
 /// Returns the number of days in the week for this date-time.
 pub fn daysInWeek(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_days_in_week(self._inner);
+    return abi.c.temporal_PlainDateTime_days_in_week(self._inner);
 }
 
 /// Returns the number of days in the year for this date-time.
 pub fn daysInYear(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_days_in_year(self._inner);
+    return abi.c.temporal_PlainDateTime_days_in_year(self._inner);
 }
 
 /// Returns the month (1-12).
 pub fn month(self: PlainDateTime) u8 {
-    return abi.c.temporal_rs_PlainDateTime_month(self._inner);
+    return abi.c.temporal_PlainDateTime_month(self._inner);
 }
 
 /// Returns the month code (e.g., "M03").
 pub fn monthCode(self: PlainDateTime, allocator: std.mem.Allocator) ![]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
-    abi.c.temporal_rs_PlainDateTime_month_code(self._inner, &write.inner);
+    abi.c.temporal_PlainDateTime_month_code(self._inner, &write.inner);
     return try write.toOwnedSlice();
 }
 
 /// Returns the number of months in the year for this date-time.
 pub fn monthsInYear(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_months_in_year(self._inner);
+    return abi.c.temporal_PlainDateTime_months_in_year(self._inner);
 }
 
 /// Returns the year.
 pub fn year(self: PlainDateTime) i32 {
-    return abi.c.temporal_rs_PlainDateTime_year(self._inner);
+    return abi.c.temporal_PlainDateTime_year(self._inner);
 }
 
 /// Returns true if the year is a leap year.
 pub fn inLeapYear(self: PlainDateTime) bool {
-    return abi.c.temporal_rs_PlainDateTime_in_leap_year(self._inner);
+    return abi.c.temporal_PlainDateTime_in_leap_year(self._inner);
 }
 
 /// Returns the era for this date-time, if any.
 pub fn era(self: PlainDateTime, allocator: std.mem.Allocator) !?[]u8 {
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
-    abi.c.temporal_rs_PlainDateTime_era(self._inner, &write.inner);
+    abi.c.temporal_PlainDateTime_era(self._inner, &write.inner);
     const result = try write.toOwnedSlice();
     if (result.len == 0) {
         allocator.free(result);
@@ -360,89 +383,74 @@ pub fn era(self: PlainDateTime, allocator: std.mem.Allocator) !?[]u8 {
 
 /// Returns the era year for this date-time, if any.
 pub fn eraYear(self: PlainDateTime) !?i32 {
-    const result = abi.c.temporal_rs_PlainDateTime_era_year(self._inner);
+    const result = abi.c.temporal_PlainDateTime_era_year(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
 }
 
 /// Returns the week of the year for this date-time, if any.
 pub fn weekOfYear(self: PlainDateTime) !?u16 {
-    const result = abi.c.temporal_rs_PlainDateTime_week_of_year(self._inner);
+    const result = abi.c.temporal_PlainDateTime_week_of_year(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
 }
 
 /// Returns the year of the week for this date-time, if any.
 pub fn yearOfWeek(self: PlainDateTime) !?i32 {
-    const result = abi.c.temporal_rs_PlainDateTime_year_of_week(self._inner);
+    const result = abi.c.temporal_PlainDateTime_year_of_week(self._inner);
     if (!result.is_ok) return null;
     return result.unnamed_0.ok;
 }
 
 /// Returns the hour (0-23).
 pub fn hour(self: PlainDateTime) u8 {
-    return abi.c.temporal_rs_PlainDateTime_hour(self._inner);
+    return abi.c.temporal_PlainDateTime_hour(self._inner);
 }
 
 /// Returns the minute (0-59).
 pub fn minute(self: PlainDateTime) u8 {
-    return abi.c.temporal_rs_PlainDateTime_minute(self._inner);
+    return abi.c.temporal_PlainDateTime_minute(self._inner);
 }
 
 /// Returns the second (0-59).
 pub fn second(self: PlainDateTime) u8 {
-    return abi.c.temporal_rs_PlainDateTime_second(self._inner);
+    return abi.c.temporal_PlainDateTime_second(self._inner);
 }
 
 /// Returns the millisecond (0-999).
 pub fn millisecond(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_millisecond(self._inner);
+    return abi.c.temporal_PlainDateTime_millisecond(self._inner);
 }
 
 /// Returns the microsecond (0-999).
 pub fn microsecond(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_microsecond(self._inner);
+    return abi.c.temporal_PlainDateTime_microsecond(self._inner);
 }
 
 /// Returns the nanosecond (0-999).
 pub fn nanosecond(self: PlainDateTime) u16 {
-    return abi.c.temporal_rs_PlainDateTime_nanosecond(self._inner);
+    return abi.c.temporal_PlainDateTime_nanosecond(self._inner);
 }
 
 /// Returns a new PlainDateTime with some fields replaced.
 pub fn with(self: PlainDateTime, partial: WithOptions) !PlainDateTime {
     const partial_dt = abi.c.PartialDateTime{
-        .date = .{
-            .year = if (partial.year) |y| abi.toOption(abi.c.OptionI32, y) else .{ .is_ok = false },
-            .month = if (partial.month) |m| abi.toOption(abi.c.OptionU8, m) else .{ .is_ok = false },
-            .day = if (partial.day) |d| abi.toOption(abi.c.OptionU8, d) else .{ .is_ok = false },
-            .month_code = .{ .data = null, .len = 0 },
-            .era = .{ .data = null, .len = 0 },
-            .era_year = .{ .is_ok = false },
-            .calendar = abi.c.AnyCalendarKind_Iso,
-        },
-        .time = .{
-            .hour = if (partial.hour) |h| abi.toOption(abi.c.OptionU8, h) else .{ .is_ok = false },
-            .minute = if (partial.minute) |m| abi.toOption(abi.c.OptionU8, m) else .{ .is_ok = false },
-            .second = if (partial.second) |s| abi.toOption(abi.c.OptionU8, s) else .{ .is_ok = false },
-            .millisecond = if (partial.millisecond) |ms| abi.toOption(abi.c.OptionU16, ms) else .{ .is_ok = false },
-            .microsecond = if (partial.microsecond) |us| abi.toOption(abi.c.OptionU16, us) else .{ .is_ok = false },
-            .nanosecond = if (partial.nanosecond) |ns| abi.toOption(abi.c.OptionU16, ns) else .{ .is_ok = false },
-        },
+        .date = try abi.toPartialDate(partial),
+        .time = abi.toPartialTime(partial),
     };
-    const overflow = abi.c.ArithmeticOverflow_option{
-        .is_ok = true,
-        .unnamed_0 = .{ .ok = abi.c.ArithmeticOverflow_Constrain },
-    };
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_with(self._inner, partial_dt, overflow));
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_with(
+        self._inner,
+        partial_dt,
+        abi.toOverflowOption(partial.overflow orelse .constrain),
+    ));
 }
 
 /// Returns a new PlainDateTime with a different calendar.
 pub fn withCalendar(self: PlainDateTime, calendar: []const u8) !PlainDateTime {
     const cal_view = abi.toDiplomatStringView(calendar);
-    const cal_result = abi.c.temporal_rs_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
+    const cal_result = abi.c.temporal_AnyCalendarKind_parse_temporal_calendar_string(cal_view);
     const cal_kind = try abi.extractResult(cal_result);
-    const ptr = abi.c.temporal_rs_PlainDateTime_with_calendar(self._inner, cal_kind) orelse return abi.TemporalError.Generic;
+    const ptr = abi.c.temporal_PlainDateTime_with_calendar(self._inner, cal_kind) orelse return abi.TemporalError.Generic;
 
     return .{ ._inner = ptr };
 }
@@ -450,29 +458,29 @@ pub fn withCalendar(self: PlainDateTime, calendar: []const u8) !PlainDateTime {
 /// Returns a new PlainDateTime with the time fields replaced by the given PlainTime (or zeroed if null).
 pub fn withPlainTime(self: PlainDateTime, time: ?PlainTime) !PlainDateTime {
     const time_ptr = if (time) |tt| tt._inner else null;
-    return wrapPlainDateTime(abi.c.temporal_rs_PlainDateTime_with_time(self._inner, time_ptr));
+    return wrapPlainDateTime(abi.c.temporal_PlainDateTime_with_time(self._inner, time_ptr));
 }
 
 /// Returns a PlainDate representing the date part of this PlainDateTime.
 pub fn toPlainDate(self: PlainDateTime) !PlainDate {
-    const ptr = abi.c.temporal_rs_PlainDateTime_to_plain_date(self._inner) orelse return error.TemporalError;
+    const ptr = abi.c.temporal_PlainDateTime_to_plain_date(self._inner) orelse return error.TemporalError;
 
     return .{ ._inner = ptr };
 }
 
 /// Returns a PlainTime representing the time part of this PlainDateTime.
 pub fn toPlainTime(self: PlainDateTime) !PlainTime {
-    const ptr = abi.c.temporal_rs_PlainDateTime_to_plain_time(self._inner) orelse return error.TemporalError;
+    const ptr = abi.c.temporal_PlainDateTime_to_plain_time(self._inner) orelse return error.TemporalError;
     return .{ ._inner = ptr };
 }
 
 /// Returns a ZonedDateTime by combining this date-time with a time zone.
 pub fn toZonedDateTime(self: PlainDateTime, options: ToZonedDateTimeOptions) !ZonedDateTime {
     const tz_view = abi.toDiplomatStringView(options.timeZone);
-    const tz_result = abi.c.temporal_rs_TimeZone_try_from_str(tz_view);
+    const tz_result = abi.c.temporal_TimeZone_try_from_str(tz_view);
     const time_zone = try abi.extractResult(tz_result);
 
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_PlainDateTime_to_zoned_date_time(
+    const ptr = (try abi.extractResult(abi.c.temporal_PlainDateTime_to_zoned_date_time(
         self._inner,
         time_zone,
         abi.to.toDisambiguation(options.disambiguation),
@@ -495,7 +503,7 @@ pub fn toString(self: PlainDateTime, allocator: std.mem.Allocator, options: ToSt
         .critical => @intCast(abi.c.DisplayCalendar_Critical),
     } else @intCast(abi.c.DisplayCalendar_Auto);
 
-    const result = abi.c.temporal_rs_PlainDateTime_to_ixdtf_string(
+    const result = abi.c.temporal_PlainDateTime_to_ixdtf_string(
         self._inner,
         rounding_options,
         display_cal,
@@ -525,13 +533,13 @@ pub fn valueOf(self: PlainDateTime) !void {
 
 /// Returns a clone of this PlainDateTime.
 fn clone(self: PlainDateTime) PlainDateTime {
-    const ptr = abi.c.temporal_rs_PlainDateTime_clone(self._inner) orelse unreachable;
+    const ptr = abi.c.temporal_PlainDateTime_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
 /// Frees resources associated with this PlainDateTime.
 pub fn deinit(self: PlainDateTime) void {
-    abi.c.temporal_rs_PlainDateTime_destroy(self._inner);
+    abi.c.temporal_PlainDateTime_destroy(self._inner);
 }
 
 /// Internal: Wraps a result as a PlainDateTime.
@@ -865,4 +873,68 @@ test fromEpochNanoseconds {
     defer dt.deinit();
     try std.testing.expectEqual(@as(i32, 2024), dt.year());
     try std.testing.expectEqual(@as(u8, 0), dt.hour());
+}
+
+test "from fields" {
+    const dt = try PlainDateTime.from(.{ .year = 2024, .month = 3, .day = 15, .hour = 9, .minute = 30 }, .{});
+    defer dt.deinit();
+    try std.testing.expectEqual(@as(i32, 2024), dt.year());
+    try std.testing.expectEqual(@as(u8, 9), dt.hour());
+    try std.testing.expectEqual(@as(u8, 30), dt.minute());
+    try std.testing.expectEqual(@as(u8, 0), dt.second());
+
+    // Out-of-range values: clamped by default, rejected with `.reject`.
+    const constrained = try PlainDateTime.from(Fields{ .year = 2024, .month = 2, .day = 30, .hour = 24 }, .{});
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+    try std.testing.expectEqual(@as(u8, 23), constrained.hour());
+    try std.testing.expectError(error.RangeError, PlainDateTime.from(.{ .year = 2024, .month = 2, .day = 30 }, .{ .overflow = .reject }));
+
+    try std.testing.expectError(error.TypeError, PlainDateTime.from(.{ .hour = 9 }, .{}));
+}
+
+test "from PlainDate" {
+    const date = try PlainDate.init(2024, 3, 15);
+    defer date.deinit();
+    const dt = try PlainDateTime.from(date, .{});
+    defer dt.deinit();
+    try std.testing.expectEqual(@as(u8, 15), dt.day());
+    try std.testing.expectEqual(@as(u8, 0), dt.hour());
+}
+
+test "with overflow" {
+    const dt = try PlainDateTime.init(2024, 1, 31, 12, 0, 0, 0, 0, 0);
+    defer dt.deinit();
+
+    const constrained = try dt.with(.{ .month = 2 });
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+
+    try std.testing.expectError(error.RangeError, dt.with(.{ .month = 2, .overflow = .reject }));
+}
+
+test addWithOptions {
+    const dt = try PlainDateTime.init(2024, 1, 31, 12, 0, 0, 0, 0, 0);
+    defer dt.deinit();
+    const one_month = try Duration.from("P1M");
+    defer one_month.deinit();
+
+    const constrained = try dt.addWithOptions(one_month, .{});
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+
+    try std.testing.expectError(error.RangeError, dt.addWithOptions(one_month, .{ .overflow = .reject }));
+}
+
+test subtractWithOptions {
+    const dt = try PlainDateTime.init(2024, 3, 31, 12, 0, 0, 0, 0, 0);
+    defer dt.deinit();
+    const one_month = try Duration.from("P1M");
+    defer one_month.deinit();
+
+    const constrained = try dt.subtractWithOptions(one_month, .{});
+    defer constrained.deinit();
+    try std.testing.expectEqual(@as(u8, 29), constrained.day());
+
+    try std.testing.expectError(error.RangeError, dt.subtractWithOptions(one_month, .{ .overflow = .reject }));
 }

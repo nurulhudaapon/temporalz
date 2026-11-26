@@ -59,7 +59,7 @@ pub fn init(epoch_ns: i128) !Instant {
 ///
 /// See: [Temporal.Instant.fromEpochMilliseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/fromEpochMilliseconds)
 pub fn fromEpochMilliseconds(epoch_ms: i64) !Instant {
-    return wrapInstant(abi.c.temporal_rs_Instant_from_epoch_milliseconds(epoch_ms));
+    return wrapInstant(abi.c.temporal_Instant_from_epoch_milliseconds(epoch_ms));
 }
 
 /// Construct an Instant from epoch nanoseconds (Temporal.Instant.fromEpochNanoseconds).
@@ -68,7 +68,7 @@ pub fn fromEpochMilliseconds(epoch_ms: i64) !Instant {
 pub fn fromEpochNanoseconds(epoch_ns: i128) !Instant {
     const parts = abi.toI128Nanoseconds(epoch_ns);
 
-    return wrapInstant(abi.c.temporal_rs_Instant_try_new(parts));
+    return wrapInstant(abi.c.temporal_Instant_try_new(parts));
 }
 
 /// Parse an RFC 9557 string (Temporal.Instant.from) or from another Temporal.Instant.
@@ -99,34 +99,34 @@ pub fn from(info: anytype) !Instant {
 /// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
 inline fn fromUtf16(text: []const u16) !Instant {
     const view = abi.toDiplomatString16View(text);
-    return wrapInstant(abi.c.temporal_rs_Instant_from_utf16(view));
+    return wrapInstant(abi.c.temporal_Instant_from_utf16(view));
 }
 
 /// Parse an ISO 8601 UTF-16 string (Temporal.Instant.from).
 inline fn fromUtf8(text: []const u8) !Instant {
     const view = abi.toDiplomatStringView(text);
-    return wrapInstant(abi.c.temporal_rs_Instant_from_utf8(view));
+    return wrapInstant(abi.c.temporal_Instant_from_utf8(view));
 }
 
 /// Returns a new Instant representing this instant moved forward by a given Duration.
 ///
 /// See: [Temporal.Instant.add](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/add)
-pub fn add(self: Instant, duration: *Duration) !Instant {
-    return wrapInstant(abi.c.temporal_rs_Instant_add(self._inner, duration._inner));
+pub fn add(self: Instant, duration: Duration) !Instant {
+    return wrapInstant(abi.c.temporal_Instant_add(self._inner, duration._inner));
 }
 
 /// Returns a new Instant representing this instant moved backward by a given Duration.
 ///
 /// See: [Temporal.Instant.subtract](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/subtract)
-pub fn subtract(self: Instant, duration: *Duration) !Instant {
-    return wrapInstant(abi.c.temporal_rs_Instant_subtract(self._inner, duration._inner));
+pub fn subtract(self: Instant, duration: Duration) !Instant {
+    return wrapInstant(abi.c.temporal_Instant_subtract(self._inner, duration._inner));
 }
 
 /// Returns a Duration representing the difference from this instant until another instant.
 ///
 /// See: [Temporal.Instant.until](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/until)
 pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_until(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_Instant_until(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -134,7 +134,7 @@ pub fn until(self: Instant, other: Instant, settings: DifferenceSettings) !Durat
 ///
 /// See: [Temporal.Instant.since](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/since)
 pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !Duration {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_since(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_Instant_since(self._inner, other._inner, abi.to.diffsettings(settings)))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
@@ -142,21 +142,21 @@ pub fn since(self: Instant, other: Instant, settings: DifferenceSettings) !Durat
 ///
 /// See: [Temporal.Instant.round](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/round)
 pub fn round(self: Instant, options: RoundingOptions) !Instant {
-    return wrapInstant(abi.c.temporal_rs_Instant_round(self._inner, abi.to.roundingOpts(options)));
+    return wrapInstant(abi.c.temporal_Instant_round(self._inner, abi.to.roundingOpts(options)));
 }
 
 /// Compares two Instants, returning -1, 0, or 1 if the first is before, equal, or after the second.
 ///
 /// See: [Temporal.Instant.compare](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/compare)
 pub fn compare(a: Instant, b: Instant) i8 {
-    return abi.c.temporal_rs_Instant_compare(a._inner, b._inner);
+    return abi.c.temporal_Instant_compare(a._inner, b._inner);
 }
 
 /// Returns true if two Instants are equal (same epoch nanoseconds).
 ///
 /// See: [Temporal.Instant.equals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/equals)
 pub fn equals(a: Instant, b: Instant) bool {
-    return abi.c.temporal_rs_Instant_equals(a._inner, b._inner);
+    return abi.c.temporal_Instant_equals(a._inner, b._inner);
 }
 
 /// Returns a string representing this instant in the RFC 9557 format, optionally using a time zone.
@@ -169,7 +169,7 @@ pub fn toString(self: Instant, allocator: std.mem.Allocator, opts: ToStringOptio
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = abi.c.temporal_rs_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, &write.inner);
+    const res = abi.c.temporal_Instant_to_ixdtf_string_with_compiled_data(self._inner, zone_opt, rounding, &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
@@ -183,7 +183,7 @@ fn toStringWithProvider(self: Instant, allocator: std.mem.Allocator, provider: *
     var write = abi.DiplomatWrite.init(allocator);
     defer write.deinit();
 
-    const res = abi.c.temporal_rs_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, &write.inner);
+    const res = abi.c.temporal_Instant_to_ixdtf_string_with_provider(self._inner, zone_opt, rounding, provider, &write.inner);
     try handleVoidResult(res);
 
     return try write.toOwnedSlice();
@@ -207,19 +207,19 @@ pub fn toLocaleString(self: Instant, allocator: std.mem.Allocator) ![]u8 {
 ///
 /// See: [Temporal.Instant.toZonedDateTimeISO](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/toZonedDateTimeISO)
 pub fn toZonedDateTimeISO(self: Instant, zone: TimeZone) !ZonedDateTime {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_to_zoned_date_time_iso(self._inner, zone._inner))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_Instant_to_zoned_date_time_iso(self._inner, zone._inner))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Convert to ZonedDateTime using an explicit provider.
 fn toZonedDateTimeIsoWithProvider(self: Instant, zone: TimeZone, provider: *const abi.c.Provider) !ZonedDateTime {
-    const ptr = (try abi.extractResult(abi.c.temporal_rs_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone._inner, provider))) orelse return abi.TemporalError.Generic;
+    const ptr = (try abi.extractResult(abi.c.temporal_Instant_to_zoned_date_time_iso_with_provider(self._inner, zone._inner, provider))) orelse return abi.TemporalError.Generic;
     return .{ ._inner = ptr };
 }
 
 /// Clone the underlying instant.
 fn clone(self: Instant) Instant {
-    const ptr = abi.c.temporal_rs_Instant_clone(self._inner) orelse unreachable;
+    const ptr = abi.c.temporal_Instant_clone(self._inner) orelse unreachable;
     return .{ ._inner = ptr };
 }
 
@@ -227,14 +227,14 @@ fn clone(self: Instant) Instant {
 ///
 /// See: [Temporal.Instant.epochMilliseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/epochMilliseconds)
 pub fn epochMilliseconds(self: Instant) i64 {
-    return abi.c.temporal_rs_Instant_epoch_milliseconds(self._inner);
+    return abi.c.temporal_Instant_epoch_milliseconds(self._inner);
 }
 
 /// Returns the number of nanoseconds since the Unix epoch for this instant.
 ///
 /// See: [Temporal.Instant.epochNanoseconds](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/epochNanoseconds)
 pub fn epochNanoseconds(self: Instant) i128 {
-    return abi.fromI128Nanoseconds(abi.c.temporal_rs_Instant_epoch_nanoseconds(self._inner));
+    return abi.fromI128Nanoseconds(abi.c.temporal_Instant_epoch_nanoseconds(self._inner));
 }
 
 /// Throws an error; valueOf() is not supported for Instant.
@@ -247,7 +247,7 @@ pub fn valueOf(self: Instant) !void {
 
 /// Deinitialize the Instant, freeing underlying resources.
 pub fn deinit(self: Instant) void {
-    abi.c.temporal_rs_Instant_destroy(self._inner);
+    abi.c.temporal_Instant_destroy(self._inner);
 }
 
 fn wrapInstant(res: anytype) !Instant {
@@ -345,11 +345,11 @@ test subtract {
     var dur = try Duration.from("PT1H30M");
     defer dur.deinit();
 
-    const added = try base.add(&dur);
+    const added = try base.add(dur);
     defer added.deinit();
     try std.testing.expectEqual(@as(i64, 5_400_000), added.epochMilliseconds());
 
-    const subbed = try added.subtract(&dur);
+    const subbed = try added.subtract(dur);
     defer subbed.deinit();
     try std.testing.expectEqual(@as(i64, 0), subbed.epochMilliseconds());
 }
@@ -516,7 +516,7 @@ test add {
     var dur = try Duration.from("PT1H");
     defer dur.deinit();
 
-    const result = try inst.add(&dur);
+    const result = try inst.add(dur);
     defer result.deinit();
 
     try std.testing.expectEqual(@as(i64, 3_600_000), result.epochMilliseconds());
@@ -564,4 +564,30 @@ test valueOf {
     const inst = try Instant.fromEpochMilliseconds(0);
     defer inst.deinit();
     try std.testing.expectError(error.ValueError, inst.valueOf());
+}
+
+test "round modes" {
+    const gpa = std.testing.allocator;
+    // Exactly half-way between two minutes.
+    const inst = try Instant.from("2024-01-01T00:00:30Z");
+    defer inst.deinit();
+
+    const cases = .{
+        .{ RoundingMode.ceil, "2024-01-01T00:01:00Z" },
+        .{ RoundingMode.floor, "2024-01-01T00:00:00Z" },
+        .{ RoundingMode.expand, "2024-01-01T00:01:00Z" },
+        .{ RoundingMode.trunc, "2024-01-01T00:00:00Z" },
+        .{ RoundingMode.half_ceil, "2024-01-01T00:01:00Z" },
+        .{ RoundingMode.half_floor, "2024-01-01T00:00:00Z" },
+        .{ RoundingMode.half_expand, "2024-01-01T00:01:00Z" },
+        .{ RoundingMode.half_trunc, "2024-01-01T00:00:00Z" },
+        .{ RoundingMode.half_even, "2024-01-01T00:00:00Z" },
+    };
+    inline for (cases) |case| {
+        const r = try inst.round(.{ .smallest_unit = .minute, .rounding_mode = case[0] });
+        defer r.deinit();
+        const s = try r.toString(gpa, .{});
+        defer gpa.free(s);
+        try std.testing.expectEqualStrings(case[1], s);
+    }
 }
