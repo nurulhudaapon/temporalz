@@ -52,7 +52,12 @@ pub fn build(b: *std.Build) !void {
     mod.addImport("lib", translated_mod);
 
     // --- Rust Misc Deps --- //
-    if (target.result.os.tag == .windows) mod.linkSystemLibrary("userenv", .{});
+    if (target.result.os.tag == .windows) {
+        // Rust std: env (userenv), networking (ws2_32), WaitOnAddress & co (synchronization).
+        mod.linkSystemLibrary("userenv", .{});
+        mod.linkSystemLibrary("ws2_32", .{});
+        mod.linkSystemLibrary("synchronization", .{});
+    }
     const unwind_stubs = b.addLibrary(.{ .linkage = .static, .name = "unwind_stubs", .root_module = b.createModule(.{
         .root_source_file = b.path("src/stubs/unwind.zig"),
         .target = target,
