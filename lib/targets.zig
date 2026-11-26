@@ -26,7 +26,22 @@ pub fn prebuiltName(b: *std.Build, target: std.Build.ResolvedTarget) []const u8 
 
     if (abi == .none)
         return b.fmt("{s}-{s}", .{ arch, @tagName(os) });
-    return b.fmt("{s}-{s}-{s}", .{ arch, @tagName(os), @tagName(abi) });
+    return b.fmt("{s}-{s}-{s}", .{ arch, @tagName(os), abiName(target.result.cpu.arch, abi) });
+}
+
+/// Zig 0.18 folded the 32-bit ARM float ABIs into `.gnu`/`.gnusf`/`.musl`/`.muslsf`
+/// (e.g. `arm-linux-gnueabihf` now parses as `arm-linux-gnu`). Keep the old names
+/// so prebuilt dependency keys and release asset names stay stable.
+fn abiName(arch: std.Target.Cpu.Arch, abi: std.Target.Abi) []const u8 {
+    if (arch.isArm()) switch (abi) {
+        .gnu => return "gnueabihf",
+        .gnusf => return "gnueabi",
+        .musl => return "musleabihf",
+        .muslsf => return "musleabi",
+        .sf => return "eabi",
+        else => {},
+    };
+    return @tagName(abi);
 }
 
 pub fn isDeclared(target_triple: []const u8) bool {
@@ -53,5 +68,5 @@ fn targetTripleFromBuiltin() []const u8 {
     return if (abi == .none)
         std.fmt.comptimePrint("{s}-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) })
     else
-        std.fmt.comptimePrint("{s}-{s}-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag), @tagName(abi) });
+        std.fmt.comptimePrint("{s}-{s}-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag), comptime abiName(builtin.cpu.arch, abi) });
 }
