@@ -4,7 +4,7 @@ const targets = @import("targets.zig");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse true; // TODO: default back to false once prebuilts are rebuilt from temporal `main` (`temporal_` symbol prefix)
+    const force_build_rust = b.option(bool, "build-rust", "Always build Rust library from source") orelse false;
 
     const arch_str = @tagName(target.result.cpu.arch);
     const os_str = @tagName(target.result.os.tag);
@@ -89,7 +89,7 @@ pub fn build(b: *std.Build) !void {
         // std.log.info("using prebuilt libtemporal for {s}", .{prebuilt_name});
         selected_lib_file = prebuilt_dep.path(lib_name);
     } else {
-        std.log.info("building libtemporal from source for {s}, requires Rust toolchain", .{target_triple});
+        std.log.info("building libtemporal from source for {s}, requires rust toolchain", .{target_triple});
         const build_crab = @import("build_crab");
 
         var zig_target = target.result;

@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const is_freestanding = target.result.os.tag == .freestanding;
 
-    const build_rust = b.option(bool, "build-rust", "Build Rust library from source (default: true until prebuilts for temporal main are published)") orelse true;
+    const build_rust = b.option(bool, "build-rust", "Build Rust library from source instead of using prebuilts") orelse false;
 
     const temporalz = b.dependency("temporalz", .{
         .target = target,

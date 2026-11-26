@@ -1,5 +1,5 @@
 .{
-    .version = "0.2.4",
+    .version = "0.2.6",
     .targets = .{
         "x86_64-macos",
         "aarch64-macos",
